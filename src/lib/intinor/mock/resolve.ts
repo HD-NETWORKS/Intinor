@@ -29,10 +29,11 @@ import {
   mockSystemStatus,
   mockVideoMixer,
   mockVideoMixersList,
-  mockVideoMixerSettings,
   mockVideoMixerStatus,
 } from "./data";
 import { clamp, currentTick, jitteredValue, seededFraction } from "./jitter";
+import { currentMixerSettings, putMixerSettings } from "./state";
+import type { VideoMixerLayerSettings } from "../types";
 
 export interface MockResponse {
   status: number;
@@ -164,13 +165,13 @@ const GET_ROUTES: Record<string, () => unknown> = {
   video_mixers: () => mockVideoMixersList,
   "video_mixers/0": () => ({
     ...mockVideoMixer,
-    settings: mockVideoMixerSettings,
+    settings: currentMixerSettings(0),
     status: mockVideoMixerStatus,
     thumbnails: {
       thumbnails: [{ id: "program", href: "video_mixers/0/thumbnails/program" }],
     },
   }),
-  "video_mixers/0/settings": () => mockVideoMixerSettings,
+  "video_mixers/0/settings": () => currentMixerSettings(0),
   "video_mixers/0/status": () => mockVideoMixerStatus,
   "video_mixers/0/thumbnails": () => ({
     thumbnails: [{ id: "program", href: "video_mixers/0/thumbnails/program" }],
@@ -195,6 +196,56 @@ function computeEtag(body: unknown): string {
 // something even against mock data.
 // ---------------------------------------------------------------------------
 
+/** Colour + short label for a mixer layer source, by URI shape. */
+function sourceStyle(source: string): { fill: string; label: string } {
+  const ni = source.match(/network_inputs\/(\d+)/);
+  if (ni) return { fill: "#1d4ed8", label: `IN ${ni[1]}` };
+  const vi = source.match(/video_inputs\/(\d+)/);
+  if (vi) return { fill: "#0f766e", label: `VID ${vi[1]}` };
+  if (/test_picture/.test(source)) return { fill: "#475569", label: "TEST" };
+  const seg = source.split("/").filter(Boolean).pop() ?? "SRC";
+  return { fill: "#3f3f46", label: seg.slice(0, 8).toUpperCase() };
+}
+
+/**
+ * Render the mixer's *applied* program (from mock state) as a composited SVG,
+ * so applying a layout in the builder is reflected in the preview thumbnail.
+ * Layers paint back-to-front in array order, matching the unit's compositor.
+ */
+function buildMixerProgramSvg(
+  index: number,
+  width: number,
+  height: number,
+): MockResponse {
+  const settings = currentMixerSettings(index);
+  const layers: VideoMixerLayerSettings[] = settings.program?.layers ?? [];
+
+  const boxes = layers
+    .map((layer, i) => {
+      const { x, y, zoom } = layer.layout;
+      const bx = x * width;
+      const by = y * height;
+      const bw = zoom * width;
+      const bh = zoom * height;
+      const { fill, label } = sourceStyle(layer.input?.source ?? "");
+      const fontSize = Math.max(9, Math.min(bw, bh) / 5);
+      return `<g>
+    <rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" fill="${fill}" stroke="#0b0f17" stroke-width="2"/>
+    <text x="${(bx + bw / 2).toFixed(1)}" y="${(by + bh / 2 + fontSize / 3).toFixed(1)}" fill="#e2e8f0" font-family="monospace" font-size="${fontSize.toFixed(1)}" text-anchor="middle">${label}</text>
+    <text x="${(bx + 4).toFixed(1)}" y="${(by + 12).toFixed(1)}" fill="#94a3b8" font-family="monospace" font-size="9" text-anchor="start">L${i}</text>
+  </g>`;
+    })
+    .join("\n");
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+  <rect width="${width}" height="${height}" fill="#0b0f17"/>
+  ${boxes}
+  <rect x="1" y="1" width="${width - 2}" height="${height - 2}" fill="none" stroke="#1e293b" stroke-width="2"/>
+  <text x="6" y="${height - 6}" fill="#334155" font-family="monospace" font-size="9">MOCK PROGRAM · ${layers.length} layer${layers.length === 1 ? "" : "s"}</text>
+</svg>`;
+  return { status: 200, body: svg, contentType: "image/svg+xml" };
+}
+
 function buildThumbnailSvg(path: string, searchParams: URLSearchParams): MockResponse {
   const [resourceType, indexStr, , thumbId] = path.split("/");
   const width = Number(searchParams.get("width")) || 320;
@@ -202,6 +253,11 @@ function buildThumbnailSvg(path: string, searchParams: URLSearchParams): MockRes
   const ppm = searchParams.get("ppm") === "true" || searchParams.get("ppm") === "1";
   const tick = currentTick();
   const label = `${resourceType.replace(/_/g, " ")} #${indexStr}`;
+
+  // Mixer program thumbnails render the actual applied composition.
+  if (resourceType === "video_mixers" && thumbId === "program") {
+    return buildMixerProgramSvg(Number(indexStr), width, height);
+  }
 
   let ppmBars = "";
   if (ppm) {
@@ -260,8 +316,15 @@ export function resolveMock(
     };
   }
 
-  // Writes in mock mode: echo the settings back as the unit would.
+  // Writes in mock mode: persist mixer settings so the applied program shows
+  // up in later GETs and the program thumbnail; everything else echoes back.
   if (method === "PUT") {
+    const mixerSettings = path.match(/^video_mixers\/(\d+)\/settings$/);
+    if (mixerSettings) {
+      const index = Number(mixerSettings[1]);
+      putMixerSettings(index, requestBody);
+      return { status: 200, body: currentMixerSettings(index) };
+    }
     return { status: 200, body: requestBody ?? {} };
   }
   if (method === "POST") {

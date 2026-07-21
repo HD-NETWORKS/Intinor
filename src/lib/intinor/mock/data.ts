@@ -218,6 +218,26 @@ export const mockVideoMixerSettings: VideoMixerSettingsResponse = {
           y: { min: -1, max: 1 },
           zoom: { min: 0.05, max: 2 },
         },
+        // Sources this unit can feed into a mixer layer. Only network_inputs/0
+        // is a live feed today; test_picture is always available as a filler.
+        // The moment a second unit or an upgraded licence adds inputs, they
+        // show up here and the quad builder fills real slots with no code
+        // change (the UI reads this list, never a hardcoded set).
+        input: {
+          source: [
+            {
+              name: "Network input 1",
+              value: `${UNIT_BASE}/network_inputs/0`,
+              description: "Main ingest (SRT listener)",
+              multiprogram: true,
+            },
+            {
+              name: "Test picture",
+              value: `${UNIT_BASE}/test_picture`,
+              description: "Built-in test pattern",
+            },
+          ],
+        },
       },
     },
   },

@@ -70,6 +70,45 @@ The overview page (`/`) shows, entirely via `GET` requests:
 Everything polls independently every 5 seconds and nothing here can write to
 the unit — there is no settings UI yet.
 
+## Phase 3 — quad/collage mixer builder
+
+The video-mixer page (`/mixer`) is a visual layout builder for the mixer's
+`program.layers`:
+
+- A 16:9 canvas of drag-to-move / corner-to-resize boxes, each mapping to a
+  layer's `{ x, y, zoom }` (top-left position + size as a fraction of the
+  frame). A layer list gives precise numeric control, source assignment,
+  reordering (back↔front), add, and delete.
+- Presets: **2×2 Quad**, picture-in-picture, 1-big-3-small, side-by-side,
+  single — arbitrary `x/y/zoom` per layer, not just grids.
+- Named **layout profiles** (save / load / delete) so switching between e.g.
+  "Sunday service quad" and "single cam" is one click. These are a
+  dashboard-level concept stored in `localStorage` (the unit's own
+  `layout_profiles` array carries only unnamed positional data), keyed
+  per-unit + per-mixer.
+- A **live program preview** polled from the mixer's own thumbnail endpoint,
+  shown alongside the editing canvas so you can tell applied output from
+  unsaved edits.
+- An honest **slot-coverage banner**: with one live network input, a quad
+  shows "1 of 4 slots has a live source; 3 use the test picture" rather than
+  faking four feeds. The moment more inputs exist (a second unit or a licence
+  upgrade), they appear in the source picker and fill real slots — the UI
+  reads the unit's constraint list, never a hardcoded set.
+
+### Applying — the write path
+
+Applying a layout is the project's first write (`PUT
+/video_mixers/{i}/settings`), so it is gated:
+
+- **Mock mode** — applies to an in-memory mock store (`mock/state.ts`); the
+  mock program thumbnail re-renders the composited layout, so the whole
+  build→apply→see-it-in-preview loop works with zero risk to the unit.
+- **Live, read-only** (default against the real unit) — the Apply button is
+  disabled and the proxy would reject the `PUT` anyway.
+- **Live, writes enabled** (`INTINOR_ALLOW_WRITES=1`) — Apply requires a
+  type-to-confirm (`APPLY`) step, since it changes a live broadcast
+  composition.
+
 ## Getting started
 
 ```bash
