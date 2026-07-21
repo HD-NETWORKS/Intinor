@@ -14,6 +14,7 @@ export async function unitFetch(
     body?: string;
     contentType?: string;
     search?: string;
+    ifNoneMatch?: string;
   } = {},
 ): Promise<Response> {
   const { baseUrl } = getUnitConfig();
@@ -27,6 +28,7 @@ export async function unitFetch(
         Authorization: await getSessionAuthHeader(),
         "X-No-Basic-Auth": "1",
         ...(init.body ? { "Content-Type": init.contentType ?? "application/json" } : {}),
+        ...(init.ifNoneMatch ? { "If-None-Match": init.ifNoneMatch } : {}),
       },
       body: init.body,
       cache: "no-store",

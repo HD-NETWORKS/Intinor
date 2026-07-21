@@ -37,6 +37,9 @@ import type {
   VideoMixerStatus,
 } from "./intinor/types";
 
+/** Default proxy base for the single-unit setup. Shared with usePolledResource. */
+export const UNIT_PROXY_BASE = "/api/unit";
+
 export class IntinorApiError extends Error {
   constructor(
     public readonly status: number,
@@ -68,7 +71,7 @@ function query(params: Record<string, string | number | boolean | undefined>): s
   return s ? `?${s}` : "";
 }
 
-export function createIntinorClient(base: string = "/api/unit") {
+export function createIntinorClient(base: string = UNIT_PROXY_BASE) {
   async function request<T>(
     path: string,
     init?: { method?: string; body?: unknown },
@@ -164,6 +167,14 @@ export function createIntinorClient(base: string = "/api/unit") {
     ) => put<VideoMixerSettingsResponse>(`video_mixers/${index}/settings`, body),
     getVideoMixerStatus: (index: number) =>
       get<VideoMixerStatus>(`video_mixers/${index}/status`),
+    videoMixerThumbnailUrl: (index: number, id: string, opts: ThumbnailOptions = {}) =>
+      `${base}/video_mixers/${index}/thumbnails/${id}` +
+      query({
+        width: opts.width,
+        height: opts.height,
+        jpeg_quality: opts.jpegQuality,
+        ppm: opts.ppm,
+      }),
 
     // -- encoding modes / interfaces / profiles ----------------------------
     getEncodingModes: () => get<EncodingModesResponse>("encoding/encoding_modes"),

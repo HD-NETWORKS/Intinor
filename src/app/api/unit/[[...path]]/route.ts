@@ -8,6 +8,10 @@
  * Safety: src/lib/intinor/server/guard.ts blocks destructive endpoints
  * unconditionally and blocks all writes unless explicitly enabled.
  * With MOCK=1, requests are served from src/lib/intinor/mock/ instead.
+ *
+ * ETag / If-None-Match is forwarded both ways so client-side polling (see
+ * src/hooks/usePolledResource.ts) gets real 304s instead of re-downloading
+ * unchanged status JSON every interval.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -35,6 +39,7 @@ async function handle(req: NextRequest, ctx: RouteContext): Promise<Response> {
 
   const hasBody = method === "PUT" || method === "POST";
   const rawBody = hasBody ? await req.text() : undefined;
+  const ifNoneMatch = req.headers.get("if-none-match") ?? undefined;
 
   if (isMockMode()) {
     let parsedBody: unknown;
@@ -45,17 +50,20 @@ async function handle(req: NextRequest, ctx: RouteContext): Promise<Response> {
         parsedBody = rawBody;
       }
     }
-    const mock = resolveMock(method, unitPath, parsedBody);
-    if (mock.contentType) {
-      return new Response(mock.body as string, {
-        status: mock.status,
-        headers: { "Content-Type": mock.contentType, "X-Intinor-Mock": "1" },
-      });
+    const mock = resolveMock(method, unitPath, parsedBody, ifNoneMatch, req.nextUrl.searchParams);
+
+    const headers = new Headers({ "X-Intinor-Mock": "1" });
+    if (mock.etag) headers.set("ETag", mock.etag);
+
+    if (mock.status === 304) {
+      return new Response(null, { status: 304, headers });
     }
-    return NextResponse.json(mock.body as object, {
-      status: mock.status,
-      headers: { "X-Intinor-Mock": "1" },
-    });
+    if (mock.contentType) {
+      headers.set("Content-Type", mock.contentType);
+      return new Response(mock.body as string, { status: mock.status, headers });
+    }
+    headers.set("Content-Type", "application/json");
+    return new Response(JSON.stringify(mock.body), { status: mock.status, headers });
   }
 
   let upstream: Response;
@@ -65,6 +73,7 @@ async function handle(req: NextRequest, ctx: RouteContext): Promise<Response> {
       body: rawBody,
       contentType: req.headers.get("content-type") ?? undefined,
       search: req.nextUrl.search,
+      ifNoneMatch,
     });
   } catch (err) {
     return NextResponse.json(
@@ -83,6 +92,9 @@ async function handle(req: NextRequest, ctx: RouteContext): Promise<Response> {
   for (const name of ["content-type", "etag", "cache-control"]) {
     const value = upstream.headers.get(name);
     if (value) headers.set(name, value);
+  }
+  if (upstream.status === 304) {
+    return new Response(null, { status: 304, headers });
   }
   return new Response(upstream.body, { status: upstream.status, headers });
 }
