@@ -36,16 +36,39 @@ Browser ──> src/lib/intinor-client.ts (typed, per-resource-group functions)
   the identical ISS paths (`https://iss.intinor.se/api/v1/units/{id}/`);
   `createIntinorClient(base)` already takes the proxy base for that reason.
 
+- **Live polling with ETag/If-None-Match**: `src/hooks/usePolledResource.ts`
+  polls a unit-relative path every 5s and sends back the last `ETag` as
+  `If-None-Match`; unchanged status data comes back as a 304 (no re-render).
+  The proxy forwards this both ways, and mock mode computes a real ETag
+  (SHA-1 of the JSON body) so `MOCK=1` exercises the same conditional-GET
+  path as the live unit.
+
 ### Key files
 
 | Path | Purpose |
 | --- | --- |
 | `src/lib/intinor/types.ts` | TypeScript types derived from the swagger definitions |
 | `src/lib/intinor-client.ts` | Typed browser client (`getEncoders()`, `putEncoderSettings()`, …) |
-| `src/app/api/unit/[[...path]]/route.ts` | Proxy route (auth, guard, mock switch) |
+| `src/app/api/unit/[[...path]]/route.ts` | Proxy route (auth, guard, mock switch, ETag passthrough) |
 | `src/lib/intinor/server/` | Server-only: config, session minting, unit fetch, safety guard |
-| `src/lib/intinor/mock/` | Mock payloads + route resolver for `MOCK=1` |
+| `src/lib/intinor/mock/` | Mock payloads, ETag/route resolver, and per-tick jitter for `MOCK=1` |
 | `src/app/api/meta/route.ts` | Mode flags for the UI banner (never secrets) |
+| `src/hooks/usePolledResource.ts` | ETag-aware polling hook used by every status panel |
+| `src/components/panels/` | Per-resource read-only status cards + system/network-interface panels |
+
+## Phase 1 — read-only fleet/status dashboard
+
+The overview page (`/`) shows, entirely via `GET` requests:
+
+- A card per network input, video mixer, and encoder — active/inactive,
+  live bitrate, video format, codec, and a thumbnail preview with a PPM
+  (audio peak-meter) overlay toggle.
+- A system panel — CPU, memory, firmware version, battery — with a banner
+  if the running firmware differs from the unit's recommended version.
+- A network interfaces panel — per-interface link status, IP, rx/tx bitrate.
+
+Everything polls independently every 5 seconds and nothing here can write to
+the unit — there is no settings UI yet.
 
 ## Getting started
 
