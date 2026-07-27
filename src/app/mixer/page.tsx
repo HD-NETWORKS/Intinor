@@ -28,12 +28,8 @@ import { MixerCanvas } from "@/components/mixer/MixerCanvas";
 import { LayerEditor } from "@/components/mixer/LayerEditor";
 import { LayoutProfiles } from "@/components/mixer/LayoutProfiles";
 import { MixerPreview } from "@/components/mixer/MixerPreview";
-
-interface Meta {
-  mock: boolean;
-  writesAllowed: boolean;
-  unitId: string | null;
-}
+import { MixerOutputSettings } from "@/components/mixer/MixerOutputSettings";
+import type { UnitMeta } from "@/hooks/useUnitMeta";
 
 type ApplyState = "idle" | "confirming" | "applying" | "done" | "error";
 
@@ -41,7 +37,7 @@ export default function MixerBuilderPage() {
   const [mixerIndex, setMixerIndex] = useState<number | null>(null);
   const [settings, setSettings] = useState<VideoMixerSettingsResponse | null>(null);
   const [networkInputs, setNetworkInputs] = useState<NetworkInputsList | null>(null);
-  const [meta, setMeta] = useState<Meta | null>(null);
+  const [meta, setMeta] = useState<UnitMeta | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [layers, setLayers] = useState<VideoMixerLayerSettings[]>([]);
@@ -70,7 +66,7 @@ export default function MixerBuilderPage() {
         const [mixers, inputs, metaRes] = await Promise.all([
           intinorClient.getVideoMixers() as Promise<VideoMixersList>,
           intinorClient.getNetworkInputs() as Promise<NetworkInputsList>,
-          fetch("/api/meta").then((r) => r.json() as Promise<Meta>),
+          fetch("/api/meta").then((r) => r.json() as Promise<UnitMeta>),
         ]);
         if (cancelled) return;
         setNetworkInputs(inputs);
@@ -333,6 +329,12 @@ export default function MixerBuilderPage() {
             onSave={onSaveProfile}
             onApply={onApplyProfile}
             onDelete={onDeleteProfile}
+          />
+
+          <MixerOutputSettings
+            index={mixerIndex}
+            meta={meta}
+            onSaved={() => setPreviewKey((k) => k + 1)}
           />
 
           {/* Apply */}

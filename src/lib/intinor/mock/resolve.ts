@@ -16,12 +16,10 @@ import type {
 import {
   mockApiRoot,
   mockEncoder,
-  mockEncoderSettings,
   mockEncodersList,
   mockEncoderStatus,
   mockEncodingModes,
   mockNetworkInput,
-  mockNetworkInputSettings,
   mockNetworkInputsList,
   mockNetworkInputStatus,
   mockNetworkInterfaces,
@@ -32,7 +30,8 @@ import {
   mockVideoMixerStatus,
 } from "./data";
 import { clamp, currentTick, jitteredValue, seededFraction } from "./jitter";
-import { currentMixerSettings, putMixerSettings } from "./state";
+import { currentMixerSettings, currentSettings, putSettings, type SettingsKind } from "./state";
+import { withMockPermissions } from "./permissions";
 import type { VideoMixerLayerSettings } from "../types";
 
 export interface MockResponse {
@@ -137,13 +136,14 @@ const GET_ROUTES: Record<string, () => unknown> = {
   encoders: () => mockEncodersList,
   "encoders/0": () => ({
     ...mockEncoder,
-    settings: mockEncoderSettings,
+    settings: withMockPermissions(currentSettings("encoders", 0), "encoder"),
     status: liveEncoderStatus(),
     thumbnails: {
       thumbnails: [{ id: "video_source", href: "encoders/0/thumbnails/video_source" }],
     },
   }),
-  "encoders/0/settings": () => mockEncoderSettings,
+  "encoders/0/settings": () =>
+    withMockPermissions(currentSettings("encoders", 0), "encoder"),
   "encoders/0/status": () => liveEncoderStatus(),
   "encoders/0/thumbnails": () => ({
     thumbnails: [{ id: "video_source", href: "encoders/0/thumbnails/video_source" }],
@@ -151,13 +151,14 @@ const GET_ROUTES: Record<string, () => unknown> = {
   network_inputs: () => mockNetworkInputsList,
   "network_inputs/0": () => ({
     ...mockNetworkInput,
-    settings: mockNetworkInputSettings,
+    settings: withMockPermissions(currentSettings("network_inputs", 0), "network_input"),
     status: liveNetworkInputStatus(),
     thumbnails: {
       thumbnails: [{ id: "program_1", href: "network_inputs/0/thumbnails/program_1" }],
     },
   }),
-  "network_inputs/0/settings": () => mockNetworkInputSettings,
+  "network_inputs/0/settings": () =>
+    withMockPermissions(currentSettings("network_inputs", 0), "network_input"),
   "network_inputs/0/status": () => liveNetworkInputStatus(),
   "network_inputs/0/thumbnails": () => ({
     thumbnails: [{ id: "program_1", href: "network_inputs/0/thumbnails/program_1" }],
@@ -165,13 +166,14 @@ const GET_ROUTES: Record<string, () => unknown> = {
   video_mixers: () => mockVideoMixersList,
   "video_mixers/0": () => ({
     ...mockVideoMixer,
-    settings: currentMixerSettings(0),
+    settings: withMockPermissions(currentMixerSettings(0), "video_mixer"),
     status: mockVideoMixerStatus,
     thumbnails: {
       thumbnails: [{ id: "program", href: "video_mixers/0/thumbnails/program" }],
     },
   }),
-  "video_mixers/0/settings": () => currentMixerSettings(0),
+  "video_mixers/0/settings": () =>
+    withMockPermissions(currentMixerSettings(0), "video_mixer"),
   "video_mixers/0/status": () => mockVideoMixerStatus,
   "video_mixers/0/thumbnails": () => ({
     thumbnails: [{ id: "program", href: "video_mixers/0/thumbnails/program" }],
@@ -319,11 +321,14 @@ export function resolveMock(
   // Writes in mock mode: persist mixer settings so the applied program shows
   // up in later GETs and the program thumbnail; everything else echoes back.
   if (method === "PUT") {
-    const mixerSettings = path.match(/^video_mixers\/(\d+)\/settings$/);
-    if (mixerSettings) {
-      const index = Number(mixerSettings[1]);
-      putMixerSettings(index, requestBody);
-      return { status: 200, body: currentMixerSettings(index) };
+    const settingsPut = path.match(
+      /^(encoders|network_inputs|video_mixers)\/(\d+)\/settings$/,
+    );
+    if (settingsPut) {
+      const kind = settingsPut[1] as SettingsKind;
+      const index = Number(settingsPut[2]);
+      putSettings(kind, index, requestBody);
+      return { status: 200, body: currentSettings(kind, index) };
     }
     return { status: 200, body: requestBody ?? {} };
   }

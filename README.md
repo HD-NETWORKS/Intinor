@@ -55,6 +55,9 @@ Browser ──> src/lib/intinor-client.ts (typed, per-resource-group functions)
 | `src/app/api/meta/route.ts` | Mode flags for the UI banner (never secrets) |
 | `src/hooks/usePolledResource.ts` | ETag-aware polling hook used by every status panel |
 | `src/components/panels/` | Per-resource read-only status cards + system/network-interface panels |
+| `src/lib/settings/` | Field-permission matcher, path get/set, diff, GET-modify-PUT builder |
+| `src/components/settings/` | Permission-aware form fields, confirm-diff dialog, form shell |
+| `src/components/mixer/` | Layout canvas, layer editor, profiles, preview, output settings |
 
 ## Phase 1 — read-only fleet/status dashboard
 
@@ -69,6 +72,46 @@ The overview page (`/`) shows, entirely via `GET` requests:
 
 Everything polls independently every 5 seconds and nothing here can write to
 the unit — there is no settings UI yet.
+
+## Phase 2 — settings editors, gated by field-level permissions
+
+`/encoders`, `/inputs`, and the mixer's output card are editable forms driven
+entirely by the unit's own `_constraints`:
+
+- **Field-level permissions.** Every field is checked against
+  `_constraints.mutable` before it is rendered as editable. The matcher
+  (`src/lib/settings/mutable.ts`) implements the API's dot/bracket syntax
+  including array wildcards (`destinations[].active` matches
+  `destinations[0].active`) and parent-grant cascade. It is **fail-safe**: a
+  resource that doesn't report `mutable` is treated as fully read-only, with a
+  banner saying so, rather than being assumed editable. Locked fields stay
+  visible (the value is useful) but are disabled and marked `🔒 read-only`.
+- **Options come from the unit.** Encoding modes, protocols, sources,
+  interfaces and output formats are all populated from `_constraints` — the UI
+  never offers a value the unit didn't list. If a current value isn't in the
+  list it's preserved as a `(current)` option rather than silently rewritten.
+- **GET → modify → PUT.** On save the settings are re-fetched, *only the
+  fields the user actually changed* are applied onto that fresh copy, and the
+  result is PUT back with `_version` echoed. A concurrent edit elsewhere is
+  therefore not clobbered — and if it touched a field you also changed, the
+  confirmation dialog warns before you overwrite it.
+- **Confirmation diff on every write.** "Description: *Main ingest* →
+  *Edited in dashboard*", with the settings path shown underneath. On a live
+  unit with writes enabled it additionally requires typing `SAVE`.
+
+Run `npm test` to exercise the permission matcher (25 assertions covering
+wildcards, cascades, boundaries, and the fail-safe path).
+
+### Trying the restricted-permission behaviour
+
+The mock can impersonate a restricted account, so the read-only handling is
+testable without a non-admin login on the unit:
+
+```bash
+MOCK=1 MOCK_ROLE=operator npm run dev   # only some fields editable
+MOCK=1 MOCK_ROLE=viewer   npm run dev   # everything read-only
+MOCK=1 MOCK_ROLE=unknown  npm run dev   # unit reports no permissions → fail-safe
+```
 
 ## Phase 3 — quad/collage mixer builder
 
