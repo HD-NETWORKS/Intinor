@@ -210,6 +210,18 @@ export const mockVideoMixerSettings: VideoMixerSettingsResponse = {
   _constraints: {
     mutable: ["*"],
     capabilities: { deactivatable: true },
+    video_out: {
+      format: [
+        { value: "1920x1080p/25", description: "1080p25" },
+        { value: "1920x1080p/50", description: "1080p50" },
+        { value: "1280x720p/50", description: "720p50" },
+        { value: "1280x720p/25", description: "720p25" },
+      ],
+      sd_aspect_ratio: [
+        { value: "16:9", description: "16:9" },
+        { value: "4:3", description: "4:3" },
+      ],
+    },
     program: {
       layers: {
         array_size: { min: 0, max: 8 },
@@ -217,6 +229,26 @@ export const mockVideoMixerSettings: VideoMixerSettingsResponse = {
           x: { min: -1, max: 1 },
           y: { min: -1, max: 1 },
           zoom: { min: 0.05, max: 2 },
+        },
+        // Sources this unit can feed into a mixer layer. Only network_inputs/0
+        // is a live feed today; test_picture is always available as a filler.
+        // The moment a second unit or an upgraded licence adds inputs, they
+        // show up here and the quad builder fills real slots with no code
+        // change (the UI reads this list, never a hardcoded set).
+        input: {
+          source: [
+            {
+              name: "Network input 1",
+              value: `${UNIT_BASE}/network_inputs/0`,
+              description: "Main ingest (SRT listener)",
+              multiprogram: true,
+            },
+            {
+              name: "Test picture",
+              value: `${UNIT_BASE}/test_picture`,
+              description: "Built-in test pattern",
+            },
+          ],
         },
       },
     },

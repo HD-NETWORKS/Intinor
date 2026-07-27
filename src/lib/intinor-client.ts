@@ -37,6 +37,15 @@ import type {
   VideoMixerStatus,
 } from "./intinor/types";
 
+/**
+ * Settings GETs ask for `_constraints` explicitly. It is part of the
+ * *_settings_response schema anyway, but requesting it makes the dependency
+ * obvious: the whole settings UI is driven by `_constraints.mutable`, so a
+ * response without it must be treated as read-only rather than silently
+ * editable.
+ */
+const CONSTRAINTS = "?include=_constraints";
+
 /** Default proxy base for the single-unit setup. Shared with usePolledResource. */
 export const UNIT_PROXY_BASE = "/api/unit";
 
@@ -114,7 +123,7 @@ export function createIntinorClient(base: string = UNIT_PROXY_BASE) {
     getEncoder: (index: number, include?: Include) =>
       get<Encoder>(withInclude(`encoders/${index}`, include)),
     getEncoderSettings: (index: number) =>
-      get<EncoderSettingsResponse>(`encoders/${index}/settings`),
+      get<EncoderSettingsResponse>(`encoders/${index}/settings${CONSTRAINTS}`),
     putEncoderSettings: (index: number, body: EncoderSettingsRequest) =>
       put<EncoderSettingsResponse>(`encoders/${index}/settings`, body),
     getEncoderStatus: (index: number) =>
@@ -136,7 +145,7 @@ export function createIntinorClient(base: string = UNIT_PROXY_BASE) {
     getNetworkInput: (index: number, include?: Include) =>
       get<NetworkInput>(withInclude(`network_inputs/${index}`, include)),
     getNetworkInputSettings: (index: number) =>
-      get<NetworkInputSettingsResponse>(`network_inputs/${index}/settings`),
+      get<NetworkInputSettingsResponse>(`network_inputs/${index}/settings${CONSTRAINTS}`),
     putNetworkInputSettings: (
       index: number,
       body: NetworkInputSettings & RequestMetadata,
@@ -160,7 +169,7 @@ export function createIntinorClient(base: string = UNIT_PROXY_BASE) {
     getVideoMixer: (index: number, include?: Include) =>
       get<VideoMixer>(withInclude(`video_mixers/${index}`, include)),
     getVideoMixerSettings: (index: number) =>
-      get<VideoMixerSettingsResponse>(`video_mixers/${index}/settings`),
+      get<VideoMixerSettingsResponse>(`video_mixers/${index}/settings${CONSTRAINTS}`),
     putVideoMixerSettings: (
       index: number,
       body: VideoMixerSettings & RequestMetadata,

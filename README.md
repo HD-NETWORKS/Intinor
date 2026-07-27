@@ -55,6 +55,9 @@ Browser ──> src/lib/intinor-client.ts (typed, per-resource-group functions)
 | `src/app/api/meta/route.ts` | Mode flags for the UI banner (never secrets) |
 | `src/hooks/usePolledResource.ts` | ETag-aware polling hook used by every status panel |
 | `src/components/panels/` | Per-resource read-only status cards + system/network-interface panels |
+| `src/lib/settings/` | Field-permission matcher, path get/set, diff, GET-modify-PUT builder |
+| `src/components/settings/` | Permission-aware form fields, confirm-diff dialog, form shell |
+| `src/components/mixer/` | Layout canvas, layer editor, profiles, preview, output settings |
 
 ## Phase 1 — read-only fleet/status dashboard
 
@@ -69,6 +72,85 @@ The overview page (`/`) shows, entirely via `GET` requests:
 
 Everything polls independently every 5 seconds and nothing here can write to
 the unit — there is no settings UI yet.
+
+## Phase 2 — settings editors, gated by field-level permissions
+
+`/encoders`, `/inputs`, and the mixer's output card are editable forms driven
+entirely by the unit's own `_constraints`:
+
+- **Field-level permissions.** Every field is checked against
+  `_constraints.mutable` before it is rendered as editable. The matcher
+  (`src/lib/settings/mutable.ts`) implements the API's dot/bracket syntax
+  including array wildcards (`destinations[].active` matches
+  `destinations[0].active`) and parent-grant cascade. It is **fail-safe**: a
+  resource that doesn't report `mutable` is treated as fully read-only, with a
+  banner saying so, rather than being assumed editable. Locked fields stay
+  visible (the value is useful) but are disabled and marked `🔒 read-only`.
+- **Options come from the unit.** Encoding modes, protocols, sources,
+  interfaces and output formats are all populated from `_constraints` — the UI
+  never offers a value the unit didn't list. If a current value isn't in the
+  list it's preserved as a `(current)` option rather than silently rewritten.
+- **GET → modify → PUT.** On save the settings are re-fetched, *only the
+  fields the user actually changed* are applied onto that fresh copy, and the
+  result is PUT back with `_version` echoed. A concurrent edit elsewhere is
+  therefore not clobbered — and if it touched a field you also changed, the
+  confirmation dialog warns before you overwrite it.
+- **Confirmation diff on every write.** "Description: *Main ingest* →
+  *Edited in dashboard*", with the settings path shown underneath. On a live
+  unit with writes enabled it additionally requires typing `SAVE`.
+
+Run `npm test` to exercise the permission matcher (25 assertions covering
+wildcards, cascades, boundaries, and the fail-safe path).
+
+### Trying the restricted-permission behaviour
+
+The mock can impersonate a restricted account, so the read-only handling is
+testable without a non-admin login on the unit:
+
+```bash
+MOCK=1 MOCK_ROLE=operator npm run dev   # only some fields editable
+MOCK=1 MOCK_ROLE=viewer   npm run dev   # everything read-only
+MOCK=1 MOCK_ROLE=unknown  npm run dev   # unit reports no permissions → fail-safe
+```
+
+## Phase 3 — quad/collage mixer builder
+
+The video-mixer page (`/mixer`) is a visual layout builder for the mixer's
+`program.layers`:
+
+- A 16:9 canvas of drag-to-move / corner-to-resize boxes, each mapping to a
+  layer's `{ x, y, zoom }` (top-left position + size as a fraction of the
+  frame). A layer list gives precise numeric control, source assignment,
+  reordering (back↔front), add, and delete.
+- Presets: **2×2 Quad**, picture-in-picture, 1-big-3-small, side-by-side,
+  single — arbitrary `x/y/zoom` per layer, not just grids.
+- Named **layout profiles** (save / load / delete) so switching between e.g.
+  "Sunday service quad" and "single cam" is one click. These are a
+  dashboard-level concept stored in `localStorage` (the unit's own
+  `layout_profiles` array carries only unnamed positional data), keyed
+  per-unit + per-mixer.
+- A **live program preview** polled from the mixer's own thumbnail endpoint,
+  shown alongside the editing canvas so you can tell applied output from
+  unsaved edits.
+- An honest **slot-coverage banner**: with one live network input, a quad
+  shows "1 of 4 slots has a live source; 3 use the test picture" rather than
+  faking four feeds. The moment more inputs exist (a second unit or a licence
+  upgrade), they appear in the source picker and fill real slots — the UI
+  reads the unit's constraint list, never a hardcoded set.
+
+### Applying — the write path
+
+Applying a layout is the project's first write (`PUT
+/video_mixers/{i}/settings`), so it is gated:
+
+- **Mock mode** — applies to an in-memory mock store (`mock/state.ts`); the
+  mock program thumbnail re-renders the composited layout, so the whole
+  build→apply→see-it-in-preview loop works with zero risk to the unit.
+- **Live, read-only** (default against the real unit) — the Apply button is
+  disabled and the proxy would reject the `PUT` anyway.
+- **Live, writes enabled** (`INTINOR_ALLOW_WRITES=1`) — Apply requires a
+  type-to-confirm (`APPLY`) step, since it changes a live broadcast
+  composition.
 
 ## Getting started
 

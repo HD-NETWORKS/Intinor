@@ -1,10 +1,262 @@
-import { PhasePlaceholder } from "@/components/PhasePlaceholder";
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { intinorClient } from "@/lib/intinor-client";
+import type {
+  NetworkInputsList,
+  NetworkInputSettings,
+  NetworkInputSettingsResponse,
+  RequestMetadata,
+} from "@/lib/intinor/types";
+import type { FieldSection } from "@/lib/settings/fields";
+import { optionsFromDescribed } from "@/lib/settings/options";
+import { useSettingsEditor } from "@/hooks/useSettingsEditor";
+import { useUnitMeta } from "@/hooks/useUnitMeta";
+import { SettingsForm } from "@/components/settings/SettingsForm";
+import { PipePicker } from "@/components/settings/PipePicker";
+
+/** `_constraints` for this resource is loosely typed; narrow just what we read. */
+interface NetworkSourceConstraints {
+  udp_unicast?: { network_interface?: { value?: string; description?: string }[] };
+  udp_multicast?: { network_interface?: { value?: string; description?: string }[] };
+  advanced?: {
+    tcp_receive_buffer?: { min: number; max: number };
+    decoder_buffer?: { min: number; max: number };
+  };
+}
+
+function inputSections(s: NetworkInputSettingsResponse): FieldSection[] {
+  const c = (s._constraints?.network_sources ?? {}) as NetworkSourceConstraints;
+  const src = s.network_sources;
+  const ifaceOptions = optionsFromDescribed(c.udp_unicast?.network_interface);
+
+  const sections: FieldSection[] = [
+    {
+      title: "Input",
+      fields: [
+        { path: "description", label: "Description", kind: "text" },
+        { path: "active", label: "Input active", kind: "checkbox" },
+      ],
+    },
+  ];
+
+  if (src.srt_caller) {
+    sections.push({
+      title: "SRT caller",
+      description: "The unit dials out to a remote SRT server.",
+      fields: [
+        { path: "network_sources.srt_caller.active", label: "Active", kind: "checkbox" },
+        { path: "network_sources.srt_caller.address", label: "Remote address", kind: "text" },
+        {
+          path: "network_sources.srt_caller.port",
+          label: "Port",
+          kind: "number",
+          min: 1,
+          max: 65535,
+        },
+        {
+          path: "network_sources.srt_caller.latency",
+          label: "Latency",
+          kind: "number",
+          unit: "ms",
+          min: 20,
+        },
+        { path: "network_sources.srt_caller.stream_id", label: "Stream ID", kind: "text" },
+        {
+          path: "network_sources.srt_caller.password",
+          label: "Passphrase",
+          kind: "password",
+          help: "Leave unchanged to keep the current passphrase.",
+        },
+      ],
+    });
+  }
+
+  if (src.udp_unicast) {
+    sections.push({
+      title: "SRT listener / unicast",
+      description: "The unit waits for an incoming connection on this port.",
+      fields: [
+        { path: "network_sources.udp_unicast.active", label: "Active", kind: "checkbox" },
+        {
+          path: "network_sources.udp_unicast.port",
+          label: "Listen port",
+          kind: "number",
+          min: 1,
+          max: 65535,
+        },
+        {
+          path: "network_sources.udp_unicast.network_interface",
+          label: "Interface",
+          kind: "select",
+          options: ifaceOptions,
+        },
+        {
+          path: "network_sources.udp_unicast.srt.latency",
+          label: "SRT latency",
+          kind: "number",
+          unit: "ms",
+          min: 20,
+        },
+        {
+          path: "network_sources.udp_unicast.srt.password",
+          label: "SRT passphrase",
+          kind: "password",
+        },
+      ],
+    });
+  }
+
+  if (src.udp_multicast) {
+    sections.push({
+      title: "UDP multicast",
+      fields: [
+        { path: "network_sources.udp_multicast.active", label: "Active", kind: "checkbox" },
+        { path: "network_sources.udp_multicast.address", label: "Group address", kind: "text" },
+        {
+          path: "network_sources.udp_multicast.port",
+          label: "Port",
+          kind: "number",
+          min: 1,
+          max: 65535,
+        },
+      ],
+    });
+  }
+
+  if (src.rtmp) {
+    sections.push({
+      title: "RTMP",
+      fields: [
+        { path: "network_sources.rtmp.active", label: "Active", kind: "checkbox" },
+        { path: "network_sources.rtmp.url", label: "URL", kind: "text" },
+        { path: "network_sources.rtmp.stream", label: "Stream key", kind: "text" },
+      ],
+    });
+  }
+
+  if (src.tcp_receive) {
+    sections.push({
+      title: "TCP receive",
+      fields: [
+        { path: "network_sources.tcp_receive.active", label: "Active", kind: "checkbox" },
+        {
+          path: "network_sources.tcp_receive.port",
+          label: "Port",
+          kind: "number",
+          min: 1,
+          max: 65535,
+        },
+      ],
+    });
+  }
+
+  if (src.advanced) {
+    sections.push({
+      title: "Advanced",
+      description: "Buffering. Raising these adds latency but tolerates worse networks.",
+      fields: [
+        {
+          path: "network_sources.advanced.tcp_receive_buffer",
+          label: "TCP receive buffer",
+          kind: "number",
+          unit: "s",
+          step: 0.1,
+          min: c.advanced?.tcp_receive_buffer?.min,
+          max: c.advanced?.tcp_receive_buffer?.max,
+        },
+        {
+          path: "network_sources.advanced.decoder_buffer",
+          label: "Decoder buffer",
+          kind: "number",
+          unit: "s",
+          step: 0.1,
+          min: c.advanced?.decoder_buffer?.min,
+          max: c.advanced?.decoder_buffer?.max,
+        },
+      ],
+    });
+  }
+
+  return sections;
+}
+
+function InputSettingsEditor({ index }: { index: number }) {
+  const meta = useUnitMeta();
+  const load = useCallback(() => intinorClient.getNetworkInputSettings(index), [index]);
+  const save = useCallback(
+    (body: NetworkInputSettingsResponse) =>
+      intinorClient.putNetworkInputSettings(
+        index,
+        body as NetworkInputSettings & RequestMetadata,
+      ),
+    [index],
+  );
+
+  const editor = useSettingsEditor<NetworkInputSettingsResponse>({
+    load,
+    save,
+    sectionsOf: inputSections,
+    mutableOf: (s) => s._constraints?.mutable,
+  });
+
+  return (
+    <SettingsForm
+      title={`Network input #${index} settings`}
+      description="SRT caller/listener, RTMP, multicast and buffering for this ingest."
+      editor={editor}
+      meta={meta}
+    />
+  );
+}
 
 export default function InputsPage() {
+  const [list, setList] = useState<NetworkInputsList | null>(null);
+  const [selected, setSelected] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const l = await intinorClient.getNetworkInputs();
+        if (cancelled) return;
+        setList(l);
+        setSelected(l.network_inputs[0]?.index ?? null);
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Failed to load network inputs");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (error) {
+    return (
+      <div className="mx-auto max-w-4xl rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+        {error}
+      </div>
+    );
+  }
+  if (!list || selected == null) {
+    return <p className="text-sm text-slate-500">Loading network inputs…</p>;
+  }
+  if (list.network_inputs.length === 0) {
+    return <p className="text-sm text-slate-500">This unit has no network inputs.</p>;
+  }
+
   return (
-    <PhasePlaceholder
-      title="Network inputs"
-      description="Configure SRT/RTMP/RTP/HLS/NDI ingest and monitor incoming streams — every input the unit reports, not a fixed index."
-    />
+    <div className="mx-auto max-w-4xl space-y-4">
+      <PipePicker
+        label="Input"
+        items={list.network_inputs}
+        selected={selected}
+        onSelect={setSelected}
+      />
+      <InputSettingsEditor key={selected} index={selected} />
+    </div>
   );
 }
