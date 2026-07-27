@@ -7,6 +7,7 @@ import { NetworkInterfacesPanel } from "@/components/panels/NetworkInterfacesPan
 import { NetworkInputCard } from "@/components/panels/NetworkInputCard";
 import { VideoMixerCard } from "@/components/panels/VideoMixerCard";
 import { EncoderCard } from "@/components/panels/EncoderCard";
+import { HistoryPanel } from "@/components/history/HistoryPanel";
 
 export default function Overview() {
   const inputs = usePolledResource<NetworkInputsList>("network_inputs", 5000);
@@ -66,6 +67,8 @@ export default function Overview() {
       </div>
 
       <NetworkInterfacesPanel />
+
+      <HistoryPanel />
     </div>
   );
 }

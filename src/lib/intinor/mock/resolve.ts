@@ -32,6 +32,13 @@ import {
 import { clamp, currentTick, jitteredValue, seededFraction } from "./jitter";
 import { currentMixerSettings, currentSettings, putSettings, type SettingsKind } from "./state";
 import { withMockPermissions } from "./permissions";
+import {
+  faultEncoderStatus,
+  faultInputStatus,
+  faultInterfaces,
+  faultStorageStatus,
+  faultSystemStatus,
+} from "./faults";
 import type { VideoMixerLayerSettings } from "../types";
 
 export interface MockResponse {
@@ -47,6 +54,10 @@ export interface MockResponse {
 // ---------------------------------------------------------------------------
 
 function liveSystemStatus(): SystemStatus {
+  return faultSystemStatus(baseSystemStatus());
+}
+
+function baseSystemStatus(): SystemStatus {
   // Tick-derived, not wall-clock: must stay byte-identical within a tick so
   // the ETag is stable and 304s actually happen between ticks.
   return {
@@ -68,6 +79,10 @@ function liveSystemStatus(): SystemStatus {
 }
 
 function liveNetworkInputStatus(): NetworkInputStatus {
+  return faultInputStatus(baseNetworkInputStatus());
+}
+
+function baseNetworkInputStatus(): NetworkInputStatus {
   const base = mockNetworkInputStatus;
   const bitrate = base.network_source.bitrate
     ? Math.round(clamp(jitteredValue("ni-bitrate", base.network_source.bitrate, 350_000), 0, Infinity))
@@ -85,6 +100,10 @@ function liveNetworkInputStatus(): NetworkInputStatus {
 }
 
 function liveEncoderStatus(): EncoderStatus {
+  return faultEncoderStatus(baseEncoderStatus());
+}
+
+function baseEncoderStatus(): EncoderStatus {
   const base = mockEncoderStatus;
   const totalBitrate = base.encoding.total_bitrate
     ? Math.round(clamp(jitteredValue("enc-bitrate", base.encoding.total_bitrate, 250_000), 0, Infinity))
@@ -107,6 +126,10 @@ function liveEncoderStatus(): EncoderStatus {
 }
 
 function liveNetworkInterfaces(): NetworkInterfacesList {
+  return faultInterfaces(baseNetworkInterfaces());
+}
+
+function baseNetworkInterfaces(): NetworkInterfacesList {
   const base = mockNetworkInterfaces;
   return {
     ...base,
@@ -179,6 +202,7 @@ const GET_ROUTES: Record<string, () => unknown> = {
     thumbnails: [{ id: "program", href: "video_mixers/0/thumbnails/program" }],
   }),
   network_interfaces: () => liveNetworkInterfaces(),
+  "storage/status": () => faultStorageStatus(null) ?? { present: false, removable: false },
   encoding: () => ({ encoding_modes: mockEncodingModes }),
   "encoding/encoding_modes": () => mockEncodingModes,
   multiviews: () => ({ multiviews: [] }),

@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types src/lib/settings/permissions.test.mts"
+    "test": "node --experimental-strip-types src/lib/settings/permissions.test.mts && node --experimental-strip-types src/lib/monitor/rules.test.mts"
   },
   "dependencies": {
     "next": "16.2.10",
