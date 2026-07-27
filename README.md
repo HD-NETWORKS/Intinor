@@ -58,6 +58,11 @@ Browser ──> src/lib/intinor-client.ts (typed, per-resource-group functions)
 | `src/lib/settings/` | Field-permission matcher, path get/set, diff, GET-modify-PUT builder |
 | `src/components/settings/` | Permission-aware form fields, confirm-diff dialog, form shell |
 | `src/components/mixer/` | Layout canvas, layer editor, profiles, preview, output settings |
+| `src/lib/monitor/` | Snapshot collector, alert rules, Supabase store, notification channels |
+| `src/app/api/cron/poll/` | The scheduled monitoring job (read-only against the unit) |
+| `src/app/api/history/route.ts` | Chart data for the history panel |
+| `src/components/history/` | Inline-SVG time-series charts + alert timeline |
+| `supabase/schema.sql` | Tables + the partial unique index that makes alerting idempotent |
 
 ## Phase 1 — read-only fleet/status dashboard
 
@@ -151,6 +156,93 @@ Applying a layout is the project's first write (`PUT
 - **Live, writes enabled** (`INTINOR_ALLOW_WRITES=1`) — Apply requires a
   type-to-confirm (`APPLY`) step, since it changes a live broadcast
   composition.
+
+## Phase 4 — alerting & light history
+
+A scheduled job polls the unit, stores a time-series row, and alerts on
+transitions. This is the one thing the stock IDM console doesn't give you: the
+ability to answer *"what happened at 3am?"* after the fact.
+
+### ⚠️ Vercel Hobby cron is once per day, not once per minute
+
+Worth knowing before you wire this up: **Vercel's Hobby (free) plan limits cron
+jobs to a once-per-day cadence** — a more frequent expression fails at deploy
+time — and Vercel doesn't guarantee the exact minute a job fires. So a
+per-minute poll is not something the free tier can do on its own.
+
+That doesn't block the feature, because `/api/cron/poll` is **trigger-agnostic
+and cadence-independent**: alerts key off state *transitions* rather than
+elapsed time, so the endpoint behaves correctly whether it runs every minute or
+once a day. Pick a trigger:
+
+| Trigger | Cadence | Notes |
+| --- | --- | --- |
+| `vercel.json` cron (committed) | daily | The most Hobby allows; a safety net, not real monitoring |
+| An external pinger (cron-job.org, EasyCron, UptimeRobot…) | 1–5 min | **Recommended on the free tier.** Point it at `/api/cron/poll?secret=…` |
+| A GitHub Actions scheduled workflow | ≥5 min | Free-tier minutes apply; scheduled runs can be delayed under load |
+| Vercel Pro | any | Removes the limit if you'd rather stay in one place |
+
+Whatever calls it must present `CRON_SECRET` — as `Authorization: Bearer …`
+(what Vercel Cron sends) or `?secret=…`. If `CRON_SECRET` is unset the endpoint
+refuses to run rather than sitting open.
+
+### What it does each run
+
+1. **Collects** a snapshot — `system/status`, `network_interfaces`,
+   `storage/status`, and every encoder's and input's status. **GETs only**: the
+   monitor never writes to the unit, so it's safe to run unattended against a
+   live broadcast.
+2. **Stores** one row in Supabase (free-tier Postgres) — CPU, memory, storage,
+   firmware, and per-pipe/per-interface detail as JSON so more encoders or a
+   second unit need no migration.
+3. **Evaluates** the alert rules and diffs them against the episodes already
+   open, so notifications fire on change, not on every poll.
+
+### Alerts that don't cry wolf
+
+Rules report *conditions that are true now*; the job diffs that against open
+episodes and notifies only on transitions. **A stream down for an hour produces
+one message and one recovery — not sixty.** A partial unique index on
+`(unit_id, kind, subject) where closed_at is null` enforces that at the database
+level too.
+
+| Rule | Fires when |
+| --- | --- |
+| `stream_down` | An encoder or input is *active* but moving 0 bit/s |
+| `firmware_update` | Running firmware ≠ the version the unit recommends |
+| `storage_full` | Storage ≥ 90% used (and a storage device is actually present) |
+| `link_loss` | An interface that **had** connectivity loses it |
+
+`link_loss` is deliberately transition-scoped: this unit's cellular modem has no
+SIM and is permanently down, and a naive "is it up?" check would alert on it
+every poll forever.
+
+Channels — Telegram, Slack, email (Resend), and a generic JSON webhook — are
+each inactive until configured, so a fresh deploy sends nothing until you wire
+up a destination. `ALERTS_DRY_RUN=1` resolves channels but logs instead of
+sending.
+
+### History charts
+
+The dashboard gains a 6h / 24h / 7d panel: throughput (ingest vs encoder out),
+CPU, and link quality (packet loss), plus an alert timeline. Charts are inline
+SVG with no charting dependency — one y-axis each (never dual-axis), series
+colours fixed per entity, a crosshair readout, and a table view for exact
+values. The palette is validated for colour-vision deficiency against this
+dashboard's own dark surface.
+
+### Verifying alerting before you trust it
+
+Alerting is the one feature you can't check by looking at it. `MOCK_FAULT`
+injects each condition on demand:
+
+```bash
+MOCK=1 MOCK_FAULT=stream_down          npm run dev
+MOCK=1 MOCK_FAULT=link_loss,storage_full npm run dev
+```
+
+Point `ALERT_WEBHOOK_URL` at any receiver, hit `/api/cron/poll?secret=…` a few
+times, and confirm you get one message per condition — not one per poll.
 
 ## Getting started
 

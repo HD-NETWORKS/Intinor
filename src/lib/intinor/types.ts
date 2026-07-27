@@ -866,6 +866,35 @@ export interface SystemInformation {
 }
 
 // ---------------------------------------------------------------------------
+// Storage
+// ---------------------------------------------------------------------------
+
+export interface StorageStatus {
+  _links?: Link[];
+  format_in_progress?: boolean;
+  model?: string;
+  vendor?: string;
+  file_system?: string;
+  size?: number;
+  used?: number;
+  raid?: {
+    disks: Array<{
+      vendor?: string;
+      model?: string;
+      status: string;
+      serial?: string;
+      size?: number;
+    }>;
+    status: string;
+    rebuild_progress?: number;
+    size?: number;
+  };
+  removable: boolean;
+  present: boolean;
+  busy?: boolean;
+}
+
+// ---------------------------------------------------------------------------
 // Network interfaces
 // ---------------------------------------------------------------------------
 
