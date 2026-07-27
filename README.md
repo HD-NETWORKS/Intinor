@@ -12,29 +12,38 @@ The unit's REST API (Swagger/OpenAPI 2.0) is documented in
 ## Architecture
 
 ```
-Browser ──> src/lib/intinor-client.ts (typed, per-resource-group functions)
-        ──> /api/unit/<path>          (Next.js route: proxy + safety guard)
-        ──> https://<unit>/api/v1/units/D01393/<path>   (session-auth'd)
+Browser ──> src/proxy.ts                (dashboard login gate — every request)
+        ──> src/lib/intinor-client.ts   (typed, per-resource-group functions)
+        ──> /api/unit/<path>            (default unit) or /api/units/{id}/<path>
+        ──> https://<host>/api/v1/units/{id}/<path>   (session-auth'd)
 ```
 
-- **No credentials in the browser.** The backend mints a temporary session id
-  via `POST /users/{username}/sessions` and authenticates as
+- **The dashboard has its own login**, independent of the unit's credentials
+  below. `src/proxy.ts` (Next's request-intercepting "Proxy", formerly
+  Middleware) gates every route behind a signed session cookie; see Phase 5.
+- **No unit credentials in the browser.** The backend mints a temporary
+  session id via `POST /users/{username}/sessions` and authenticates as
   `username:session_id`. The real password lives only in server env vars.
 - **Mock mode (`MOCK=1`)**: the proxy serves realistic fake JSON from
-  `src/lib/intinor/mock/` — all UI work happens without touching the unit.
+  `src/lib/intinor/mock/` — all UI work happens without touching a unit.
 - **Read-only by default**: the proxy rejects every `PUT`/`POST`/`DELETE`
-  against the live unit unless `INTINOR_ALLOW_WRITES=1` is set (per-feature,
-  after review). Destructive endpoints (`reboot`, `power_cycle`, `shutdown`,
-  `upgrade_firmware`, `restart_streams`, config restore, storage format/RAID
-  rebuild, media-bank clear) are **permanently blocked** by the generic proxy
-  — see `src/lib/intinor/server/guard.ts`. Exposing one later requires a
-  dedicated route with a type-to-confirm UI.
-- **No fake capacity**: the unit has 1× network input, 1× video mixer,
+  against a live unit unless `INTINOR_ALLOW_WRITES=1` is set (per-feature,
+  after review). `system/actions/*` (`reboot`, `power_cycle`, `shutdown`,
+  `upgrade_firmware`, `restart_streams`) and a few others (config restore,
+  storage format/RAID rebuild, media-bank clear) are **permanently blocked**
+  by the generic proxy regardless — see `src/lib/intinor/server/guard.ts`.
+  The `system/actions/*` group has a dedicated, separately-gated escape hatch:
+  see Phase 5's Danger zone.
+- **Multi-unit by config, not by rewrite**: nothing above `server/config.ts`
+  hardcodes a unit id or host. One unit is configured with `INTINOR_UNIT_*`;
+  additional units — reached at the same `https://iss.intinor.se/api/v1/units/{id}/`
+  shape with a different id, or on a different host — are added via
+  `INTINOR_UNITS` (a JSON array) and are immediately reachable at
+  `/api/units/{id}/...` and monitored by the same cron job. See Phase 5.
+- **No fake capacity**: each unit has 1× network input, 1× video mixer,
   1× encoder, fixed by hardware/license — there is no API to add more. The UI
   iterates over whatever the API returns (no hardcoded index 0) and labels
-  counts as hardware-fixed. Multi-unit support later = one client per unit via
-  the identical ISS paths (`https://iss.intinor.se/api/v1/units/{id}/`);
-  `createIntinorClient(base)` already takes the proxy base for that reason.
+  counts as hardware-fixed.
 
 - **Live polling with ETag/If-None-Match**: `src/hooks/usePolledResource.ts`
   polls a unit-relative path every 5s and sends back the last `ETag` as
@@ -59,10 +68,17 @@ Browser ──> src/lib/intinor-client.ts (typed, per-resource-group functions)
 | `src/components/settings/` | Permission-aware form fields, confirm-diff dialog, form shell |
 | `src/components/mixer/` | Layout canvas, layer editor, profiles, preview, output settings |
 | `src/lib/monitor/` | Snapshot collector, alert rules, Supabase store, notification channels |
-| `src/app/api/cron/poll/` | The scheduled monitoring job (read-only against the unit) |
+| `src/app/api/cron/poll/` | The scheduled monitoring job (read-only, loops every configured unit) |
 | `src/app/api/history/route.ts` | Chart data for the history panel |
 | `src/components/history/` | Inline-SVG time-series charts + alert timeline |
 | `supabase/schema.sql` | Tables + the partial unique index that makes alerting idempotent |
+| `src/proxy.ts` | Dashboard login gate — runs on every request (Next's "Proxy", formerly Middleware) |
+| `src/lib/auth/` | Session cookie sign/verify, credential check — the dashboard's own auth, not the unit's |
+| `src/app/login/`, `src/app/api/auth/` | Login page + login/logout routes |
+| `src/lib/intinor/server/config.ts` | Multi-unit registry: `getUnitConfig(id?)`, `listUnitIds()`, `defaultUnitId()` |
+| `src/app/api/units/[unitId]/` | Multi-unit proxy + danger-zone actions for any configured unit |
+| `src/lib/intinor/server/system-actions.ts` | The two-gate design behind `system/actions/*` (Danger zone) |
+| `src/components/system/DangerZone.tsx` | Reboot/shutdown/etc. UI — separate page, separate confirm flow |
 
 ## Phase 1 — read-only fleet/status dashboard
 
@@ -244,17 +260,89 @@ MOCK=1 MOCK_FAULT=link_loss,storage_full npm run dev
 Point `ALERT_WEBHOOK_URL` at any receiver, hit `/api/cron/poll?secret=…` a few
 times, and confirm you get one message per condition — not one per poll.
 
+## Phase 5 — polish & multi-unit readiness
+
+Three things, none of them a new feature so much as making the last four
+phases safe and extensible to actually deploy:
+
+### The dashboard's own login
+
+Nothing before this phase gated the dashboard itself — a session-authenticated
+proxy to the unit is not a login for *this app*, and the unit's credentials
+never reach the browser, so they couldn't double as one either. Anyone who
+found the Vercel URL got the whole dashboard.
+
+`src/proxy.ts` (Next 16 renamed Middleware to **Proxy** — same mechanism, see
+`node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/proxy.md`)
+now gates every route behind a signed session cookie:
+
+- `DASHBOARD_USERNAME` / `DASHBOARD_PASSWORD` / `AUTH_SECRET` — one shared
+  operator account, not a user table. `AUTH_SECRET` signs a stateless cookie
+  (`payload.HMAC-SHA256(payload)`, no session store, no extra dependency).
+- **Fails closed**: if any of the three are unset, every request is refused
+  (500) rather than silently left open — the same posture as `CRON_SECRET`.
+  `DASHBOARD_AUTH_DISABLED=1` is the explicit, documented opt-out, for local
+  dev only — never set it anywhere reachable from the internet.
+- `/login`, `/api/auth/*`, `/api/meta` (no secrets), and `/api/cron/poll`
+  (authenticates separately via `CRON_SECRET`, called by an external
+  scheduler with no browser session) are the only exempt paths.
+
+### Danger zone — `system/actions/*`, on purpose, behind two gates
+
+Phase 0's guard permanently blocked `reboot`, `power_cycle`, `shutdown`,
+`restart_streams`, and `upgrade_firmware` at the generic proxy, with a note
+that reaching them needed "a dedicated route with a type-to-confirm UI." This
+phase builds that route — on `/system`, its own page, with nothing routine
+anywhere near it:
+
+1. **Deploy-time gate**: `INTINOR_ALLOW_DESTRUCTIVE_ACTIONS=1`, off by
+   default and independent of `INTINOR_ALLOW_WRITES` — turning on routine
+   settings writes must never quietly turn this on too.
+2. **Per-request gate**: each action card is collapsed until you click it
+   open, then requires typing the action's own name (e.g. `REBOOT`) — not a
+   generic "SAVE", so confirming one action can't be muscle-memoried into
+   confirming a different one.
+
+`src/lib/intinor/server/system-actions.ts` checks both before ever calling
+`POST system/actions/{action}`; mock mode always allows it (nothing real to
+protect) so the whole confirm-and-run flow is testable without a unit.
+
+### Multi-unit: config change, not a rewrite
+
+`src/lib/intinor/server/config.ts` now holds a small unit registry instead of
+a single implicit unit. The primary unit still comes from the plain
+`INTINOR_UNIT_*` vars (existing deployments need no changes); additional
+units are one line of JSON in `INTINOR_UNITS`. The moment a unit is added:
+
+- `/api/units/{id}/...` proxies to it (same guard, same mock switch).
+- `/api/units/{id}/system-actions` gets its own Danger zone endpoint.
+- `/api/cron/poll` polls it too — alerting and history cover it with zero
+  code changes, because the cron loop already iterates `listUnitIds()`.
+
+This is deliberately *just* the plumbing — no fleet UI ships in this phase.
+The dashboard still points at the default unit; a fleet view is now a UI
+task, not an architecture change.
+
 ## Getting started
 
 ```bash
 npm install
 cp .env.example .env.local   # defaults to MOCK=1
+```
+
+Set `DASHBOARD_USERNAME`, `DASHBOARD_PASSWORD`, and `AUTH_SECRET` in
+`.env.local` (or set `DASHBOARD_AUTH_DISABLED=1` to skip login for local-only
+work), then:
+
+```bash
 npm run dev
 ```
 
-Open http://localhost:3000 — the overview page loads encoders / network
-inputs / video mixers / system status through the proxy. Try the proxy
-directly: `curl http://localhost:3000/api/unit/encoders`.
+Open http://localhost:3000, sign in, and the overview page loads encoders /
+network inputs / video mixers / system status through the proxy. The unit
+proxy itself is behind the login gate too, so `curl` needs the session
+cookie — easiest to exercise it from the browser, or curl `/api/meta` which
+stays public.
 
 To go live (read-only) against the real unit, set in `.env.local`:
 `MOCK=` (empty), `INTINOR_UNIT_HOST`, `INTINOR_UNIT_ID`, `INTINOR_USERNAME`,
@@ -265,8 +353,14 @@ To go live (read-only) against the real unit, set in `.env.local`:
 1. Import this repo at https://vercel.com/new (framework auto-detected).
 2. Set env vars for the project: `MOCK=1` (until the unit is reachable from
    Vercel — likely via `INTINOR_UNIT_HOST=iss.intinor.se`, since Vercel can't
-   reach a LAN IP).
-3. Every push to `main` deploys; PRs get preview URLs.
+   reach a LAN IP) **and** `DASHBOARD_USERNAME` / `DASHBOARD_PASSWORD` /
+   `AUTH_SECRET` — the dashboard is reachable from the open internet the
+   moment it's deployed, mock mode or not, and the proxy refuses every
+   request until those three are set.
+3. Every push to `main` deploys; PRs get preview URLs (each needs its own
+   `AUTH_SECRET` etc. — set env vars for all environments, or Preview will
+   fail closed same as Production).
 
-Phase 0 definition of done: the deployed shell renders and
-`https://<app>.vercel.app/api/unit/encoders` returns mock encoder JSON.
+Phase 0 definition of done: the deployed shell renders (after signing in) and
+`https://<app>.vercel.app/api/unit/encoders` returns mock encoder JSON to an
+authenticated session.

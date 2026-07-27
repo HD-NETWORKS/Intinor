@@ -24,7 +24,7 @@ import type {
   VideoMixerStatus,
 } from "../types";
 
-const UNIT_BASE = "/api/v1/units/D01393";
+const UNIT_BASE = `/api/v1/units/${process.env.INTINOR_UNIT_ID || "D01393"}`;
 
 // ---------------------------------------------------------------------------
 // System
@@ -68,7 +68,7 @@ export const mockSystem: SystemInformation = {
   model_name: "Direkt router",
   full_model_name: "Direkt router basic mobile",
   description: "HD Networks — mobile encoder",
-  serial: "D01393",
+  serial: process.env.INTINOR_UNIT_ID || "D01393",
   firmware: "S5.1.2-1",
   access_key: "MOCK-ACCESS-KEY",
   language: "en",

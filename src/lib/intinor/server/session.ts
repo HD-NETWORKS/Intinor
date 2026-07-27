@@ -3,7 +3,8 @@ import type { UserSession } from "../types";
 import { getUnitConfig } from "./config";
 
 /**
- * Session management against the unit's API.
+ * Session management against the unit's API — one cache entry per unit id, so
+ * a second unit gets its own session lifecycle without touching this module.
  *
  * The real password is only ever used here, to mint a temporary session id
  * via POST /users/{username}/sessions. All other requests authenticate as
@@ -15,15 +16,28 @@ import { getUnitConfig } from "./config";
  * out on the unit side.
  */
 
-let cachedSessionId: string | null = null;
-let pending: Promise<string> | null = null;
+interface UnitSessionState {
+  sessionId: string | null;
+  pending: Promise<string> | null;
+}
+
+const sessions = new Map<string, UnitSessionState>();
+
+function stateFor(unitId: string): UnitSessionState {
+  let state = sessions.get(unitId);
+  if (!state) {
+    state = { sessionId: null, pending: null };
+    sessions.set(unitId, state);
+  }
+  return state;
+}
 
 function basicAuth(user: string, secret: string): string {
   return "Basic " + Buffer.from(`${user}:${secret}`).toString("base64");
 }
 
-async function createSession(): Promise<string> {
-  const { baseUrl, username, password } = getUnitConfig();
+async function createSession(unitId: string): Promise<string> {
+  const { baseUrl, username, password } = getUnitConfig(unitId);
   const res = await fetch(
     `${baseUrl}/users/${encodeURIComponent(username)}/sessions`,
     {
@@ -38,29 +52,31 @@ async function createSession(): Promise<string> {
   );
   if (!res.ok) {
     throw new Error(
-      `Failed to open session on unit (${res.status} ${res.statusText})`,
+      `Failed to open session on unit '${unitId}' (${res.status} ${res.statusText})`,
     );
   }
   const session = (await res.json()) as UserSession;
   if (!session.session_id) {
-    throw new Error("Unit session response did not include a session_id");
+    throw new Error(`Unit '${unitId}' session response did not include a session_id`);
   }
   return session.session_id;
 }
 
-export async function getSessionAuthHeader(): Promise<string> {
-  const { username } = getUnitConfig();
-  if (!cachedSessionId) {
-    // Deduplicate concurrent session creation
-    pending ??= createSession().finally(() => {
-      pending = null;
+export async function getSessionAuthHeader(unitId: string): Promise<string> {
+  const { username } = getUnitConfig(unitId);
+  const state = stateFor(unitId);
+  if (!state.sessionId) {
+    // Deduplicate concurrent session creation for this unit.
+    state.pending ??= createSession(unitId).finally(() => {
+      state.pending = null;
     });
-    cachedSessionId = await pending;
+    state.sessionId = await state.pending;
   }
-  return basicAuth(username, cachedSessionId);
+  return basicAuth(username, state.sessionId);
 }
 
 /** Call when the unit answers 401 — forces a fresh session on next request. */
-export function invalidateSession(): void {
-  cachedSessionId = null;
+export function invalidateSession(unitId: string): void {
+  const state = sessions.get(unitId);
+  if (state) state.sessionId = null;
 }
