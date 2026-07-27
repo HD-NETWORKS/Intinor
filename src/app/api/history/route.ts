@@ -7,6 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { defaultUnitId } from "@/lib/intinor/server/config";
 import {
   fetchRecentAlerts,
   fetchSamples,
@@ -81,7 +82,19 @@ function toPoint(row: MonitorSample): HistoryPoint {
 }
 
 export async function GET(req: NextRequest) {
-  const unitId = process.env.INTINOR_UNIT_ID ?? "D01393";
+  const requested = req.nextUrl.searchParams.get("unit");
+  let unitId: string;
+  try {
+    unitId = requested ?? defaultUnitId();
+  } catch (err) {
+    return NextResponse.json({
+      configured: false,
+      unitId: null,
+      points: [],
+      alerts: [],
+      message: err instanceof Error ? err.message : "No unit configured",
+    });
+  }
 
   if (!isConfigured()) {
     return NextResponse.json({

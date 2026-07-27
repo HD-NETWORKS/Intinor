@@ -32,13 +32,13 @@ import type {
 } from "./rules";
 
 /** GET a unit path, honouring mock mode. Returns null on 404 / failure. */
-async function getJson<T>(path: string): Promise<T | null> {
+async function getJson<T>(unitId: string, path: string): Promise<T | null> {
   try {
     if (isMockMode()) {
       const mock = resolveMock("GET", path);
       return mock.status === 200 ? (mock.body as T) : null;
     }
-    const res = await unitFetch(path);
+    const res = await unitFetch(unitId, path);
     if (!res.ok) return null;
     return (await res.json()) as T;
   } catch {
@@ -48,17 +48,17 @@ async function getJson<T>(path: string): Promise<T | null> {
 
 export async function collectSnapshot(unitId: string): Promise<Snapshot> {
   const [system, interfaces, storage, encoderList, inputList] = await Promise.all([
-    getJson<SystemStatus>("system/status"),
-    getJson<NetworkInterfacesList>("network_interfaces"),
-    getJson<StorageStatus>("storage/status"),
-    getJson<EncodersList>("encoders"),
-    getJson<NetworkInputsList>("network_inputs"),
+    getJson<SystemStatus>(unitId, "system/status"),
+    getJson<NetworkInterfacesList>(unitId, "network_interfaces"),
+    getJson<StorageStatus>(unitId, "storage/status"),
+    getJson<EncodersList>(unitId, "encoders"),
+    getJson<NetworkInputsList>(unitId, "network_inputs"),
   ]);
 
   // Per-pipe status, iterating whatever the unit actually exposes.
   const encoders: SnapshotEncoder[] = await Promise.all(
     (encoderList?.encoders ?? []).map(async (enc) => {
-      const status = await getJson<EncoderStatus>(`encoders/${enc.index}/status`);
+      const status = await getJson<EncoderStatus>(unitId, `encoders/${enc.index}/status`);
       return {
         index: enc.index,
         description: enc.description ?? "",
@@ -76,6 +76,7 @@ export async function collectSnapshot(unitId: string): Promise<Snapshot> {
   const inputs: SnapshotInput[] = await Promise.all(
     (inputList?.network_inputs ?? []).map(async (input) => {
       const status = await getJson<NetworkInputStatus>(
+        unitId,
         `network_inputs/${input.index}/status`,
       );
       return {

@@ -1,23 +1,30 @@
 /**
  * Dashboard metadata for the UI chrome (mock banner, unit label, write mode).
- * Exposes no secrets — only mode flags and the public unit id.
+ * Exposes no secrets — only mode flags and public unit ids.
  */
 
 import { NextResponse } from "next/server";
-import { isMockMode, writesAllowed } from "@/lib/intinor/server/config";
+import {
+  destructiveActionsAllowed,
+  isMockMode,
+  listUnitIds,
+  writesAllowed,
+} from "@/lib/intinor/server/config";
+import { authDisabled, isAuthConfigured } from "@/lib/auth/config";
 
 export const dynamic = "force-dynamic";
 
+/** Exempted from the dashboard login gate in src/proxy.ts — no secrets here. */
 export function GET(): NextResponse {
+  const units = listUnitIds();
   return NextResponse.json({
     mock: isMockMode(),
     writesAllowed: writesAllowed(),
-    unitId: process.env.INTINOR_UNIT_ID ?? (isMockMode() ? "D01393 (mock)" : null),
-    configured: Boolean(
-      process.env.INTINOR_UNIT_HOST &&
-        process.env.INTINOR_UNIT_ID &&
-        process.env.INTINOR_USERNAME &&
-        process.env.INTINOR_PASSWORD,
-    ),
+    destructiveActionsAllowed: destructiveActionsAllowed() || isMockMode(),
+    unitId: units[0] ?? null,
+    units,
+    configured: units.length > 0,
+    authDisabled: authDisabled(),
+    authConfigured: isAuthConfigured(),
   });
 }

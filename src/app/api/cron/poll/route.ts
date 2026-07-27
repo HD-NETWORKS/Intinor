@@ -1,7 +1,8 @@
 /**
  * Monitoring poll — the scheduled job behind alerting and history.
  *
- * Each invocation:
+ * For every configured unit (see server/config.ts — one today, more the
+ * moment a second is added to INTINOR_UNITS, no code change needed):
  *   1. collects a read-only snapshot of the unit (GETs only — never writes),
  *   2. stores it as a time-series row,
  *   3. evaluates the alert rules against it plus the previous sample,
@@ -19,6 +20,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { listUnitIds } from "@/lib/intinor/server/config";
 import { collectSnapshot, rowToSnapshot, snapshotToRow } from "@/lib/monitor/collect";
 import { diffAlerts, evaluateRules, alertKey } from "@/lib/monitor/rules";
 import { configuredChannels, deliver } from "@/lib/monitor/notify";
@@ -35,10 +37,6 @@ import {
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-function unitId(): string {
-  return process.env.INTINOR_UNIT_ID ?? "D01393";
-}
-
 function authorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
   if (!secret) return false;
@@ -47,19 +45,7 @@ function authorized(req: NextRequest): boolean {
   return req.nextUrl.searchParams.get("secret") === secret;
 }
 
-export async function GET(req: NextRequest) {
-  if (!authorized(req)) {
-    return NextResponse.json(
-      {
-        error: process.env.CRON_SECRET
-          ? "Unauthorized"
-          : "CRON_SECRET is not set — refusing to run.",
-      },
-      { status: 401 },
-    );
-  }
-
-  const id = unitId();
+async function pollUnit(id: string) {
   const started = Date.now();
 
   // 1. Collect (read-only).
@@ -132,8 +118,7 @@ export async function GET(req: NextRequest) {
     delivered.push({ kind: row.kind, subject: row.subject, recovery: true, results });
   }
 
-  return NextResponse.json({
-    ok: true,
+  return {
     unitId: id,
     ts: snapshot.ts,
     durationMs: Date.now() - started,
@@ -151,6 +136,34 @@ export async function GET(req: NextRequest) {
       ongoing: ongoing.length,
       delivered,
     },
+  };
+}
+
+export async function GET(req: NextRequest) {
+  if (!authorized(req)) {
+    return NextResponse.json(
+      {
+        error: process.env.CRON_SECRET
+          ? "Unauthorized"
+          : "CRON_SECRET is not set — refusing to run.",
+      },
+      { status: 401 },
+    );
+  }
+
+  const ids = listUnitIds();
+  if (ids.length === 0) {
+    return NextResponse.json({ error: "No units configured" }, { status: 500 });
+  }
+
+  const started = Date.now();
+  const units = await Promise.all(ids.map(pollUnit));
+
+  return NextResponse.json({
+    ok: true,
+    ts: new Date().toISOString(),
+    durationMs: Date.now() - started,
+    units,
   });
 }
 

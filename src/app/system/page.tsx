@@ -1,10 +1,17 @@
-import { PhasePlaceholder } from "@/components/PhasePlaceholder";
+import { DangerZone } from "@/components/system/DangerZone";
 
 export default function SystemPage() {
   return (
-    <PhasePlaceholder
-      title="System"
-      description="Unit health (CPU, battery, firmware, network interfaces) and — much later, behind type-to-confirm — maintenance actions."
-    />
+    <div className="mx-auto max-w-3xl space-y-6">
+      <div>
+        <h1 className="text-xl font-semibold text-slate-100">System maintenance</h1>
+        <p className="text-sm text-slate-500">
+          Unit health lives on the overview page. This page is only whole-unit maintenance
+          actions — kept on its own screen, away from every routine control, on purpose.
+        </p>
+      </div>
+
+      <DangerZone />
+    </div>
   );
 }
