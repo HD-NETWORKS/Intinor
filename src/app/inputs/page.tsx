@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useIntinorClient } from "@/hooks/useIntinorClient";
+import { useSourceUsage } from "@/hooks/useSourceUsage";
 import type {
   NetworkInputsList,
   NetworkInputSettings,
@@ -184,6 +185,15 @@ function inputSections(s: NetworkInputSettingsResponse): FieldSection[] {
 function InputSettingsEditor({ index }: { index: number }) {
   const meta = useUnitMeta();
   const client = useIntinorClient();
+  const { usage } = useSourceUsage();
+  // Usage is keyed by the full source href the unit reports; match this
+  // input's own index by suffix rather than requiring an exact string.
+  const usedBy = useMemo(() => {
+    const match = Array.from(usage.entries()).find(([source]) =>
+      source.endsWith(`/network_inputs/${index}`),
+    );
+    return match ? match[1].map((e) => e.label) : [];
+  }, [usage, index]);
   const load = useCallback(() => client.getNetworkInputSettings(index), [client, index]);
   const save = useCallback(
     (body: NetworkInputSettingsResponse) =>
@@ -199,12 +209,23 @@ function InputSettingsEditor({ index }: { index: number }) {
   });
 
   return (
-    <SettingsForm
-      title={`Network input #${index} settings`}
-      description="SRT caller/listener, RTMP, multicast and buffering for this ingest."
-      editor={editor}
-      meta={meta}
-    />
+    <div className="space-y-3">
+      {usedBy.length > 0 && (
+        <div className="rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+          {usedBy.length > 1 ? (
+            <>⚠ Used by {usedBy.length} consumers: {usedBy.join(", ")}</>
+          ) : (
+            <>Used by {usedBy[0]}</>
+          )}
+        </div>
+      )}
+      <SettingsForm
+        title={`Network input #${index} settings`}
+        description="SRT caller/listener, RTMP, multicast and buffering for this ingest."
+        editor={editor}
+        meta={meta}
+      />
+    </div>
   );
 }
 

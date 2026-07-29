@@ -2,10 +2,9 @@
 
 import type {
   VideoMixerLayerLayoutConstraints,
-  VideoMixerLayerSettings,
   VideoSourceConstraint,
 } from "@/lib/intinor/types";
-import { clampLayout, isFeedSource } from "@/lib/mixer-layout";
+import { clampLayout, isFeedSource, type EditableLayer } from "@/lib/mixer-layout";
 import { sourceLabel } from "./sourceLabel";
 
 function NumberField({
@@ -44,22 +43,27 @@ export function LayerEditor({
   sourceOptions,
   availableFeeds,
   maxLayers,
+  sourceUsage,
   onSelect,
   onChangeLayout,
   onChangeSource,
+  onToggleEnabled,
   onReorder,
   onDelete,
   onAdd,
 }: {
-  layers: VideoMixerLayerSettings[];
+  layers: EditableLayer[];
   selectedIndex: number | null;
   constraints: VideoMixerLayerLayoutConstraints;
   sourceOptions: VideoSourceConstraint[];
   availableFeeds: Set<string>;
   maxLayers: number;
+  /** Other places (encoders, other mixers) already using a given source — shown as a heads-up, never blocking. */
+  sourceUsage?: Map<string, string[]>;
   onSelect: (index: number) => void;
   onChangeLayout: (index: number, layout: { x: number; y: number; zoom: number }) => void;
   onChangeSource: (index: number, source: string) => void;
+  onToggleEnabled: (index: number) => void;
   onReorder: (index: number, dir: -1 | 1) => void;
   onDelete: (index: number) => void;
   onAdd: () => void;
@@ -86,17 +90,28 @@ export function LayerEditor({
           const src = layer.input?.source ?? "";
           const feed = isFeedSource(src);
           const live = feed && availableFeeds.has(src);
+          const disabled = !layer.enabled;
+          const usedElsewhere = src ? sourceUsage?.get(src) : undefined;
           return (
             <li
               key={i}
               className={
                 "rounded border p-2 " +
-                (selected
-                  ? "border-sky-500/60 bg-sky-500/5"
-                  : "border-slate-800 bg-slate-950/50")
+                (disabled
+                  ? "border-slate-800 bg-slate-950/20 opacity-60"
+                  : selected
+                    ? "border-sky-500/60 bg-sky-500/5"
+                    : "border-slate-800 bg-slate-950/50")
               }
             >
               <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={layer.enabled}
+                  onChange={() => onToggleEnabled(i)}
+                  title={layer.enabled ? "Disable this layer" : "Enable this layer"}
+                  className="shrink-0"
+                />
                 <button
                   onClick={() => onSelect(i)}
                   className="flex flex-1 items-center gap-2 text-left text-sm text-slate-200"
@@ -116,6 +131,7 @@ export function LayerEditor({
                   />
                   <span className="text-slate-500">L{i}</span>
                   <span>{sourceLabel(src)}</span>
+                  {disabled && <span className="text-[10px] text-slate-500">(disabled)</span>}
                 </button>
                 <div className="flex items-center gap-1">
                   <button
@@ -144,6 +160,12 @@ export function LayerEditor({
                 </div>
               </div>
 
+              {usedElsewhere && usedElsewhere.length > 0 && (
+                <p className="mt-1 pl-6 text-[11px] text-amber-300/90">
+                  ⚠ Also used by {usedElsewhere.join(", ")}
+                </p>
+              )}
+
               {selected && (
                 <div className="mt-2 space-y-2">
                   <label className="flex flex-col gap-0.5 text-xs text-slate-400">
@@ -154,14 +176,18 @@ export function LayerEditor({
                       className="w-full rounded border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-200"
                     >
                       <option value="">(no source)</option>
-                      {sourceOptions.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.name}
-                          {opt.value && !availableFeeds.has(opt.value) && isFeedSource(opt.value)
-                            ? " (offline)"
-                            : ""}
-                        </option>
-                      ))}
+                      {sourceOptions.map((opt) => {
+                        const usage = opt.value ? sourceUsage?.get(opt.value) : undefined;
+                        return (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.name}
+                            {opt.value && !availableFeeds.has(opt.value) && isFeedSource(opt.value)
+                              ? " (offline)"
+                              : ""}
+                            {usage && usage.length > 0 ? ` — used by ${usage.join(", ")}` : ""}
+                          </option>
+                        );
+                      })}
                     </select>
                   </label>
                   <div className="grid grid-cols-3 gap-2">

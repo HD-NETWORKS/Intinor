@@ -24,6 +24,7 @@ export function MixerCanvas({
   selectedIndex,
   constraints,
   availableFeeds,
+  disabledIndexes,
   onSelect,
   onChangeLayout,
 }: {
@@ -31,6 +32,8 @@ export function MixerCanvas({
   selectedIndex: number | null;
   constraints: VideoMixerLayerLayoutConstraints;
   availableFeeds: Set<string>;
+  /** Layers kept configured but excluded from what's actually applied — shown dimmed, still editable. */
+  disabledIndexes?: Set<number>;
   onSelect: (index: number) => void;
   onChangeLayout: (index: number, layout: { x: number; y: number; zoom: number }) => void;
 }) {
@@ -89,6 +92,7 @@ export function MixerCanvas({
         const selected = i === selectedIndex;
         const feed = isFeedSource(layer.input?.source);
         const live = feed && availableFeeds.has(layer.input?.source ?? "");
+        const disabled = disabledIndexes?.has(i) ?? false;
         return (
           <div
             key={i}
@@ -107,6 +111,7 @@ export function MixerCanvas({
             }}
             className={
               "absolute flex cursor-move items-center justify-center overflow-hidden text-xs font-medium " +
+              (disabled ? "opacity-35 " : "") +
               (selected
                 ? "z-10 ring-2 ring-sky-400"
                 : "ring-1 ring-slate-600 hover:ring-slate-400")
@@ -122,12 +127,12 @@ export function MixerCanvas({
                   ? "rgba(120,53,15,0.5)"
                   : "rgba(71,85,105,0.5)",
             }}
-            title={layer.input?.source ?? "(no source)"}
+            title={(layer.input?.source ?? "(no source)") + (disabled ? " — disabled" : "")}
           >
             <div className="pointer-events-none px-1 text-center text-slate-100">
               <div>{sourceLabel(layer.input?.source)}</div>
               <div className="text-[10px] text-slate-300">
-                L{i} · {round3(zoom)}×
+                L{i} · {round3(zoom)}×{disabled ? " · OFF" : ""}
               </div>
             </div>
             {selected && (

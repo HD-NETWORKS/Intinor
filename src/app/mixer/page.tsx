@@ -4,14 +4,15 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { IntinorApiError } from "@/lib/intinor-client";
 import { useIntinorClient } from "@/hooks/useIntinorClient";
 import { useCurrentUnit } from "@/lib/units/context";
+import { useSourceUsage, usageLabelsExcluding } from "@/hooks/useSourceUsage";
 import type {
   NetworkInputsList,
-  VideoMixerLayerSettings,
   VideoMixerSettingsResponse,
   VideoMixersList,
 } from "@/lib/intinor/types";
 import {
   buildPresetLayers,
+  type EditableLayer,
   isFeedSource,
   layoutConstraintsFrom,
   maxLayersFrom,
@@ -19,6 +20,8 @@ import {
   prepareMixerPut,
   slotCoverage,
   sourceOptionsFrom,
+  stripEnabled,
+  withEnabled,
 } from "@/lib/mixer-layout";
 import {
   deleteProfile as deleteProfileStore,
@@ -31,42 +34,19 @@ import { LayerEditor } from "@/components/mixer/LayerEditor";
 import { LayoutProfiles } from "@/components/mixer/LayoutProfiles";
 import { MixerPreview } from "@/components/mixer/MixerPreview";
 import { MixerOutputSettings } from "@/components/mixer/MixerOutputSettings";
+import { PipePicker } from "@/components/settings/PipePicker";
 import type { UnitMeta } from "@/hooks/useUnitMeta";
 
 type ApplyState = "idle" | "confirming" | "applying" | "done" | "error";
 
 export default function MixerBuilderPage() {
   const client = useIntinorClient();
-  const { unitId: currentUnitId } = useCurrentUnit();
-  const [mixerIndex, setMixerIndex] = useState<number | null>(null);
-  const [settings, setSettings] = useState<VideoMixerSettingsResponse | null>(null);
+  const [mixerList, setMixerList] = useState<VideoMixersList | null>(null);
+  const [selectedMixer, setSelectedMixer] = useState<number | null>(null);
   const [networkInputs, setNetworkInputs] = useState<NetworkInputsList | null>(null);
   const [meta, setMeta] = useState<UnitMeta | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const [layers, setLayers] = useState<VideoMixerLayerSettings[]>([]);
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const [profiles, setProfiles] = useState<MixerProfile[]>([]);
-
-  const [applyState, setApplyState] = useState<ApplyState>("idle");
-  const [applyError, setApplyError] = useState<string | null>(null);
-  const [confirmText, setConfirmText] = useState("");
-  const [previewKey, setPreviewKey] = useState(0);
-
-  const unitId = currentUnitId ?? "unit";
-
-  const loadSettings = useCallback(
-    async (index: number) => {
-      const s = await client.getVideoMixerSettings(index);
-      setSettings(s);
-      setLayers(structuredClone(s.program?.layers ?? []));
-      setSelectedIndex((s.program?.layers?.length ?? 0) > 0 ? 0 : null);
-    },
-    [client],
-  );
-
-  // Initial load: mixer list → first mixer, its settings, network inputs, meta.
-  // Re-runs whenever the selected unit changes (client's identity changes with it).
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -77,12 +57,123 @@ export default function MixerBuilderPage() {
           fetch("/api/meta").then((r) => r.json() as Promise<UnitMeta>),
         ]);
         if (cancelled) return;
+        setMixerList(mixers);
         setNetworkInputs(inputs);
         setMeta(metaRes);
-        const index = mixers.video_mixers[0]?.index ?? 0;
-        setMixerIndex(index);
-        setProfiles(loadProfiles(unitId, index));
-        await loadSettings(index);
+        setSelectedMixer(mixers.video_mixers[0]?.index ?? null);
+      } catch (err) {
+        if (cancelled) return;
+        setError(
+          err instanceof IntinorApiError
+            ? `${err.message} (HTTP ${err.status})`
+            : err instanceof Error
+              ? err.message
+              : "Failed to load mixers",
+        );
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [client]);
+
+  if (error) {
+    return (
+      <div className="mx-auto max-w-5xl">
+        <h1 className="text-xl font-semibold text-slate-100">Video mixer</h1>
+        <div className="mt-4 rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          {error}
+        </div>
+      </div>
+    );
+  }
+
+  if (!mixerList || !networkInputs) {
+    return (
+      <div className="mx-auto max-w-5xl">
+        <h1 className="text-xl font-semibold text-slate-100">Video mixer</h1>
+        <p className="mt-4 text-sm text-slate-500">Loading mixers…</p>
+      </div>
+    );
+  }
+
+  if (mixerList.video_mixers.length === 0 || selectedMixer == null) {
+    return (
+      <div className="mx-auto max-w-5xl">
+        <h1 className="text-xl font-semibold text-slate-100">Video mixer</h1>
+        <p className="mt-4 text-sm text-slate-500">This unit has no video mixers.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-6xl space-y-5">
+      <div>
+        <h1 className="text-xl font-semibold text-slate-100">Video mixer builder</h1>
+        <p className="text-sm text-slate-500">
+          Drag boxes to position layers, drag the corner to resize. Pick a preset,
+          assign sources, save a named profile, then apply.
+        </p>
+      </div>
+
+      <PipePicker
+        label="Mixer"
+        items={mixerList.video_mixers}
+        selected={selectedMixer}
+        onSelect={setSelectedMixer}
+      />
+
+      <MixerEditor
+        key={selectedMixer}
+        mixerIndex={selectedMixer}
+        networkInputs={networkInputs}
+        meta={meta}
+      />
+    </div>
+  );
+}
+
+function MixerEditor({
+  mixerIndex,
+  networkInputs,
+  meta,
+}: {
+  mixerIndex: number;
+  networkInputs: NetworkInputsList;
+  meta: UnitMeta | null;
+}) {
+  const client = useIntinorClient();
+  const { unitId: currentUnitId } = useCurrentUnit();
+  const unitId = currentUnitId ?? "unit";
+  const { usage, refresh: refreshUsage } = useSourceUsage();
+
+  const [settings, setSettings] = useState<VideoMixerSettingsResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const [layers, setLayers] = useState<EditableLayer[]>([]);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [profiles, setProfiles] = useState<MixerProfile[]>([]);
+
+  const [applyState, setApplyState] = useState<ApplyState>("idle");
+  const [applyError, setApplyError] = useState<string | null>(null);
+  const [confirmText, setConfirmText] = useState("");
+  const [previewKey, setPreviewKey] = useState(0);
+
+  const loadSettings = useCallback(async () => {
+    const s = await client.getVideoMixerSettings(mixerIndex);
+    setSettings(s);
+    const editable = withEnabled(s.program?.layers ?? []);
+    setLayers(editable);
+    setSelectedIndex(editable.length > 0 ? 0 : null);
+  }, [client, mixerIndex]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        await loadSettings();
+        if (cancelled) return;
+        setProfiles(loadProfiles(unitId, mixerIndex));
       } catch (err) {
         if (cancelled) return;
         setError(
@@ -97,7 +188,7 @@ export default function MixerBuilderPage() {
     return () => {
       cancelled = true;
     };
-  }, [client, unitId, loadSettings]);
+  }, [loadSettings, unitId, mixerIndex]);
 
   const programConstraints = settings?._constraints?.program;
   const layoutConstraints = useMemo(
@@ -109,6 +200,12 @@ export default function MixerBuilderPage() {
     [programConstraints],
   );
   const maxLayers = maxLayersFrom(programConstraints);
+
+  // Every other encoder/mixer already using a given source, excluding this mixer's own layers.
+  const sourceUsage = useMemo(
+    () => usageLabelsExcluding(usage, { kind: "mixer", index: mixerIndex }),
+    [usage, mixerIndex],
+  );
 
   // Which feed sources are currently backed by an active input.
   const availableFeeds = useMemo(() => {
@@ -139,13 +236,21 @@ export default function MixerBuilderPage() {
     [sourceOptions, availableFeeds],
   );
 
+  // Disabled layers are kept configured but aren't part of what's actually applied.
+  const enabledLayers = useMemo(() => layers.filter((l) => l.enabled), [layers]);
+  const disabledIndexes = useMemo(
+    () => new Set(layers.flatMap((l, i) => (l.enabled ? [] : [i]))),
+    [layers],
+  );
+
   const coverage = useMemo(
-    () => slotCoverage(layers, availableFeeds),
-    [layers, availableFeeds],
+    () => slotCoverage(enabledLayers, availableFeeds),
+    [enabledLayers, availableFeeds],
   );
 
   const dirty = useMemo(() => {
-    return JSON.stringify(layers) !== JSON.stringify(settings?.program?.layers ?? []);
+    const saved = withEnabled(settings?.program?.layers ?? []);
+    return JSON.stringify(layers) !== JSON.stringify(saved);
   }, [layers, settings]);
 
   // -- editing operations --------------------------------------------------
@@ -154,6 +259,9 @@ export default function MixerBuilderPage() {
 
   const setSource = (i: number, source: string) =>
     setLayers((prev) => prev.map((l, j) => (j === i ? { ...l, input: { ...l.input, source } } : l)));
+
+  const toggleEnabled = (i: number) =>
+    setLayers((prev) => prev.map((l, j) => (j === i ? { ...l, enabled: !l.enabled } : l)));
 
   const reorder = (i: number, dir: -1 | 1) => {
     const j = i + dir;
@@ -175,7 +283,7 @@ export default function MixerBuilderPage() {
     if (layers.length >= maxLayers) return;
     setLayers((prev) => [
       ...prev,
-      { layout: { x: 0.25, y: 0.25, zoom: 0.5 }, input: { source: fillerSource } },
+      { layout: { x: 0.25, y: 0.25, zoom: 0.5 }, input: { source: fillerSource }, enabled: true },
     ]);
     setSelectedIndex(layers.length);
   };
@@ -183,33 +291,32 @@ export default function MixerBuilderPage() {
   const applyPreset = (presetId: string) => {
     const preset = PRESETS.find((p) => p.id === presetId);
     if (!preset) return;
-    setLayers(buildPresetLayers(preset, feedSources, fillerSource));
+    setLayers(withEnabled(buildPresetLayers(preset, feedSources, fillerSource)));
     setSelectedIndex(0);
   };
 
   // -- profiles ------------------------------------------------------------
   const onSaveProfile = (name: string) => {
-    if (mixerIndex == null) return;
     setProfiles(saveProfile(unitId, mixerIndex, name, layers));
   };
   const onApplyProfile = (p: MixerProfile) => {
-    setLayers(structuredClone(p.layers));
+    setLayers(withEnabled(p.layers));
     setSelectedIndex(p.layers.length > 0 ? 0 : null);
   };
   const onDeleteProfile = (id: string) => {
-    if (mixerIndex == null) return;
     setProfiles(deleteProfileStore(unitId, mixerIndex, id));
   };
 
   // -- apply to unit -------------------------------------------------------
   const doApply = useCallback(async () => {
-    if (mixerIndex == null || !settings) return;
+    if (!settings) return;
     setApplyState("applying");
     setApplyError(null);
     try {
-      const body = prepareMixerPut(settings, layers);
+      const body = prepareMixerPut(settings, stripEnabled(enabledLayers));
       await client.putVideoMixerSettings(mixerIndex, body);
-      await loadSettings(mixerIndex);
+      await loadSettings();
+      void refreshUsage();
       setPreviewKey((k) => k + 1);
       setApplyState("done");
       setConfirmText("");
@@ -224,7 +331,7 @@ export default function MixerBuilderPage() {
             : "Apply failed",
       );
     }
-  }, [client, mixerIndex, settings, layers, loadSettings]);
+  }, [client, mixerIndex, settings, enabledLayers, loadSettings, refreshUsage]);
 
   const liveWrite = meta ? !meta.mock && meta.writesAllowed : false;
   const liveReadOnly = meta ? !meta.mock && !meta.writesAllowed : false;
@@ -239,36 +346,18 @@ export default function MixerBuilderPage() {
 
   if (error) {
     return (
-      <div className="mx-auto max-w-5xl">
-        <h1 className="text-xl font-semibold text-slate-100">Video mixer</h1>
-        <div className="mt-4 rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-          {error}
-        </div>
+      <div className="rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+        {error}
       </div>
     );
   }
 
-  if (!settings || mixerIndex == null) {
-    return (
-      <div className="mx-auto max-w-5xl">
-        <h1 className="text-xl font-semibold text-slate-100">Video mixer</h1>
-        <p className="mt-4 text-sm text-slate-500">Loading mixer…</p>
-      </div>
-    );
+  if (!settings) {
+    return <p className="text-sm text-slate-500">Loading mixer #{mixerIndex}…</p>;
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-100">
-          Video mixer builder <span className="text-slate-500">#{mixerIndex}</span>
-        </h1>
-        <p className="text-sm text-slate-500">
-          Drag boxes to position layers, drag the corner to resize. Pick a preset,
-          assign sources, save a named profile, then apply.
-        </p>
-      </div>
-
+    <div className="space-y-5">
       {/* Presets */}
       <div className="flex flex-wrap gap-2">
         {PRESETS.map((p) => (
@@ -290,6 +379,7 @@ export default function MixerBuilderPage() {
         fillers={coverage.fillers}
         empty={coverage.empty}
         feedCount={feedSources.length}
+        disabledCount={layers.length - enabledLayers.length}
       />
 
       <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
@@ -303,6 +393,7 @@ export default function MixerBuilderPage() {
               selectedIndex={selectedIndex}
               constraints={layoutConstraints}
               availableFeeds={availableFeeds}
+              disabledIndexes={disabledIndexes}
               onSelect={setSelectedIndex}
               onChangeLayout={setLayout}
             />
@@ -324,9 +415,11 @@ export default function MixerBuilderPage() {
             sourceOptions={sourceOptions}
             availableFeeds={availableFeeds}
             maxLayers={maxLayers}
+            sourceUsage={sourceUsage}
             onSelect={setSelectedIndex}
             onChangeLayout={setLayout}
             onChangeSource={setSource}
+            onToggleEnabled={toggleEnabled}
             onReorder={reorder}
             onDelete={deleteLayer}
             onAdd={addLayer}
@@ -367,6 +460,13 @@ export default function MixerBuilderPage() {
                 composition on {unitId}.
               </p>
             )}
+            {layers.length > enabledLayers.length && (
+              <p className="text-xs text-slate-500">
+                {layers.length - enabledLayers.length} disabled layer
+                {layers.length - enabledLayers.length === 1 ? "" : "s"} kept configured but won&apos;t
+                be sent.
+              </p>
+            )}
 
             {applyState === "confirming" ? (
               <div className="space-y-2">
@@ -402,7 +502,7 @@ export default function MixerBuilderPage() {
             ) : (
               <button
                 onClick={onApplyClick}
-                disabled={applyState === "applying" || liveReadOnly || layers.length === 0}
+                disabled={applyState === "applying" || liveReadOnly || enabledLayers.length === 0}
                 className="w-full rounded bg-sky-600 px-3 py-2 text-sm font-medium text-white hover:bg-sky-500 disabled:opacity-40"
               >
                 {applyState === "applying"
@@ -432,22 +532,33 @@ function SlotBanner({
   fillers,
   empty,
   feedCount,
+  disabledCount,
 }: {
   total: number;
   liveFeeds: number;
   fillers: number;
   empty: number;
   feedCount: number;
+  disabledCount: number;
 }) {
-  if (total === 0) return null;
+  if (total === 0 && disabledCount === 0) return null;
   return (
     <div className="rounded border border-slate-700 bg-slate-900/50 px-4 py-2 text-sm text-slate-300">
-      <strong className="text-slate-100">
-        {liveFeeds} of {total} slot{total === 1 ? "" : "s"}
-      </strong>{" "}
-      {liveFeeds === 1 ? "has" : "have"} a live source.
-      {fillers > 0 && ` ${fillers} use the test picture / filler.`}
-      {empty > 0 && ` ${empty} have no source.`}{" "}
+      {total > 0 && (
+        <>
+          <strong className="text-slate-100">
+            {liveFeeds} of {total} slot{total === 1 ? "" : "s"}
+          </strong>{" "}
+          {liveFeeds === 1 ? "has" : "have"} a live source.
+          {fillers > 0 && ` ${fillers} use the test picture / filler.`}
+          {empty > 0 && ` ${empty} have no source.`}{" "}
+        </>
+      )}
+      {disabledCount > 0 && (
+        <span className="text-slate-400">
+          {disabledCount} layer{disabledCount === 1 ? "" : "s"} disabled, not counted above.{" "}
+        </span>
+      )}
       <span className="text-slate-500">
         This unit currently exposes {feedCount} live feed{feedCount === 1 ? "" : "s"}
         — extra quad cells fill with the test picture until more inputs (a second
