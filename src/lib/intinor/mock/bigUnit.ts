@@ -15,26 +15,31 @@
 import type {
   Encoder,
   EncodersList,
+  EncoderSettingsResponse,
   EncoderStatus,
   NetworkInput,
   NetworkInputsList,
   NetworkInputStatus,
+  VideoMixer,
   VideoMixersList,
   VideoMixerSettingsResponse,
   VideoSourceConstraint,
 } from "../types";
 import {
   mockEncoder,
+  mockEncoderSettings,
   mockEncoderStatus,
   mockNetworkInput,
   mockNetworkInputStatus,
-  mockVideoMixersList,
+  mockVideoMixer,
   mockVideoMixerSettings,
 } from "./data";
 import { clamp, jitteredValue } from "./jitter";
 
 export const BIG_INPUT_COUNT = 16;
 export const BIG_ENCODER_COUNT = 17;
+/** Two mixers, so the multi-mixer picker and cross-mixer usage indicators are actually exercisable. */
+export const BIG_MIXER_COUNT = 2;
 
 // A sparse "only a few pipes are actually patched right now" pattern — most
 // real racks look like this far more often than every slot being live.
@@ -114,31 +119,48 @@ export function bigEncoderStatus(index: number): EncoderStatus {
   };
 }
 
-/** One mixer is enough to demonstrate the pattern — real counts always come from the unit's own API. */
-export function bigVideoMixersList(): VideoMixersList {
-  return structuredClone(mockVideoMixersList);
+export function bigVideoMixer(index: number): VideoMixer {
+  return {
+    ...structuredClone(mockVideoMixer),
+    index,
+    description: index === 0 ? "Program mix" : `Mixer ${index + 1}`,
+    href: mockVideoMixer.href.replace(/\/0$/, `/${index}`),
+  };
 }
 
-/**
- * The mixer's settings/constraints, with `_constraints.program.layers.input.source`
- * expanded to list all BIG_INPUT_COUNT synthetic inputs. The default mock only
- * lists network_inputs/0 — correct for the 1-input unit, but it would make
- * every other input on this fixture unselectable as a mixer source, which
- * defeats the point of testing at this unit's actual scale.
- */
-export function bigVideoMixerSettings(): VideoMixerSettingsResponse {
-  const base = structuredClone(mockVideoMixerSettings);
-  const testPicture = base._constraints!.program!.layers.input!.source.find((s) =>
-    s.value?.includes("test_picture"),
-  );
-  const inputSources: VideoSourceConstraint[] = Array.from({ length: BIG_INPUT_COUNT }, (_, i) => ({
+/** Two mixers — real counts always come from the unit's own API. */
+export function bigVideoMixersList(): VideoMixersList {
+  return { video_mixers: Array.from({ length: BIG_MIXER_COUNT }, (_, i) => bigVideoMixer(i)) };
+}
+
+function bigInputSourceOptions(): VideoSourceConstraint[] {
+  return Array.from({ length: BIG_INPUT_COUNT }, (_, i) => ({
     name: `Network input ${i + 1}`,
     value: bigNetworkInput(i).href,
     description: `IP stream in ${i + 1}`,
     multiprogram: true,
   }));
+}
+
+/**
+ * A mixer's settings/constraints, with `_constraints.program.layers.input.source`
+ * expanded to list all BIG_INPUT_COUNT synthetic inputs. The default mock only
+ * lists network_inputs/0 — correct for the 1-input unit, but it would make
+ * every other input on this fixture unselectable as a mixer source, which
+ * defeats the point of testing at this unit's actual scale.
+ */
+export function bigVideoMixerSettings(index: number): VideoMixerSettingsResponse {
+  const base = structuredClone(mockVideoMixerSettings);
+  const testPicture = base._constraints!.program!.layers.input!.source.find((s) =>
+    s.value?.includes("test_picture"),
+  );
+  const inputSources = bigInputSourceOptions();
   return {
     ...base,
+    description: bigVideoMixer(index).description,
+    // Only mixer 0 keeps the default's pre-applied 2-layer program; other
+    // mixers start empty, same as a freshly-provisioned mixer would.
+    program: index === 0 ? base.program : { background: "black", layers: [] },
     _constraints: {
       ...base._constraints!,
       program: {
@@ -147,6 +169,37 @@ export function bigVideoMixerSettings(): VideoMixerSettingsResponse {
           ...base._constraints!.program!.layers,
           input: { source: testPicture ? [...inputSources, testPicture] : inputSources },
         },
+      },
+    },
+  };
+}
+
+/**
+ * An encoder's settings/constraints, with `_constraints.video_source.source`
+ * expanded to list every input and mixer on this fixture, not just index 0 —
+ * an encoder's source can legitimately be any of them.
+ */
+export function bigEncoderSettings(index: number): EncoderSettingsResponse {
+  const base = structuredClone(mockEncoderSettings);
+  const testPicture = base._constraints!.video_source!.source.find((s) =>
+    s.value?.includes("test_picture"),
+  );
+  const mixerSources: VideoSourceConstraint[] = Array.from({ length: BIG_MIXER_COUNT }, (_, i) => ({
+    name: `Video mixer ${i + 1}`,
+    value: bigVideoMixer(i).href,
+  }));
+  return {
+    ...base,
+    description: `Encoder ${index + 1}`,
+    _constraints: {
+      ...base._constraints!,
+      video_source: {
+        ...base._constraints!.video_source,
+        source: [
+          ...mixerSources,
+          ...bigInputSourceOptions(),
+          ...(testPicture ? [testPicture] : []),
+        ],
       },
     },
   };

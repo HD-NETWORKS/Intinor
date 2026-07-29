@@ -45,12 +45,15 @@ import {
 import {
   BIG_ENCODER_COUNT,
   BIG_INPUT_COUNT,
+  BIG_MIXER_COUNT,
   bigEncoder,
+  bigEncoderSettings,
   bigEncoderStatus,
   bigEncodersList,
   bigNetworkInput,
   bigNetworkInputStatus,
   bigNetworkInputsList,
+  bigVideoMixer,
   bigVideoMixerSettings,
   bigVideoMixersList,
 } from "./bigUnit";
@@ -73,10 +76,11 @@ function isBigUnit(unitId?: string): boolean {
   return Boolean(unitId) && unitId !== defaultUnitId();
 }
 
-/** The un-overridden settings for a resource — different base for the big unit's mixer (more sources). */
+/** The un-overridden settings for a resource — different base for the big unit (more sources to pick from). */
 function baseSettingsFor(kind: SettingsKind, index: number, unitId?: string): AnySettings {
-  if (kind === "video_mixers" && index === 0 && isBigUnit(unitId)) {
-    return bigVideoMixerSettings();
+  if (isBigUnit(unitId)) {
+    if (kind === "video_mixers") return bigVideoMixerSettings(index);
+    if (kind === "encoders") return bigEncoderSettings(index);
   }
   const table: Record<SettingsKind, AnySettings> = {
     encoders: mockEncoderSettings,
@@ -289,18 +293,6 @@ function bigGetRoutes(unitId: string): Record<string, () => unknown> {
     encoders: () => bigEncodersList(),
     network_inputs: () => bigNetworkInputsList(),
     video_mixers: () => bigVideoMixersList(),
-    "video_mixers/0": () => ({
-      ...mockVideoMixer,
-      settings: withMockPermissions(currentMixerSettings(0, unitId), "video_mixer"),
-      status: mockVideoMixerStatus,
-      thumbnails: { thumbnails: [{ id: "program", href: "video_mixers/0/thumbnails/program" }] },
-    }),
-    "video_mixers/0/settings": () =>
-      withMockPermissions(currentMixerSettings(0, unitId), "video_mixer"),
-    "video_mixers/0/status": () => mockVideoMixerStatus,
-    "video_mixers/0/thumbnails": () => ({
-      thumbnails: [{ id: "program", href: "video_mixers/0/thumbnails/program" }],
-    }),
     network_interfaces: () => liveNetworkInterfaces(),
     "storage/status": () => faultStorageStatus(null) ?? { present: false, removable: false },
     encoding: () => ({ encoding_modes: mockEncodingModes }),
@@ -342,6 +334,23 @@ function bigGetRoutes(unitId: string): Record<string, () => unknown> {
     routes[`network_inputs/${i}/status`] = () => bigNetworkInputStatus(i);
     routes[`network_inputs/${i}/thumbnails`] = () => ({
       thumbnails: [{ id: "program_1", href: `network_inputs/${i}/thumbnails/program_1` }],
+    });
+  }
+
+  for (let i = 0; i < BIG_MIXER_COUNT; i++) {
+    routes[`video_mixers/${i}`] = () => ({
+      ...bigVideoMixer(i),
+      settings: withMockPermissions(currentMixerSettings(i, unitId), "video_mixer"),
+      status: mockVideoMixerStatus,
+      thumbnails: {
+        thumbnails: [{ id: "program", href: `video_mixers/${i}/thumbnails/program` }],
+      },
+    });
+    routes[`video_mixers/${i}/settings`] = () =>
+      withMockPermissions(currentMixerSettings(i, unitId), "video_mixer");
+    routes[`video_mixers/${i}/status`] = () => mockVideoMixerStatus;
+    routes[`video_mixers/${i}/thumbnails`] = () => ({
+      thumbnails: [{ id: "program", href: `video_mixers/${i}/thumbnails/program` }],
     });
   }
 

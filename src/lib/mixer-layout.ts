@@ -66,6 +66,27 @@ export function sourceOptionsFrom(
 }
 
 // ---------------------------------------------------------------------------
+// Per-layer enable/disable — a dashboard-only concept. The unit's own API has
+// no notion of a "disabled" layer: a layer either exists in `program.layers`
+// or it doesn't. Disabling one here keeps its source/position configured in
+// the editor (and in any saved profile) while excluding it from what's
+// actually sent on Apply — useful for temporarily pulling a source out of the
+// composited output without losing how it was set up.
+// ---------------------------------------------------------------------------
+
+export type EditableLayer = VideoMixerLayerSettings & { enabled: boolean };
+
+/** Layers as loaded from the unit are all considered enabled. */
+export function withEnabled(layers: VideoMixerLayerSettings[]): EditableLayer[] {
+  return layers.map((l) => ({ ...l, enabled: (l as Partial<EditableLayer>).enabled ?? true }));
+}
+
+/** Strip the dashboard-only `enabled` flag before building a PUT body. */
+export function stripEnabled(layers: EditableLayer[]): VideoMixerLayerSettings[] {
+  return layers.map(({ layout, input }) => ({ layout, input }));
+}
+
+// ---------------------------------------------------------------------------
 // Source classification (live feed vs. filler)
 // ---------------------------------------------------------------------------
 

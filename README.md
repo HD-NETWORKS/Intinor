@@ -83,7 +83,9 @@ Browser ──> src/proxy.ts                (dashboard login gate — every requ
 | `src/components/UnitSwitcher.tsx` | Header `<select>` for the configured units — a no-op with only one |
 | `src/hooks/useIntinorClient.ts` | `IntinorClient` bound to whichever unit is currently selected |
 | `src/components/panels/PipeTable.tsx`, `NetworkInputRow.tsx`, `EncoderRow.tsx` | Dense/filterable list view for high pipe counts |
-| `src/lib/intinor/mock/bigUnit.ts` | Synthetic 16-input/17-encoder fixture for testing the above at scale |
+| `src/lib/intinor/mock/bigUnit.ts` | Synthetic 16-input/17-encoder/2-mixer fixture for testing the above at scale |
+| `src/hooks/useSourceUsage.ts` | Cross-references encoder/mixer sources into a `source → consumers` map |
+| `EditableLayer`/`withEnabled`/`stripEnabled` (`src/lib/mixer-layout.ts`) | Dashboard-only per-layer enable/disable, stripped before the real PUT |
 
 ## Phase 1 — read-only fleet/status dashboard
 
@@ -391,6 +393,70 @@ per-row) fetches resolve; the filter box narrows correctly; Danger zone's
 confirm hint and the actual POST target both follow the selected unit
 (verified directly against `/api/units/D01796/system-actions` vs
 `/api/system-actions`); the unit selection survives a full page reload.
+
+## Phase 7 — multi-mixer routing, per-layer toggle, cross-resource usage indicators
+
+Requested after testing Phase 6 against the 16-input/17-encoder fixture: the
+mixer builder only ever managed the unit's first mixer, sources couldn't be
+temporarily pulled from a layout without deleting the layer, and nothing told
+you when two encoders (or two mixers) were quietly pointed at the same input.
+
+### Multi-mixer picker
+
+`/mixer` gained a `PipePicker` (same component the encoder/input pages already
+use) for selecting which of the unit's mixers to build — previously hardcoded
+to `mixers.video_mixers[0]`. Switching mixers remounts the editor (`key={selectedMixer}`,
+same pattern as the encoder/input settings pages), so each mixer gets its own
+fresh load/layers/profiles. The mock big-unit fixture now has two mixers
+(`BIG_MIXER_COUNT`) so this is actually exercisable without real hardware.
+
+### Per-layer enable/disable
+
+A dashboard-only concept — the unit's own API has no notion of a disabled
+layer; a layer either exists in `program.layers` or it doesn't. `EditableLayer`
+(`mixer-layout.ts`) adds a client-side `enabled` flag: disabling a layer keeps
+its source/position configured (and preserved in saved profiles) but excludes
+it from what `Apply` actually sends — `stripEnabled()` filters and strips the
+flag right before the PUT. Disabled layers render dimmed with an "OFF" tag on
+the canvas rather than disappearing, so repositioning before re-enabling is
+still possible.
+
+### Encoder sources already included mixers — the big unit just didn't say so
+
+The encoder's `_constraints.video_source.source` list already mixes input and
+mixer options generically (nothing in the settings UI special-cases source
+type) — but the big-unit mock fixture, like the mixer bug fixed just before
+this phase, only ever listed index 0 of each. `bigEncoderSettings()` now lists
+every input and every mixer, mirroring `bigVideoMixerSettings()`.
+
+### Usage indicators — a heads-up, never a block
+
+`useSourceUsage()` fetches every encoder's and mixer's settings for the
+current unit once (not polled — this is for editing pages, not the live
+status view) and cross-references their source references into a
+`source → consumers` map. Wired into:
+
+- The encoder source picker and the mixer layer source picker — options
+  already in use elsewhere get `— used by Encoder #3, Mixer #1` appended to
+  the label.
+- The network input settings page — a banner reading `Used by: …` when
+  anything currently sources from it.
+
+Selecting an already-used source is never blocked — some fan-out is
+legitimate (an input feeding both a mixer and a monitoring encoder); the
+point is making it visible, not policing it.
+
+### Verified
+
+`npm run build`, `npm run lint`, `npm test` all pass. Browser-verified against
+the mock big unit (2 mixers): the mixer picker switches between mixer #0
+(pre-populated) and #1 (empty, 17 sources available); assigning "Network
+input 1" on mixer #1 correctly shows "used by Mixer #0"; disabling that layer
+dims it on the canvas, marks it "(disabled)", excludes it from the slot-
+coverage count, and disables Apply once no layers remain enabled; the
+encoder source picker shows mixer options fanning out to multiple encoders
+in the same way; the network input settings page shows "Used by Mixer #0"
+for input #0.
 
 ## Getting started
 

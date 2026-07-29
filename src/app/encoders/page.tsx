@@ -1,21 +1,30 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useIntinorClient } from "@/hooks/useIntinorClient";
+import { useSourceUsage, usageLabelsExcluding } from "@/hooks/useSourceUsage";
 import type {
   EncodersList,
   EncoderSettingsRequest,
   EncoderSettingsResponse,
 } from "@/lib/intinor/types";
-import type { FieldSection } from "@/lib/settings/fields";
+import type { FieldSection, SelectOption } from "@/lib/settings/fields";
 import { optionsFromDescribed, optionsFromEncodingModes } from "@/lib/settings/options";
 import { useSettingsEditor } from "@/hooks/useSettingsEditor";
 import { useUnitMeta } from "@/hooks/useUnitMeta";
 import { SettingsForm } from "@/components/settings/SettingsForm";
 import { PipePicker } from "@/components/settings/PipePicker";
 
+/** Append "— used by X, Y" to options whose value is already in use elsewhere — a heads-up, not a block. */
+function withUsageHints(options: SelectOption[], usage: Map<string, string[]>): SelectOption[] {
+  return options.map((o) => {
+    const users = usage.get(o.value);
+    return users && users.length > 0 ? { ...o, label: `${o.label} — used by ${users.join(", ")}` } : o;
+  });
+}
+
 /** Form layout built from the encoder's own `_constraints`. */
-function encoderSections(s: EncoderSettingsResponse): FieldSection[] {
+function encoderSections(s: EncoderSettingsResponse, sourceUsage: Map<string, string[]>): FieldSection[] {
   const c = s._constraints;
 
   const sections: FieldSection[] = [
@@ -27,7 +36,7 @@ function encoderSections(s: EncoderSettingsResponse): FieldSection[] {
           path: "video_source.source",
           label: "Source",
           kind: "select",
-          options: optionsFromDescribed(c?.video_source?.source),
+          options: withUsageHints(optionsFromDescribed(c?.video_source?.source), sourceUsage),
         },
         {
           path: "video_source.program_id",
@@ -119,17 +128,25 @@ function encoderSections(s: EncoderSettingsResponse): FieldSection[] {
 function EncoderSettingsEditor({ index }: { index: number }) {
   const meta = useUnitMeta();
   const client = useIntinorClient();
+  const { usage, refresh: refreshUsage } = useSourceUsage();
+  const sourceUsage = useMemo(
+    () => usageLabelsExcluding(usage, { kind: "encoder", index }),
+    [usage, index],
+  );
   const load = useCallback(() => client.getEncoderSettings(index), [client, index]);
   const save = useCallback(
-    (body: EncoderSettingsResponse) =>
-      client.putEncoderSettings(index, body as EncoderSettingsRequest),
-    [client, index],
+    async (body: EncoderSettingsResponse) => {
+      const res = await client.putEncoderSettings(index, body as EncoderSettingsRequest);
+      void refreshUsage();
+      return res;
+    },
+    [client, index, refreshUsage],
   );
 
   const editor = useSettingsEditor<EncoderSettingsResponse>({
     load,
     save,
-    sectionsOf: encoderSections,
+    sectionsOf: (s) => encoderSections(s, sourceUsage),
     mutableOf: (s) => s._constraints?.mutable,
   });
 
