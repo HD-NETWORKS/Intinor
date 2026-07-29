@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { UNIT_PROXY_BASE } from "@/lib/intinor-client";
+import { useCurrentUnit } from "@/lib/units/context";
 
 export interface PolledResourceState<T> {
   data: T | null;
@@ -23,6 +23,7 @@ export function usePolledResource<T>(
   intervalMs = 5000,
   enabled = true,
 ): PolledResourceState<T> {
+  const { base } = useCurrentUnit();
   const [state, setState] = useState<PolledResourceState<T>>({
     data: null,
     error: null,
@@ -41,7 +42,7 @@ export function usePolledResource<T>(
         const headers: HeadersInit = {};
         if (etagRef.current) headers["If-None-Match"] = etagRef.current;
 
-        const res = await fetch(`${UNIT_PROXY_BASE}/${path.replace(/^\/+/, "")}`, {
+        const res = await fetch(`${base}/${path.replace(/^\/+/, "")}`, {
           headers,
           cache: "no-store",
         });
@@ -84,7 +85,7 @@ export function usePolledResource<T>(
       if (timer) clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intervalMs changes shouldn't restart with a stale etag
-  }, [path, enabled]);
+  }, [path, enabled, base]);
 
   return state;
 }

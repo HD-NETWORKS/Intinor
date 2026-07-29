@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useCurrentUnit } from "@/lib/units/context";
 
 interface Meta {
   mock: boolean;
   writesAllowed: boolean;
   destructiveActionsAllowed: boolean;
-  unitId: string | null;
-  units: string[];
   configured: boolean;
   authDisabled: boolean;
   authConfigured: boolean;
@@ -16,10 +15,13 @@ interface Meta {
 /**
  * Always-visible strip showing which mode the dashboard is in, so mock data
  * can never be mistaken for the live unit — and live-write mode never goes
- * unnoticed.
+ * unnoticed. Unit id/label reflect whichever unit is currently selected (see
+ * UnitProvider) rather than always the default, so switching units is
+ * reflected here too.
  */
 export function ModeBanner() {
   const [meta, setMeta] = useState<Meta | null>(null);
+  const { unitId, units } = useCurrentUnit();
 
   useEffect(() => {
     fetch("/api/meta")
@@ -29,6 +31,9 @@ export function ModeBanner() {
   }, []);
 
   if (!meta) return null;
+
+  const current = units.find((u) => u.id === unitId);
+  const unitLabel = current?.label ? `${current.label} (${current.id})` : (unitId ?? "—");
 
   const authWarning = meta.authDisabled ? (
     <div className="bg-red-500/15 border-b border-red-500/40 px-6 py-1.5 text-sm text-red-300">
@@ -42,9 +47,8 @@ export function ModeBanner() {
       <>
         {authWarning}
         <div className="bg-amber-500/15 border-b border-amber-500/40 px-6 py-1.5 text-sm text-amber-300">
-          <strong>Mock mode</strong> — showing fake data ({meta.unitId}
-          {meta.units.length > 1 ? ` +${meta.units.length - 1} more` : ""}). No requests reach a
-          real unit.
+          <strong>Mock mode</strong> — showing fake data ({unitLabel}). No requests reach a real
+          unit.
         </div>
       </>
     );
@@ -74,16 +78,15 @@ export function ModeBanner() {
       >
         {meta.writesAllowed ? (
           <>
-            <strong>Live unit {meta.unitId} — WRITES ENABLED.</strong> Changes
-            affect the real broadcast chain.
+            <strong>Live unit {unitLabel} — WRITES ENABLED.</strong> Changes affect the real
+            broadcast chain.
           </>
         ) : (
           <>
-            <strong>Live unit {meta.unitId}</strong> — read-only mode. All writes
-            are blocked by the proxy.
+            <strong>Live unit {unitLabel}</strong> — read-only mode. All writes are blocked by the
+            proxy.
           </>
         )}
-        {meta.units.length > 1 ? ` · +${meta.units.length - 1} more unit configured` : ""}
       </div>
     </>
   );

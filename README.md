@@ -79,6 +79,11 @@ Browser ──> src/proxy.ts                (dashboard login gate — every requ
 | `src/app/api/units/[unitId]/` | Multi-unit proxy + danger-zone actions for any configured unit |
 | `src/lib/intinor/server/system-actions.ts` | The two-gate design behind `system/actions/*` (Danger zone) |
 | `src/components/system/DangerZone.tsx` | Reboot/shutdown/etc. UI — separate page, separate confirm flow |
+| `src/lib/units/context.tsx` | `UnitProvider`/`useCurrentUnit` — selected unit + its proxy base, persisted |
+| `src/components/UnitSwitcher.tsx` | Header `<select>` for the configured units — a no-op with only one |
+| `src/hooks/useIntinorClient.ts` | `IntinorClient` bound to whichever unit is currently selected |
+| `src/components/panels/PipeTable.tsx`, `NetworkInputRow.tsx`, `EncoderRow.tsx` | Dense/filterable list view for high pipe counts |
+| `src/lib/intinor/mock/bigUnit.ts` | Synthetic 16-input/17-encoder fixture for testing the above at scale |
 
 ## Phase 1 — read-only fleet/status dashboard
 
@@ -319,9 +324,73 @@ units are one line of JSON in `INTINOR_UNITS`. The moment a unit is added:
 - `/api/cron/poll` polls it too — alerting and history cover it with zero
   code changes, because the cron loop already iterates `listUnitIds()`.
 
-This is deliberately *just* the plumbing — no fleet UI ships in this phase.
-The dashboard still points at the default unit; a fleet view is now a UI
-task, not an architecture change.
+This was deliberately *just* the plumbing when it shipped — no fleet UI, the
+dashboard still pointed at the default unit only. Phase 6 below builds the
+UI on top of it.
+
+## Phase 6 — unit switcher & dense list view for high pipe counts
+
+Phase 5 made a second unit *reachable*; this phase makes it *usable* — plus a
+list view that doesn't fall over on a unit with 16 inputs and 17 encoders
+instead of this one's 1-of-each.
+
+### Unit switcher
+
+`src/lib/units/context.tsx` (`UnitProvider` / `useCurrentUnit`) loads the
+configured unit list from `/api/meta` once, tracks which one is selected
+(persisted in `localStorage`), and exposes the right proxy base for it. It
+renders as a `<select>` in the header (`UnitSwitcher.tsx`) — invisible for the
+common single-unit setup, since `units.length <= 1` renders nothing.
+
+Everything that talks to a unit reads from this context instead of a fixed
+default:
+
+- `usePolledResource` resolves its fetch base from `useCurrentUnit()`
+  internally, so every status panel re-points itself the moment the unit
+  changes — no prop-drilling needed.
+- `useIntinorClient()` returns an `IntinorClient` bound to the selected unit,
+  for thumbnails and the settings pages' GET/PUT calls.
+- The mixer builder's saved layout profiles, the history panel's `?unit=`
+  query, and — importantly — the **Danger zone** all follow the selection
+  too: reboot/shutdown/etc. now hit `/api/units/{id}/system-actions` for
+  whichever unit is picked, not always the default. (This was a real gap
+  until this phase: the danger zone UI previously showed the current unit but
+  the button always fired at the default unit's endpoint regardless.)
+
+### Dense list view
+
+The Overview page's signal-chain section now has a Cards/List toggle,
+defaulting to List once input+encoder count passes 8 (a small unit reads
+better as cards; a rack unit doesn't). `PipeTable.tsx` is the shell (search
+box + rows); `NetworkInputRow.tsx`/`EncoderRow.tsx` render a compact
+thumbnail + status dot + source/format + bitrate line — same per-row polling
+the card grid already did, just laid out for scale instead of a big card
+each.
+
+### Trying it without the second unit in hand
+
+`MOCK=1` mode generates a synthetic 16-input/17-encoder fixture
+(`src/lib/intinor/mock/bigUnit.ts`) for any configured unit id other than the
+primary one:
+
+```bash
+MOCK=1 INTINOR_UNITS='[{"id":"D01796","host":"mock","username":"mock","password":"mock","label":"HD networks 17 ch"}]' npm run dev
+```
+
+Pick it from the unit switcher — the list view, filter box, and Danger zone
+(confirm text correctly says "on D01796") all exercise the real code path a
+second physical unit would.
+
+### Verified
+
+`npm run build`, `npm run lint`, `npm test` all pass. Browser-verified against
+the mock big unit: switching units re-points every panel (system stats,
+signal chain, network interfaces, history) with no stale data left over;
+Network inputs (16) and Encoders (17) both render fully once their (parallel,
+per-row) fetches resolve; the filter box narrows correctly; Danger zone's
+confirm hint and the actual POST target both follow the selected unit
+(verified directly against `/api/units/D01796/system-actions` vs
+`/api/system-actions`); the unit selection survives a full page reload.
 
 ## Getting started
 

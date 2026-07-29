@@ -1,13 +1,14 @@
 "use client";
 
 import { usePolledResource } from "@/hooks/usePolledResource";
-import { intinorClient } from "@/lib/intinor-client";
+import { useIntinorClient } from "@/hooks/useIntinorClient";
 import type { Encoder } from "@/lib/intinor/types";
 import { formatBitrate, formatVideoFormat } from "@/lib/format";
 import { StatusCardShell } from "../StatusCardShell";
 import { Thumbnail } from "../Thumbnail";
 
 export function EncoderCard({ index }: { index: number }) {
+  const client = useIntinorClient();
   const { data, error, loading } = usePolledResource<Encoder>(
     `encoders/${index}?include=settings,status,thumbnails`,
     5000,
@@ -36,7 +37,7 @@ export function EncoderCard({ index }: { index: number }) {
         <Thumbnail
           alt={`Encoder ${index} output preview`}
           urlBuilder={(opts) =>
-            intinorClient.encoderThumbnailUrl(index, thumbId, { ppm: opts.ppm, width: 320 })
+            client.encoderThumbnailUrl(index, thumbId, { ppm: opts.ppm, width: 320 })
           }
         />
       )}

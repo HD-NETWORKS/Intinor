@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AppShell } from "@/components/AppShell";
+import { UnitProvider } from "@/lib/units/context";
 
 export const metadata: Metadata = {
   title: "HD Networks — Intinor Dashboard",
@@ -15,7 +16,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full flex flex-col">
-        <AppShell>{children}</AppShell>
+        <UnitProvider>
+          <AppShell>{children}</AppShell>
+        </UnitProvider>
       </body>
     </html>
   );

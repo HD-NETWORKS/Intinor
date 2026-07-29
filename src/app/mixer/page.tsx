@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { intinorClient, IntinorApiError } from "@/lib/intinor-client";
+import { IntinorApiError } from "@/lib/intinor-client";
+import { useIntinorClient } from "@/hooks/useIntinorClient";
+import { useCurrentUnit } from "@/lib/units/context";
 import type {
   NetworkInputsList,
   VideoMixerLayerSettings,
@@ -34,6 +36,8 @@ import type { UnitMeta } from "@/hooks/useUnitMeta";
 type ApplyState = "idle" | "confirming" | "applying" | "done" | "error";
 
 export default function MixerBuilderPage() {
+  const client = useIntinorClient();
+  const { unitId: currentUnitId } = useCurrentUnit();
   const [mixerIndex, setMixerIndex] = useState<number | null>(null);
   const [settings, setSettings] = useState<VideoMixerSettingsResponse | null>(null);
   const [networkInputs, setNetworkInputs] = useState<NetworkInputsList | null>(null);
@@ -49,23 +53,27 @@ export default function MixerBuilderPage() {
   const [confirmText, setConfirmText] = useState("");
   const [previewKey, setPreviewKey] = useState(0);
 
-  const unitId = meta?.unitId ?? "unit";
+  const unitId = currentUnitId ?? "unit";
 
-  const loadSettings = useCallback(async (index: number) => {
-    const s = await intinorClient.getVideoMixerSettings(index);
-    setSettings(s);
-    setLayers(structuredClone(s.program?.layers ?? []));
-    setSelectedIndex((s.program?.layers?.length ?? 0) > 0 ? 0 : null);
-  }, []);
+  const loadSettings = useCallback(
+    async (index: number) => {
+      const s = await client.getVideoMixerSettings(index);
+      setSettings(s);
+      setLayers(structuredClone(s.program?.layers ?? []));
+      setSelectedIndex((s.program?.layers?.length ?? 0) > 0 ? 0 : null);
+    },
+    [client],
+  );
 
   // Initial load: mixer list → first mixer, its settings, network inputs, meta.
+  // Re-runs whenever the selected unit changes (client's identity changes with it).
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         const [mixers, inputs, metaRes] = await Promise.all([
-          intinorClient.getVideoMixers() as Promise<VideoMixersList>,
-          intinorClient.getNetworkInputs() as Promise<NetworkInputsList>,
+          client.getVideoMixers() as Promise<VideoMixersList>,
+          client.getNetworkInputs() as Promise<NetworkInputsList>,
           fetch("/api/meta").then((r) => r.json() as Promise<UnitMeta>),
         ]);
         if (cancelled) return;
@@ -73,7 +81,7 @@ export default function MixerBuilderPage() {
         setMeta(metaRes);
         const index = mixers.video_mixers[0]?.index ?? 0;
         setMixerIndex(index);
-        setProfiles(loadProfiles(metaRes.unitId ?? "unit", index));
+        setProfiles(loadProfiles(unitId, index));
         await loadSettings(index);
       } catch (err) {
         if (cancelled) return;
@@ -89,7 +97,7 @@ export default function MixerBuilderPage() {
     return () => {
       cancelled = true;
     };
-  }, [loadSettings]);
+  }, [client, unitId, loadSettings]);
 
   const programConstraints = settings?._constraints?.program;
   const layoutConstraints = useMemo(
@@ -200,7 +208,7 @@ export default function MixerBuilderPage() {
     setApplyError(null);
     try {
       const body = prepareMixerPut(settings, layers);
-      await intinorClient.putVideoMixerSettings(mixerIndex, body);
+      await client.putVideoMixerSettings(mixerIndex, body);
       await loadSettings(mixerIndex);
       setPreviewKey((k) => k + 1);
       setApplyState("done");
@@ -216,7 +224,7 @@ export default function MixerBuilderPage() {
             : "Apply failed",
       );
     }
-  }, [mixerIndex, settings, layers, loadSettings]);
+  }, [client, mixerIndex, settings, layers, loadSettings]);
 
   const liveWrite = meta ? !meta.mock && meta.writesAllowed : false;
   const liveReadOnly = meta ? !meta.mock && !meta.writesAllowed : false;

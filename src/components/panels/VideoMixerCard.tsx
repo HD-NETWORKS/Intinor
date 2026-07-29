@@ -1,13 +1,14 @@
 "use client";
 
 import { usePolledResource } from "@/hooks/usePolledResource";
-import { intinorClient } from "@/lib/intinor-client";
+import { useIntinorClient } from "@/hooks/useIntinorClient";
 import type { VideoMixer } from "@/lib/intinor/types";
 import { formatVideoFormat } from "@/lib/format";
 import { StatusCardShell } from "../StatusCardShell";
 import { Thumbnail } from "../Thumbnail";
 
 export function VideoMixerCard({ index }: { index: number }) {
+  const client = useIntinorClient();
   const { data, error, loading } = usePolledResource<VideoMixer>(
     `video_mixers/${index}?include=settings,status,thumbnails`,
     5000,
@@ -37,7 +38,7 @@ export function VideoMixerCard({ index }: { index: number }) {
         <Thumbnail
           alt={`Video mixer ${index} program preview`}
           urlBuilder={(opts) =>
-            intinorClient.videoMixerThumbnailUrl(index, thumbId, { ppm: opts.ppm, width: 320 })
+            client.videoMixerThumbnailUrl(index, thumbId, { ppm: opts.ppm, width: 320 })
           }
         />
       )}

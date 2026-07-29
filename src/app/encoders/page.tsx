@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { intinorClient } from "@/lib/intinor-client";
+import { useIntinorClient } from "@/hooks/useIntinorClient";
 import type {
   EncodersList,
   EncoderSettingsRequest,
@@ -118,11 +118,12 @@ function encoderSections(s: EncoderSettingsResponse): FieldSection[] {
 
 function EncoderSettingsEditor({ index }: { index: number }) {
   const meta = useUnitMeta();
-  const load = useCallback(() => intinorClient.getEncoderSettings(index), [index]);
+  const client = useIntinorClient();
+  const load = useCallback(() => client.getEncoderSettings(index), [client, index]);
   const save = useCallback(
     (body: EncoderSettingsResponse) =>
-      intinorClient.putEncoderSettings(index, body as EncoderSettingsRequest),
-    [index],
+      client.putEncoderSettings(index, body as EncoderSettingsRequest),
+    [client, index],
   );
 
   const editor = useSettingsEditor<EncoderSettingsResponse>({
@@ -143,6 +144,7 @@ function EncoderSettingsEditor({ index }: { index: number }) {
 }
 
 export default function EncodersPage() {
+  const client = useIntinorClient();
   const [list, setList] = useState<EncodersList | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -151,7 +153,7 @@ export default function EncodersPage() {
     let cancelled = false;
     (async () => {
       try {
-        const l = await intinorClient.getEncoders();
+        const l = await client.getEncoders();
         if (cancelled) return;
         setList(l);
         setSelected(l.encoders[0]?.index ?? null);
@@ -164,7 +166,7 @@ export default function EncodersPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [client]);
 
   if (error) {
     return (

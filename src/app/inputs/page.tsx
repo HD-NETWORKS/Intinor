@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { intinorClient } from "@/lib/intinor-client";
+import { useIntinorClient } from "@/hooks/useIntinorClient";
 import type {
   NetworkInputsList,
   NetworkInputSettings,
@@ -183,14 +183,12 @@ function inputSections(s: NetworkInputSettingsResponse): FieldSection[] {
 
 function InputSettingsEditor({ index }: { index: number }) {
   const meta = useUnitMeta();
-  const load = useCallback(() => intinorClient.getNetworkInputSettings(index), [index]);
+  const client = useIntinorClient();
+  const load = useCallback(() => client.getNetworkInputSettings(index), [client, index]);
   const save = useCallback(
     (body: NetworkInputSettingsResponse) =>
-      intinorClient.putNetworkInputSettings(
-        index,
-        body as NetworkInputSettings & RequestMetadata,
-      ),
-    [index],
+      client.putNetworkInputSettings(index, body as NetworkInputSettings & RequestMetadata),
+    [client, index],
   );
 
   const editor = useSettingsEditor<NetworkInputSettingsResponse>({
@@ -211,6 +209,7 @@ function InputSettingsEditor({ index }: { index: number }) {
 }
 
 export default function InputsPage() {
+  const client = useIntinorClient();
   const [list, setList] = useState<NetworkInputsList | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -219,7 +218,7 @@ export default function InputsPage() {
     let cancelled = false;
     (async () => {
       try {
-        const l = await intinorClient.getNetworkInputs();
+        const l = await client.getNetworkInputs();
         if (cancelled) return;
         setList(l);
         setSelected(l.network_inputs[0]?.index ?? null);
@@ -232,7 +231,7 @@ export default function InputsPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [client]);
 
   if (error) {
     return (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useCurrentUnit } from "@/lib/units/context";
 
 export interface UnitMeta {
   mock: boolean;
@@ -18,14 +19,27 @@ export function writeModeOf(meta: UnitMeta | null): WriteMode {
   return meta.writesAllowed ? "live-write" : "live-readonly";
 }
 
+interface RawMeta {
+  mock: boolean;
+  writesAllowed: boolean;
+  configured: boolean;
+}
+
+/**
+ * `mock`/`writesAllowed`/`configured` come from /api/meta (global flags); the
+ * unit id is overlaid from the current-unit context so it always names
+ * whichever unit is actually selected, not just the server's default.
+ */
 export function useUnitMeta(): UnitMeta | null {
-  const [meta, setMeta] = useState<UnitMeta | null>(null);
+  const { unitId } = useCurrentUnit();
+  const [raw, setRaw] = useState<RawMeta | null>(null);
+
   useEffect(() => {
     let cancelled = false;
     fetch("/api/meta")
       .then((r) => r.json())
-      .then((m: UnitMeta) => {
-        if (!cancelled) setMeta(m);
+      .then((m: RawMeta) => {
+        if (!cancelled) setRaw(m);
       })
       .catch(() => {
         /* banner elsewhere reports connectivity problems */
@@ -34,5 +48,7 @@ export function useUnitMeta(): UnitMeta | null {
       cancelled = true;
     };
   }, []);
-  return meta;
+
+  if (!raw) return null;
+  return { ...raw, unitId };
 }

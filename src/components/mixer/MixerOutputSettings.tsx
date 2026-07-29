@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
-import { intinorClient } from "@/lib/intinor-client";
+import { useIntinorClient } from "@/hooks/useIntinorClient";
 import type {
   RequestMetadata,
   VideoMixerSettings,
@@ -59,17 +59,18 @@ export function MixerOutputSettings({
   meta: UnitMeta | null;
   onSaved?: () => void;
 }) {
-  const load = useCallback(() => intinorClient.getVideoMixerSettings(index), [index]);
+  const client = useIntinorClient();
+  const load = useCallback(() => client.getVideoMixerSettings(index), [client, index]);
   const save = useCallback(
     async (body: VideoMixerSettingsResponse) => {
-      const res = await intinorClient.putVideoMixerSettings(
+      const res = await client.putVideoMixerSettings(
         index,
         body as VideoMixerSettings & RequestMetadata,
       );
       onSaved?.();
       return res;
     },
-    [index, onSaved],
+    [client, index, onSaved],
   );
 
   const editor = useSettingsEditor<VideoMixerSettingsResponse>({
