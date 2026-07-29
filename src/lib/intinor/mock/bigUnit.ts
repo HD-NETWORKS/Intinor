@@ -12,8 +12,25 @@
  * Then pick it from the unit switcher in the header.
  */
 
-import type { Encoder, EncodersList, EncoderStatus, NetworkInput, NetworkInputsList, NetworkInputStatus, VideoMixersList } from "../types";
-import { mockEncoder, mockEncoderStatus, mockNetworkInput, mockNetworkInputStatus, mockVideoMixersList } from "./data";
+import type {
+  Encoder,
+  EncodersList,
+  EncoderStatus,
+  NetworkInput,
+  NetworkInputsList,
+  NetworkInputStatus,
+  VideoMixersList,
+  VideoMixerSettingsResponse,
+  VideoSourceConstraint,
+} from "../types";
+import {
+  mockEncoder,
+  mockEncoderStatus,
+  mockNetworkInput,
+  mockNetworkInputStatus,
+  mockVideoMixersList,
+  mockVideoMixerSettings,
+} from "./data";
 import { clamp, jitteredValue } from "./jitter";
 
 export const BIG_INPUT_COUNT = 16;
@@ -100,4 +117,37 @@ export function bigEncoderStatus(index: number): EncoderStatus {
 /** One mixer is enough to demonstrate the pattern — real counts always come from the unit's own API. */
 export function bigVideoMixersList(): VideoMixersList {
   return structuredClone(mockVideoMixersList);
+}
+
+/**
+ * The mixer's settings/constraints, with `_constraints.program.layers.input.source`
+ * expanded to list all BIG_INPUT_COUNT synthetic inputs. The default mock only
+ * lists network_inputs/0 — correct for the 1-input unit, but it would make
+ * every other input on this fixture unselectable as a mixer source, which
+ * defeats the point of testing at this unit's actual scale.
+ */
+export function bigVideoMixerSettings(): VideoMixerSettingsResponse {
+  const base = structuredClone(mockVideoMixerSettings);
+  const testPicture = base._constraints!.program!.layers.input!.source.find((s) =>
+    s.value?.includes("test_picture"),
+  );
+  const inputSources: VideoSourceConstraint[] = Array.from({ length: BIG_INPUT_COUNT }, (_, i) => ({
+    name: `Network input ${i + 1}`,
+    value: bigNetworkInput(i).href,
+    description: `IP stream in ${i + 1}`,
+    multiprogram: true,
+  }));
+  return {
+    ...base,
+    _constraints: {
+      ...base._constraints!,
+      program: {
+        ...base._constraints!.program!,
+        layers: {
+          ...base._constraints!.program!.layers,
+          input: { source: testPicture ? [...inputSources, testPicture] : inputSources },
+        },
+      },
+    },
+  };
 }

@@ -17,20 +17,23 @@ import {
   mockApiRoot,
   mockEncoder,
   mockEncodersList,
+  mockEncoderSettings,
   mockEncoderStatus,
   mockEncodingModes,
   mockNetworkInput,
   mockNetworkInputsList,
+  mockNetworkInputSettings,
   mockNetworkInputStatus,
   mockNetworkInterfaces,
   mockSystem,
   mockSystemStatus,
   mockVideoMixer,
   mockVideoMixersList,
+  mockVideoMixerSettings,
   mockVideoMixerStatus,
 } from "./data";
 import { clamp, currentTick, jitteredValue, seededFraction } from "./jitter";
-import { currentMixerSettings, currentSettings, putSettings, type SettingsKind } from "./state";
+import { currentWithOverride, putOverride } from "./state";
 import { withMockPermissions } from "./permissions";
 import {
   faultEncoderStatus,
@@ -48,10 +51,57 @@ import {
   bigNetworkInput,
   bigNetworkInputStatus,
   bigNetworkInputsList,
+  bigVideoMixerSettings,
   bigVideoMixersList,
 } from "./bigUnit";
 import { defaultUnitId } from "../server/config";
-import type { VideoMixerLayerSettings } from "../types";
+import type {
+  EncoderSettingsResponse,
+  NetworkInputSettingsResponse,
+  VideoMixerLayerSettings,
+  VideoMixerSettingsResponse,
+} from "../types";
+
+type SettingsKind = "encoders" | "network_inputs" | "video_mixers";
+type AnySettings =
+  | EncoderSettingsResponse
+  | NetworkInputSettingsResponse
+  | VideoMixerSettingsResponse;
+
+/** Is this unit id the synthetic "big" fixture rather than the primary mock unit? */
+function isBigUnit(unitId?: string): boolean {
+  return Boolean(unitId) && unitId !== defaultUnitId();
+}
+
+/** The un-overridden settings for a resource — different base for the big unit's mixer (more sources). */
+function baseSettingsFor(kind: SettingsKind, index: number, unitId?: string): AnySettings {
+  if (kind === "video_mixers" && index === 0 && isBigUnit(unitId)) {
+    return bigVideoMixerSettings();
+  }
+  const table: Record<SettingsKind, AnySettings> = {
+    encoders: mockEncoderSettings,
+    network_inputs: mockNetworkInputSettings,
+    video_mixers: mockVideoMixerSettings,
+  };
+  return table[kind];
+}
+
+function settingsKey(kind: SettingsKind, index: number, unitId?: string): string {
+  return `${unitId ?? defaultUnitId()}/${kind}/${index}`;
+}
+
+/** Current settings for a resource: the retained PUT override, or its base — scoped per unit. */
+function currentSettings(kind: SettingsKind, index: number, unitId?: string): AnySettings {
+  return currentWithOverride(settingsKey(kind, index, unitId), baseSettingsFor(kind, index, unitId));
+}
+
+function putSettings(kind: SettingsKind, index: number, body: unknown, unitId?: string): void {
+  putOverride(settingsKey(kind, index, unitId), body);
+}
+
+function currentMixerSettings(index: number, unitId?: string): VideoMixerSettingsResponse {
+  return currentSettings("video_mixers", index, unitId) as VideoMixerSettingsResponse;
+}
 
 export interface MockResponse {
   status: number;
@@ -230,7 +280,7 @@ const GET_ROUTES: Record<string, () => unknown> = {
  * unit-agnostic and reused as-is; encoders/network_inputs are generated at
  * the big unit's actual pipe count.
  */
-function bigGetRoutes(): Record<string, () => unknown> {
+function bigGetRoutes(unitId: string): Record<string, () => unknown> {
   const routes: Record<string, () => unknown> = {
     "": () => mockApiRoot,
     system: () => mockSystem,
@@ -241,11 +291,12 @@ function bigGetRoutes(): Record<string, () => unknown> {
     video_mixers: () => bigVideoMixersList(),
     "video_mixers/0": () => ({
       ...mockVideoMixer,
-      settings: withMockPermissions(currentMixerSettings(0), "video_mixer"),
+      settings: withMockPermissions(currentMixerSettings(0, unitId), "video_mixer"),
       status: mockVideoMixerStatus,
       thumbnails: { thumbnails: [{ id: "program", href: "video_mixers/0/thumbnails/program" }] },
     }),
-    "video_mixers/0/settings": () => withMockPermissions(currentMixerSettings(0), "video_mixer"),
+    "video_mixers/0/settings": () =>
+      withMockPermissions(currentMixerSettings(0, unitId), "video_mixer"),
     "video_mixers/0/status": () => mockVideoMixerStatus,
     "video_mixers/0/thumbnails": () => ({
       thumbnails: [{ id: "program", href: "video_mixers/0/thumbnails/program" }],
@@ -263,14 +314,14 @@ function bigGetRoutes(): Record<string, () => unknown> {
   for (let i = 0; i < BIG_ENCODER_COUNT; i++) {
     routes[`encoders/${i}`] = () => ({
       ...bigEncoder(i),
-      settings: withMockPermissions(currentSettings("encoders", i), "encoder"),
+      settings: withMockPermissions(currentSettings("encoders", i, unitId), "encoder"),
       status: bigEncoderStatus(i),
       thumbnails: {
         thumbnails: [{ id: "video_source", href: `encoders/${i}/thumbnails/video_source` }],
       },
     });
     routes[`encoders/${i}/settings`] = () =>
-      withMockPermissions(currentSettings("encoders", i), "encoder");
+      withMockPermissions(currentSettings("encoders", i, unitId), "encoder");
     routes[`encoders/${i}/status`] = () => bigEncoderStatus(i);
     routes[`encoders/${i}/thumbnails`] = () => ({
       thumbnails: [{ id: "video_source", href: `encoders/${i}/thumbnails/video_source` }],
@@ -280,14 +331,14 @@ function bigGetRoutes(): Record<string, () => unknown> {
   for (let i = 0; i < BIG_INPUT_COUNT; i++) {
     routes[`network_inputs/${i}`] = () => ({
       ...bigNetworkInput(i),
-      settings: withMockPermissions(currentSettings("network_inputs", i), "network_input"),
+      settings: withMockPermissions(currentSettings("network_inputs", i, unitId), "network_input"),
       status: bigNetworkInputStatus(i),
       thumbnails: {
         thumbnails: [{ id: "program_1", href: `network_inputs/${i}/thumbnails/program_1` }],
       },
     });
     routes[`network_inputs/${i}/settings`] = () =>
-      withMockPermissions(currentSettings("network_inputs", i), "network_input");
+      withMockPermissions(currentSettings("network_inputs", i, unitId), "network_input");
     routes[`network_inputs/${i}/status`] = () => bigNetworkInputStatus(i);
     routes[`network_inputs/${i}/thumbnails`] = () => ({
       thumbnails: [{ id: "program_1", href: `network_inputs/${i}/thumbnails/program_1` }],
@@ -328,8 +379,9 @@ function buildMixerProgramSvg(
   index: number,
   width: number,
   height: number,
+  unitId?: string,
 ): MockResponse {
-  const settings = currentMixerSettings(index);
+  const settings = currentMixerSettings(index, unitId);
   const layers: VideoMixerLayerSettings[] = settings.program?.layers ?? [];
 
   const boxes = layers
@@ -358,7 +410,11 @@ function buildMixerProgramSvg(
   return { status: 200, body: svg, contentType: "image/svg+xml" };
 }
 
-function buildThumbnailSvg(path: string, searchParams: URLSearchParams): MockResponse {
+function buildThumbnailSvg(
+  path: string,
+  searchParams: URLSearchParams,
+  unitId?: string,
+): MockResponse {
   const [resourceType, indexStr, , thumbId] = path.split("/");
   const width = Number(searchParams.get("width")) || 320;
   const height = Number(searchParams.get("height")) || Math.round((width * 9) / 16);
@@ -368,7 +424,7 @@ function buildThumbnailSvg(path: string, searchParams: URLSearchParams): MockRes
 
   // Mixer program thumbnails render the actual applied composition.
   if (resourceType === "video_mixers" && thumbId === "program") {
-    return buildMixerProgramSvg(Number(indexStr), width, height);
+    return buildMixerProgramSvg(Number(indexStr), width, height, unitId);
   }
 
   let ppmBars = "";
@@ -408,9 +464,9 @@ export function resolveMock(
 
   if (method === "GET" || method === "HEAD") {
     if (/^[a-z_]+\/\d+\/thumbnails\/[^/]+$/.test(path)) {
-      return buildThumbnailSvg(path, searchParams);
+      return buildThumbnailSvg(path, searchParams, unitId);
     }
-    const routes = unitId && unitId !== defaultUnitId() ? bigGetRoutes() : GET_ROUTES;
+    const routes = isBigUnit(unitId) ? bigGetRoutes(unitId!) : GET_ROUTES;
     const route = routes[path];
     if (route) {
       const body = route();
@@ -439,8 +495,8 @@ export function resolveMock(
     if (settingsPut) {
       const kind = settingsPut[1] as SettingsKind;
       const index = Number(settingsPut[2]);
-      putSettings(kind, index, requestBody);
-      return { status: 200, body: currentSettings(kind, index) };
+      putSettings(kind, index, requestBody, unitId);
+      return { status: 200, body: currentSettings(kind, index, unitId) };
     }
     return { status: 200, body: requestBody ?? {} };
   }
