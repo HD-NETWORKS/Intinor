@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { intinorClient } from "@/lib/intinor-client";
+import { useIntinorClient } from "@/hooks/useIntinorClient";
 
 /**
  * Live preview of the mixer's actual composited program output, polled from
@@ -19,13 +19,14 @@ export function MixerPreview({
   intervalMs?: number;
 }) {
   const [tick, setTick] = useState(0);
+  const client = useIntinorClient();
 
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), intervalMs);
     return () => clearInterval(id);
   }, [intervalMs]);
 
-  const base = intinorClient.videoMixerThumbnailUrl(index, "program", { width: 480 });
+  const base = client.videoMixerThumbnailUrl(index, "program", { width: 480 });
   const src = `${base}${base.includes("?") ? "&" : "?"}_r=${tick}-${refreshKey}`;
 
   return (

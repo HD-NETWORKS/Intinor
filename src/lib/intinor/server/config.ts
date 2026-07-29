@@ -102,11 +102,21 @@ function allRawUnits(): RawUnit[] {
 
 /** All configured unit ids (mock mode: a single synthetic id + any extras). */
 export function listUnitIds(): string[] {
+  return listUnits().map((u) => u.id);
+}
+
+export interface UnitSummary {
+  id: string;
+  label?: string;
+}
+
+/** Unit ids + display labels, for the dashboard's unit switcher. */
+export function listUnits(): UnitSummary[] {
   if (isMockMode()) {
     const mockId = process.env.INTINOR_UNIT_ID || MOCK_UNIT_ID;
-    return [mockId, ...extraUnitsFromEnv().map((u) => u.id)];
+    return [{ id: mockId }, ...extraUnitsFromEnv().map((u) => ({ id: u.id, label: u.label }))];
   }
-  return allRawUnits().map((u) => u.id);
+  return allRawUnits().map((u) => ({ id: u.id, label: u.label }));
 }
 
 /** The unit routes fall back to when no unitId is given in the URL. */

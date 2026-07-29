@@ -39,6 +39,18 @@ import {
   faultStorageStatus,
   faultSystemStatus,
 } from "./faults";
+import {
+  BIG_ENCODER_COUNT,
+  BIG_INPUT_COUNT,
+  bigEncoder,
+  bigEncoderStatus,
+  bigEncodersList,
+  bigNetworkInput,
+  bigNetworkInputStatus,
+  bigNetworkInputsList,
+  bigVideoMixersList,
+} from "./bigUnit";
+import { defaultUnitId } from "../server/config";
 import type { VideoMixerLayerSettings } from "../types";
 
 export interface MockResponse {
@@ -211,6 +223,80 @@ const GET_ROUTES: Record<string, () => unknown> = {
   profiles: () => ({ profiles: [] }),
 };
 
+/**
+ * Same shape as GET_ROUTES, but for the synthetic "big" unit (see
+ * mock/bigUnit.ts) — any mock unit id other than the primary one. Shared
+ * paths (system, network interfaces, storage, encoding modes …) are
+ * unit-agnostic and reused as-is; encoders/network_inputs are generated at
+ * the big unit's actual pipe count.
+ */
+function bigGetRoutes(): Record<string, () => unknown> {
+  const routes: Record<string, () => unknown> = {
+    "": () => mockApiRoot,
+    system: () => mockSystem,
+    "system/status": () => liveSystemStatus(),
+    "system/messages": () => ({ messages: [] }),
+    encoders: () => bigEncodersList(),
+    network_inputs: () => bigNetworkInputsList(),
+    video_mixers: () => bigVideoMixersList(),
+    "video_mixers/0": () => ({
+      ...mockVideoMixer,
+      settings: withMockPermissions(currentMixerSettings(0), "video_mixer"),
+      status: mockVideoMixerStatus,
+      thumbnails: { thumbnails: [{ id: "program", href: "video_mixers/0/thumbnails/program" }] },
+    }),
+    "video_mixers/0/settings": () => withMockPermissions(currentMixerSettings(0), "video_mixer"),
+    "video_mixers/0/status": () => mockVideoMixerStatus,
+    "video_mixers/0/thumbnails": () => ({
+      thumbnails: [{ id: "program", href: "video_mixers/0/thumbnails/program" }],
+    }),
+    network_interfaces: () => liveNetworkInterfaces(),
+    "storage/status": () => faultStorageStatus(null) ?? { present: false, removable: false },
+    encoding: () => ({ encoding_modes: mockEncodingModes }),
+    "encoding/encoding_modes": () => mockEncodingModes,
+    multiviews: () => ({ multiviews: [] }),
+    video_inputs: () => ({ video_inputs: [] }),
+    video_outputs: () => ({ video_outputs: [] }),
+    profiles: () => ({ profiles: [] }),
+  };
+
+  for (let i = 0; i < BIG_ENCODER_COUNT; i++) {
+    routes[`encoders/${i}`] = () => ({
+      ...bigEncoder(i),
+      settings: withMockPermissions(currentSettings("encoders", i), "encoder"),
+      status: bigEncoderStatus(i),
+      thumbnails: {
+        thumbnails: [{ id: "video_source", href: `encoders/${i}/thumbnails/video_source` }],
+      },
+    });
+    routes[`encoders/${i}/settings`] = () =>
+      withMockPermissions(currentSettings("encoders", i), "encoder");
+    routes[`encoders/${i}/status`] = () => bigEncoderStatus(i);
+    routes[`encoders/${i}/thumbnails`] = () => ({
+      thumbnails: [{ id: "video_source", href: `encoders/${i}/thumbnails/video_source` }],
+    });
+  }
+
+  for (let i = 0; i < BIG_INPUT_COUNT; i++) {
+    routes[`network_inputs/${i}`] = () => ({
+      ...bigNetworkInput(i),
+      settings: withMockPermissions(currentSettings("network_inputs", i), "network_input"),
+      status: bigNetworkInputStatus(i),
+      thumbnails: {
+        thumbnails: [{ id: "program_1", href: `network_inputs/${i}/thumbnails/program_1` }],
+      },
+    });
+    routes[`network_inputs/${i}/settings`] = () =>
+      withMockPermissions(currentSettings("network_inputs", i), "network_input");
+    routes[`network_inputs/${i}/status`] = () => bigNetworkInputStatus(i);
+    routes[`network_inputs/${i}/thumbnails`] = () => ({
+      thumbnails: [{ id: "program_1", href: `network_inputs/${i}/thumbnails/program_1` }],
+    });
+  }
+
+  return routes;
+}
+
 function computeEtag(body: unknown): string {
   const json = JSON.stringify(body);
   return `"${createHash("sha1").update(json).digest("hex").slice(0, 16)}"`;
@@ -316,6 +402,7 @@ export function resolveMock(
   requestBody?: unknown,
   ifNoneMatch?: string,
   searchParams: URLSearchParams = new URLSearchParams(),
+  unitId?: string,
 ): MockResponse {
   const path = unitPath.replace(/^\/+|\/+$/g, "");
 
@@ -323,7 +410,8 @@ export function resolveMock(
     if (/^[a-z_]+\/\d+\/thumbnails\/[^/]+$/.test(path)) {
       return buildThumbnailSvg(path, searchParams);
     }
-    const route = GET_ROUTES[path];
+    const routes = unitId && unitId !== defaultUnitId() ? bigGetRoutes() : GET_ROUTES;
+    const route = routes[path];
     if (route) {
       const body = route();
       const etag = computeEtag(body);

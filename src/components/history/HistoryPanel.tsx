@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useCurrentUnit } from "@/lib/units/context";
 import { TimeSeriesChart, type Series } from "./TimeSeriesChart";
 
 interface HistoryPoint {
@@ -53,13 +54,15 @@ function fmtLoss(v: number): string {
 }
 
 export function HistoryPanel() {
+  const { unitId } = useCurrentUnit();
   const [hours, setHours] = useState(24);
   const [data, setData] = useState<HistoryResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!unitId) return;
     let cancelled = false;
-    fetch(`/api/history?hours=${hours}`)
+    fetch(`/api/history?hours=${hours}&unit=${encodeURIComponent(unitId)}`)
       .then((r) => r.json())
       .then((d: HistoryResponse) => {
         if (!cancelled) {
@@ -73,7 +76,7 @@ export function HistoryPanel() {
     return () => {
       cancelled = true;
     };
-  }, [hours]);
+  }, [hours, unitId]);
 
   const points = useMemo(() => data?.points ?? [], [data]);
   const asMs = useMemo(() => points.map((p) => new Date(p.ts).getTime()), [points]);

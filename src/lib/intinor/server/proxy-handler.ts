@@ -53,7 +53,14 @@ export async function handleUnitProxy(
         parsedBody = rawBody;
       }
     }
-    const mock = resolveMock(method, unitPath, parsedBody, ifNoneMatch, req.nextUrl.searchParams);
+    const mock = resolveMock(
+      method,
+      unitPath,
+      parsedBody,
+      ifNoneMatch,
+      req.nextUrl.searchParams,
+      unitId,
+    );
 
     const headers = new Headers({ "X-Intinor-Mock": "1" });
     if (mock.etag) headers.set("ETag", mock.etag);

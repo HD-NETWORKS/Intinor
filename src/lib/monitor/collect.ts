@@ -35,7 +35,7 @@ import type {
 async function getJson<T>(unitId: string, path: string): Promise<T | null> {
   try {
     if (isMockMode()) {
-      const mock = resolveMock("GET", path);
+      const mock = resolveMock("GET", path, undefined, undefined, undefined, unitId);
       return mock.status === 200 ? (mock.body as T) : null;
     }
     const res = await unitFetch(unitId, path);

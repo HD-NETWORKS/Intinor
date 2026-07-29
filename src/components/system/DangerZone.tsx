@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useCurrentUnit } from "@/lib/units/context";
 
 interface Meta {
   mock: boolean;
   destructiveActionsAllowed: boolean;
-  unitId: string | null;
 }
 
 interface ActionDef {
@@ -96,14 +96,15 @@ export function DangerZone() {
 
       <div className="space-y-3">
         {ACTIONS.map((a) => (
-          <ActionCard key={a.action} def={a} meta={meta} />
+          <ActionCard key={a.action} def={a} />
         ))}
       </div>
     </section>
   );
 }
 
-function ActionCard({ def, meta }: { def: ActionDef; meta: Meta | null }) {
+function ActionCard({ def }: { def: ActionDef }) {
+  const { unitId, defaultUnitId } = useCurrentUnit();
   const [revealed, setRevealed] = useState(false);
   const [typed, setTyped] = useState("");
   const [busy, setBusy] = useState(false);
@@ -112,11 +113,19 @@ function ActionCard({ def, meta }: { def: ActionDef; meta: Meta | null }) {
   const expected = def.action.toUpperCase();
   const canConfirm = typed === expected && !busy;
 
+  // The default unit keeps the shorter /api/system-actions path; any other
+  // configured unit gets its own /api/units/{id}/system-actions — same
+  // two-gate design either way (see server/system-actions.ts).
+  const endpoint =
+    unitId && unitId !== defaultUnitId
+      ? `/api/units/${encodeURIComponent(unitId)}/system-actions`
+      : "/api/system-actions";
+
   async function run() {
     setBusy(true);
     setResult(null);
     try {
-      const res = await fetch("/api/system-actions", {
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: def.action, confirm: typed }),
@@ -163,7 +172,7 @@ function ActionCard({ def, meta }: { def: ActionDef; meta: Meta | null }) {
         <div className="mt-3 space-y-2 border-t border-slate-800 pt-3">
           <p className="text-xs text-red-300">
             Type <code className="rounded bg-slate-800 px-1">{expected}</code> to confirm
-            {meta?.unitId ? ` on ${meta.unitId}` : ""}.
+            {unitId ? ` on ${unitId}` : ""}.
           </p>
           <div className="flex gap-2">
             <input
