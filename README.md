@@ -1012,6 +1012,41 @@ same-origin image response, not a broken/dead link) above their forms; the
 logo renders with a transparent background in both light and dark themes.
 No console errors.
 
+## Phase 19 — always-visible current unit + IP in the header
+
+`UnitSwitcher` previously rendered nothing at all for the common
+single-unit setup, and even with a second unit configured it only showed
+the id/label, no address — there was no way to tell at a glance which unit
+you were on or how to reach it, unlike the stock Intinor console's own
+header.
+
+- Now always renders (never a no-op): a plain unit id/label badge for the
+  single-unit case, the existing `<select>` switcher once a second unit is
+  configured.
+- Added a live IP badge next to it, sourced from the unit's own
+  `network_interfaces` status (the same primary-interface lookup
+  `NetworkInterfacesPanel` already does on the Overview page) — **not**
+  the statically configured `host`, which may be `iss.intinor.se` rather
+  than an address at all when a unit is routed through Intinor's relay,
+  and **not** added to `/api/meta`, which is deliberately public/
+  unauthenticated (exempt from the dashboard's own login gate) and exists
+  only to expose mode flags — an internal unit IP has no business being
+  fetchable by anyone who knows the dashboard's URL, logged in or not.
+- Since it's a normal per-unit polled resource, switching units in the
+  dropdown updates the IP shown automatically.
+
+### Verified
+
+`npm run build`, `npm run lint`, `npm test` all pass. Browser-verified in
+mock mode: single-unit setup now shows a unit-id + IP badge in the header
+where it previously showed nothing; with a second mock unit configured,
+selecting it in the dropdown updates the mode banner and header badge to
+the newly-selected unit (the IP itself doesn't change in mock mode, since
+the mock fixture's `network_interfaces` response isn't unit-specific —
+confirmed this is a mock-data gap, not the polling logic, since the mode
+banner/dropdown label both correctly reflect the switch). No console
+errors.
+
 ## Getting started
 
 ```bash
