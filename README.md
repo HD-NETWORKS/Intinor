@@ -1047,6 +1047,22 @@ confirmed this is a mock-data gap, not the polling logic, since the mode
 banner/dropdown label both correctly reflect the switch). No console
 errors.
 
+### Follow-up fix: missing `include=status` on `network_interfaces`
+
+Against a real unit, both the header IP badge above and the pre-existing
+`NetworkInterfacesPanel` came back with every per-interface field blank
+(IP, RX/TX, internet access) — mock mode never caught this because the
+mock fixture returns the same fully-populated response regardless of
+query params. Per the Intinor API's own `include=` convention (used
+everywhere else, e.g. `encoders/0?include=settings,status,thumbnails`)
+and the API definitions marking `network_interfaces_list.status` as an
+optional field (unlike `network_interfaces*`, which is required), the
+list endpoint only returns the network interfaces themselves by default
+— the `status` sub-object (where IP/RX/TX/internet-access live) has to be
+requested explicitly with `?include=status`. Both `NetworkInterfacesPanel`
+and `UnitSwitcher`'s IP lookup now fetch `network_interfaces?include=status`
+instead of the bare path.
+
 ## Getting started
 
 ```bash
