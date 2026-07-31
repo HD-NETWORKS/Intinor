@@ -732,6 +732,49 @@ sends `POST system/actions/upgrade_firmware?version=S5.2.0-1&source=upgrade_serv
 (confirmed via the actual dev server request log) rather than the bare
 unparameterized action.
 
+## Phase 13 — Router panel (drag-and-drop source assignment)
+
+The last UX-only item from the original audit: the real unit's Router panel
+is a visual patch bay — drag a source thumbnail onto a destination thumbnail
+— as an alternative to picking a source from a dropdown on the encoder
+settings page. Confirmed this is genuinely just a different UI over the
+same write: no new API capability, no new types needed.
+
+- **New page** `/router`: two sections — **Sources** (every network input,
+  Netvideo input, video mixer, and the test picture, each a draggable tile
+  with a live thumbnail/status dot, reusing `usePolledResource` the same way
+  `NetworkInputRow`/`EncoderRow` already do) and **Encoders** (drop targets,
+  each showing its current source and highlighting on drag-over).
+- The master list of valid sources — and their exact href values — comes
+  from an encoder's own `_constraints.video_source.source` (the same
+  constraint list the dropdown-based encoder settings page already reads),
+  not reconstructed by guessing URL shapes. `parseSourceHref()` maps each
+  href back to a resource kind + index (network_inputs/video_inputs/
+  video_mixers/test_picture) purely to pick the right thumbnail URL builder.
+- **Write path**: dropping a source fetches that encoder's current settings
+  once, checks `video_source.source` is mutable for the account, and — if
+  so — opens the existing `ConfirmChangesDialog` (same component every
+  other settings page uses, so live-write units still get the "type SAVE"
+  gate) with a single `SettingsChange` entry. Confirming reuses
+  `buildPutBody`/`putEncoderSettings` exactly as the encoder settings page
+  does. `useSourceUsage()` (Phase 7) already annotates every source tile
+  with "⚠ used by …" for cross-resource fan-out — no changes needed there
+  either.
+- Deliberately scoped to encoders only, not mixer layers — an encoder has
+  exactly one source, a clean drop target; a mixer can have several layers,
+  which doesn't reduce to "drop a thumbnail on a thumbnail" without also
+  picking which layer, so that stays on the existing mixer builder page.
+
+### Verified
+
+`npm run build`, `npm run lint`, `npm test` all pass. Browser-verified on
+the primary mock unit: dragging "Network input 1" onto the encoder opens a
+confirm dialog reading "Video source: Video mixer 1 → Network input 1";
+confirming saves and survives a reload. Re-verified on the big-unit fixture
+(2 mixers + 16 network inputs + 16 Netvideo inputs + test picture = 35
+source tiles, 17 encoder destinations, all with live thumbnails) with zero
+console errors.
+
 ## Getting started
 
 ```bash
