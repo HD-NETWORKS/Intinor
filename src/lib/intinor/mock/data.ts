@@ -13,6 +13,7 @@ import type {
   EncodingModesResponse,
   EncodingSettingsResponse,
   NetworkInput,
+  TestPictureSettingsResponse,
   NetworkInputsList,
   NetworkInputSettingsResponse,
   NetworkInputStatus,
@@ -819,6 +820,49 @@ export const mockNetworkInterfaces: NetworkInterfacesList = {
         },
       },
     ],
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Test picture (unit-wide fallback source)
+// ---------------------------------------------------------------------------
+
+export const mockTestPictureSettings: TestPictureSettingsResponse = {
+  active: true,
+  background: "color_bars",
+  audio: "tone_1khz",
+  text_overlay: "HD Networks — %h:%m:%s",
+  animation_overlay: "none",
+  _version: "mock-1",
+  _constraints: {
+    mutable: ["*"],
+    background: [
+      { value: "black", description: "Black frame", documentation: "A solid black frame." },
+      { value: "color_bars", description: "Colour bars", documentation: "SMPTE-style colour bars." },
+      {
+        value: "custom_image",
+        description: "Custom image",
+        documentation: "Uses the image uploaded via custom_background.",
+      },
+    ],
+    audio: [
+      { value: "silence", description: "Silence", documentation: "No audio tone." },
+      { value: "tone_1khz", description: "1 kHz tone", documentation: "Continuous 1 kHz sine tone." },
+    ],
+    animation_overlay: [
+      { value: "none", description: "None", documentation: "No animation." },
+      {
+        value: "moving_bar",
+        description: "Moving bar",
+        documentation: "A bar sweeps across the frame, useful for confirming a live (non-frozen) picture.",
+      },
+    ],
+    layout_codes: [
+      { value: "%h", description: "Hour", documentation: "2-digit hour, 24h clock." },
+      { value: "%m", description: "Minute", documentation: "2-digit minute." },
+      { value: "%s", description: "Second", documentation: "2-digit second." },
+    ],
+    default_text_overlay: "%h:%m:%s",
   },
 };
 

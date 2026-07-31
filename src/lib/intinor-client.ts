@@ -32,6 +32,8 @@ import type {
   StmError,
   SystemInformation,
   SystemStatus,
+  TestPictureSettingsRequest,
+  TestPictureSettingsResponse,
   VideoInput,
   VideoInputSettings,
   VideoInputSettingsResponse,
@@ -114,6 +116,24 @@ export function createIntinorClient(base: string = UNIT_PROXY_BASE) {
     request<T>(path, { method: "PUT", body });
   const post = <T>(path: string, body?: unknown): Promise<T> =>
     request<T>(path, { method: "POST", body });
+
+  /** Raw binary PUT (image upload) — bypasses the JSON body/Content-Type of `request`. */
+  async function putBinary(path: string, body: Blob): Promise<void> {
+    const res = await fetch(`${base}/${path.replace(/^\/+/, "")}`, {
+      method: "PUT",
+      headers: { "Content-Type": body.type || "application/octet-stream" },
+      body,
+    });
+    if (!res.ok) {
+      let detail: Partial<StmError> = {};
+      try {
+        detail = (await res.json()) as Partial<StmError>;
+      } catch {
+        // non-JSON error body
+      }
+      throw new IntinorApiError(res.status, detail);
+    }
+  }
 
   const withInclude = (path: string, include?: Include): string =>
     include?.length ? `${path}${query({ include: include.join(",") })}` : path;
@@ -222,6 +242,22 @@ export function createIntinorClient(base: string = UNIT_PROXY_BASE) {
       put<EncodingSettingsResponse>("encoding/settings", body),
     getNetworkInterfaces: () => get<NetworkInterfacesList>("network_interfaces"),
     getProfiles: () => get<ProfilesList>("profiles"),
+
+    // -- test picture (unit-wide fallback source) --------------------------
+    getTestPictureSettings: () =>
+      get<TestPictureSettingsResponse>(`test_picture/settings${CONSTRAINTS}`),
+    putTestPictureSettings: (body: TestPictureSettingsRequest) =>
+      put<TestPictureSettingsResponse>("test_picture/settings", body),
+    /** No JSON schema on the unit for this one — it's a raw image PUT/GET. */
+    putCustomBackground: (file: Blob) => putBinary("test_picture/custom_background", file),
+    /**
+     * `cacheBust` should come from caller-owned state (e.g. a counter bumped
+     * after a successful upload), not `Date.now()`/`Math.random()` — this is
+     * called during the initial render too, and a wall-clock value there
+     * differs between the server-rendered HTML and client hydration passes.
+     */
+    customBackgroundUrl: (cacheBust?: number) =>
+      `${base}/test_picture/custom_background` + (cacheBust ? query({ v: cacheBust }) : ""),
   };
 }
 

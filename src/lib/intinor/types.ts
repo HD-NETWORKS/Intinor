@@ -1236,6 +1236,42 @@ export interface ProfilesList {
 }
 
 // ---------------------------------------------------------------------------
+// Test picture (unit-wide fallback source) — `GET /test_picture`,
+// `GET/PUT /test_picture/settings`, `GET/PUT /test_picture/custom_background`.
+// The last one is a raw image (no JSON schema in the unit's swagger) rather
+// than a typed settings object — see the custom-background client/proxy
+// notes in intinor-client.ts.
+// ---------------------------------------------------------------------------
+
+export interface TestPictureSettings {
+  active: boolean;
+  background: string;
+  audio: string;
+  text_overlay?: string;
+  animation_overlay?: string;
+}
+
+export interface TestPictureSettingsConstraints {
+  mutable: MutableList;
+  background: DescriptionDocumentationValue[];
+  audio: DescriptionDocumentationValue[];
+  animation_overlay: DescriptionDocumentationValue[];
+  /** Documents the `%h`/`%m`/`%s`-style codes usable inside `text_overlay`. */
+  layout_codes: DescriptionDocumentationValue[];
+  default_text_overlay: string;
+}
+
+export type TestPictureSettingsRequest = TestPictureSettings & RequestMetadata;
+
+export type TestPictureSettingsResponse = TestPictureSettings &
+  ResponseMetadata & { _constraints?: TestPictureSettingsConstraints };
+
+export interface TestPicture {
+  _links?: Link[];
+  settings?: TestPictureSettingsResponse;
+}
+
+// ---------------------------------------------------------------------------
 // API root
 // ---------------------------------------------------------------------------
 

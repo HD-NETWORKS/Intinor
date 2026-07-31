@@ -517,9 +517,9 @@ to the mock state store and survives a reload.
 
 ### Still open from the same audit (not in this phase)
 
-- **Custom test picture upload**, **router panel** (drag-and-drop patch bay
-  UX), **richer firmware upgrade flow**, **settings backup save**, and
-  **local user/RBAC provisioning on the unit itself** — still not built.
+- **Router panel** (drag-and-drop patch bay UX), **richer firmware upgrade
+  flow**, **settings backup save**, and **local user/RBAC provisioning on
+  the unit itself** — still not built.
 
 ## Phase 9 — Netvideo inputs (`video_input`), a whole second ingest resource
 
@@ -628,6 +628,64 @@ mock mode: editing an existing custom mode's description and adding a new
 mode (seeded from the mock's first H.264/AAC constraint entry) collapses to
 a single "1 mode(s) → 2 mode(s)" confirm-dialog line; saving persists across
 reload; removing a mode back down to 1 also persists correctly.
+
+## Phase 11 — Test picture settings + custom background upload
+
+`docs/01-intinor-api-reference.md` documents three `test_picture` endpoints:
+`GET /test_picture`, `GET/PUT /test_picture/settings` (a normal typed
+resource — active/background/audio/animation-overlay/text-overlay, all
+constraint-driven like everything else), and `GET/PUT
+/test_picture/custom_background`, which has **no JSON schema** in the
+unit's swagger dump — it's a raw image, not a settings object. Building
+this required a real capability the proxy didn't have yet: passing a
+binary body through untouched.
+
+- **New page** `/test-picture`: a standard `useSettingsEditor`/`SettingsForm`
+  section for the typed settings (background/audio/animation-overlay
+  dropdowns come from `_constraints`, same as everywhere else; the
+  text-overlay field's help text surfaces the unit's `layout_codes`
+  time-code placeholders and `default_text_overlay`), plus a separate
+  "Custom background" card with a file input, live preview (`<img>` against
+  the proxied `custom_background` URL), and an upload button — this part
+  isn't a settings-diff at all, just a direct file PUT.
+- **Proxy binary passthrough** (`server/proxy-handler.ts`, `server/unit-fetch.ts`):
+  previously every request body went through `req.text()`, which corrupts
+  non-UTF8 bytes. The proxy now checks the request's Content-Type and only
+  uses `.text()` for JSON/text bodies; anything else (`image/png`, etc.) goes
+  through `.arrayBuffer()` and is forwarded as raw bytes end-to-end, both to
+  the real unit and into the mock resolver. `intinor-client.ts` gained a
+  `putBinary()` path alongside the existing JSON `request()` helper —
+  `putCustomBackground(file: Blob)` posts the file's own bytes and
+  content-type directly, no JSON envelope.
+- **Mock**: a second in-memory store in `mock/state.ts`
+  (`putBinaryOverride`/`getBinaryOverride`, parallel to the existing JSON
+  `overrides` map, since binary blobs don't fit that map's
+  clone-and-strip-`_constraints` logic) holds the uploaded bytes; GET serves
+  them back with the original content-type, or a placeholder "NO CUSTOM
+  BACKGROUND UPLOADED" SVG if nothing's been uploaded yet.
+
+### Bug caught during verification
+
+The first version of `customBackgroundUrl()` cache-busted with
+`` `?_r=${Date.now()}` `` baked into the client method itself. Since the
+image `<img src>` is computed during the initial render, this produced a
+React hydration-mismatch warning (the server-rendered HTML and the
+client's first render computed different timestamps). Fixed by moving the
+cache-bust token out of the client method and into caller-owned React state
+(a counter starting at `0`/`undefined`, only incremented after a successful
+upload) — deterministic across server and client, and still forces a fresh
+fetch exactly when the image has actually changed.
+
+### Verified
+
+`npm run build`, `npm run lint`, `npm test` all pass. Confirmed with a raw
+`curl` PUT/GET round-trip that a real PNG survives the proxy byte-for-byte
+(`cmp` reported the files identical). Browser-verified: settings edits
+(text overlay, background selection) save and persist; uploading a file
+through the actual `<input type=file>` + Upload button round-trips
+correctly (`img.complete`/`naturalWidth`/`naturalHeight` confirmed against
+the uploaded file's real dimensions); no hydration warnings or console
+errors on load, edit, or upload.
 
 ## Getting started
 

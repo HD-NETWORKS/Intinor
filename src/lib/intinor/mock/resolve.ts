@@ -22,6 +22,7 @@ import {
   mockEncoderStatus,
   mockEncodingModes,
   mockEncodingSettings,
+  mockTestPictureSettings,
   mockNetworkInput,
   mockNetworkInputsList,
   mockNetworkInputSettings,
@@ -39,7 +40,7 @@ import {
   mockVideoMixerStatus,
 } from "./data";
 import { clamp, currentTick, jitteredValue, seededFraction } from "./jitter";
-import { currentWithOverride, putOverride } from "./state";
+import { currentWithOverride, getBinaryOverride, putBinaryOverride, putOverride } from "./state";
 import { withMockPermissions } from "./permissions";
 import {
   faultEncoderStatus,
@@ -72,6 +73,7 @@ import type {
   EncoderSettingsResponse,
   EncodingSettingsResponse,
   NetworkInputSettingsResponse,
+  TestPictureSettingsResponse,
   VideoInputSettingsResponse,
   VideoMixerLayerSettings,
   VideoMixerSettingsResponse,
@@ -128,6 +130,19 @@ function currentEncodingSettings(unitId?: string): EncodingSettingsResponse {
 
 function putEncodingSettings(body: unknown, unitId?: string): void {
   putOverride(`${unitId ?? defaultUnitId()}/encoding_settings`, body);
+}
+
+/** Global (non-indexed) test picture settings — one per unit. */
+function currentTestPictureSettings(unitId?: string): TestPictureSettingsResponse {
+  return currentWithOverride(`${unitId ?? defaultUnitId()}/test_picture_settings`, mockTestPictureSettings);
+}
+
+function putTestPictureSettings(body: unknown, unitId?: string): void {
+  putOverride(`${unitId ?? defaultUnitId()}/test_picture_settings`, body);
+}
+
+function customBackgroundKey(unitId?: string): string {
+  return `${unitId ?? defaultUnitId()}/test_picture_custom_background`;
 }
 
 export interface MockResponse {
@@ -307,6 +322,8 @@ const GET_ROUTES: Record<string, () => unknown> = {
   encoding: () => ({ encoding_modes: mockEncodingModes, settings: currentEncodingSettings() }),
   "encoding/encoding_modes": () => mockEncodingModes,
   "encoding/settings": () => withMockPermissions(currentEncodingSettings(), "encoding"),
+  test_picture: () => ({ settings: withMockPermissions(currentTestPictureSettings(), "test_picture") }),
+  "test_picture/settings": () => withMockPermissions(currentTestPictureSettings(), "test_picture"),
   multiviews: () => ({ multiviews: [] }),
   video_inputs: () => mockVideoInputsList,
   "video_inputs/0": () => ({
@@ -352,6 +369,11 @@ function bigGetRoutes(unitId: string): Record<string, () => unknown> {
     }),
     "encoding/encoding_modes": () => mockEncodingModes,
     "encoding/settings": () => withMockPermissions(currentEncodingSettings(unitId), "encoding"),
+    test_picture: () => ({
+      settings: withMockPermissions(currentTestPictureSettings(unitId), "test_picture"),
+    }),
+    "test_picture/settings": () =>
+      withMockPermissions(currentTestPictureSettings(unitId), "test_picture"),
     multiviews: () => ({ multiviews: [] }),
     video_outputs: () => ({ video_outputs: [] }),
     profiles: () => ({ profiles: [] }),
@@ -490,6 +512,20 @@ function buildMixerProgramSvg(
   return { status: 200, body: svg, contentType: "image/svg+xml" };
 }
 
+/** GET /test_picture/custom_background — the uploaded image, or a placeholder if none yet. */
+function buildCustomBackgroundResponse(unitId?: string): MockResponse {
+  const stored = getBinaryOverride(customBackgroundKey(unitId));
+  if (stored) {
+    return { status: 200, body: stored.bytes, contentType: stored.contentType };
+  }
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180">
+  <rect width="320" height="180" fill="#1a2233"/>
+  <rect x="4" y="4" width="312" height="172" fill="none" stroke="#475569" stroke-width="2" stroke-dasharray="6 4" rx="4"/>
+  <text x="160" y="94" fill="#64748b" font-family="monospace" font-size="13" text-anchor="middle">NO CUSTOM BACKGROUND UPLOADED</text>
+</svg>`;
+  return { status: 200, body: svg, contentType: "image/svg+xml" };
+}
+
 function buildThumbnailSvg(
   path: string,
   searchParams: URLSearchParams,
@@ -539,12 +575,16 @@ export function resolveMock(
   ifNoneMatch?: string,
   searchParams: URLSearchParams = new URLSearchParams(),
   unitId?: string,
+  requestContentType?: string,
 ): MockResponse {
   const path = unitPath.replace(/^\/+|\/+$/g, "");
 
   if (method === "GET" || method === "HEAD") {
     if (/^[a-z_]+\/\d+\/thumbnails\/[^/]+$/.test(path)) {
       return buildThumbnailSvg(path, searchParams, unitId);
+    }
+    if (path === "test_picture/custom_background") {
+      return buildCustomBackgroundResponse(unitId);
     }
     const routes = isBigUnit(unitId) ? bigGetRoutes(unitId!) : GET_ROUTES;
     const route = routes[path];
@@ -581,6 +621,18 @@ export function resolveMock(
     if (path === "encoding/settings") {
       putEncodingSettings(requestBody, unitId);
       return { status: 200, body: currentEncodingSettings(unitId) };
+    }
+    if (path === "test_picture/settings") {
+      putTestPictureSettings(requestBody, unitId);
+      return { status: 200, body: currentTestPictureSettings(unitId) };
+    }
+    if (path === "test_picture/custom_background") {
+      // Binary upload — requestBody is an ArrayBuffer here (see proxy-handler.ts's
+      // isBinaryBody branch), not JSON, so it bypasses putSettings/putOverride.
+      if (requestBody instanceof ArrayBuffer) {
+        putBinaryOverride(customBackgroundKey(unitId), requestBody, requestContentType ?? "image/png");
+      }
+      return { status: 200, body: { title: "OK", status: 200, message: "Custom background updated" } };
     }
     return { status: 200, body: requestBody ?? {} };
   }

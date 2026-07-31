@@ -50,7 +50,19 @@ export function currentWithOverride<T extends { _constraints?: unknown }>(
   } as T;
 }
 
+/** Uploaded binary blobs (e.g. test_picture/custom_background) — not JSON, so kept separately from `overrides`. */
+const binaryOverrides = new Map<string, { bytes: ArrayBuffer; contentType: string }>();
+
+export function putBinaryOverride(key: string, bytes: ArrayBuffer, contentType: string): void {
+  binaryOverrides.set(key, { bytes, contentType });
+}
+
+export function getBinaryOverride(key: string): { bytes: ArrayBuffer; contentType: string } | undefined {
+  return binaryOverrides.get(key);
+}
+
 /** Test/reset hook. */
 export function resetMockState(): void {
   overrides.clear();
+  binaryOverrides.clear();
 }

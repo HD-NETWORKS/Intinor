@@ -13,7 +13,8 @@ export async function unitFetch(
   unitPath: string,
   init: {
     method?: string;
-    body?: string;
+    /** String for JSON bodies; ArrayBuffer for binary ones (e.g. custom_background image upload). */
+    body?: string | ArrayBuffer;
     contentType?: string;
     search?: string;
     ifNoneMatch?: string;

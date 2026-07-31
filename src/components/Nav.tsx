@@ -10,6 +10,7 @@ const ITEMS = [
   { href: "/mixer", label: "Video mixer" },
   { href: "/encoders", label: "Encoders" },
   { href: "/encoding-modes", label: "Encoding modes" },
+  { href: "/test-picture", label: "Test picture" },
   { href: "/system", label: "System" },
 ];
 
