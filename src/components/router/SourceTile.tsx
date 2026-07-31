@@ -1,8 +1,10 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { usePolledResource } from "@/hooks/usePolledResource";
 import { useIntinorClient } from "@/hooks/useIntinorClient";
 import { useThumbnailTick, withThumbnailTick } from "@/hooks/useThumbnailTick";
+import { useSelectionHandoff, PIPE_RESOURCE_PATH, type PipeResource } from "@/lib/navigation/selection";
 import type { CommonPipeInfo, PipeThumbnails } from "@/lib/intinor/types";
 
 export type SourceKind = "network_input" | "video_input" | "video_mixer" | "test_picture";
@@ -45,6 +47,8 @@ export function SourceTile({
   usedBy?: string[];
 }) {
   const client = useIntinorClient();
+  const router = useRouter();
+  const { setPending } = useSelectionHandoff();
   const path = kind !== "test_picture" ? `${KIND_PATH[kind]}/${index}?include=status,thumbnails` : "";
   const { data } = usePolledResource<TileData>(path, 8000, kind !== "test_picture");
   const tick = useThumbnailTick();
@@ -62,6 +66,16 @@ export function SourceTile({
       : null;
   const thumbUrl = rawThumbUrl ? withThumbnailTick(rawThumbUrl, tick) : null;
 
+  const openSettings = () => {
+    if (kind === "test_picture") {
+      router.push("/test-picture");
+      return;
+    }
+    if (index == null) return;
+    setPending(kind as PipeResource, index);
+    router.push(PIPE_RESOURCE_PATH[kind as PipeResource]);
+  };
+
   return (
     <div
       draggable={!dragDisabled}
@@ -71,11 +85,15 @@ export function SourceTile({
         onDragStart();
       }}
       onDragEnd={onDragEnd}
+      onClick={openSettings}
       className={
-        "w-40 shrink-0 space-y-1 rounded border border-slate-800 bg-slate-900/50 p-2 " +
-        (dragDisabled ? "cursor-not-allowed opacity-50" : "cursor-grab active:cursor-grabbing hover:border-sky-600/60")
+        "w-40 shrink-0 cursor-pointer space-y-1 rounded border border-border-default bg-panel p-2 hover:border-sky-600/60 " +
+        (dragDisabled ? "opacity-50" : "active:cursor-grabbing")
       }
-      title={dragDisabled ? "Not editable for your account" : `Drag onto an encoder to set its source`}
+      title={
+        (dragDisabled ? "Not editable for your account. " : "Drag onto an encoder to set its source. ") +
+        "Click to open settings."
+      }
     >
       <div className="flex h-[90px] items-center justify-center overflow-hidden rounded bg-slate-950">
         {thumbUrl ? (
@@ -94,11 +112,11 @@ export function SourceTile({
             className={"h-1.5 w-1.5 shrink-0 rounded-full " + (data?.active ? "bg-emerald-400" : "bg-slate-600")}
           />
         )}
-        <span className="truncate text-xs text-slate-200">{label}</span>
+        <span className="truncate text-xs text-body">{label}</span>
       </div>
-      <div className="text-[10px] uppercase tracking-wide text-slate-500">{KIND_LABEL[kind]}</div>
+      <div className="text-[10px] uppercase tracking-wide text-faint">{KIND_LABEL[kind]}</div>
       {usedBy && usedBy.length > 0 && (
-        <div className="truncate text-[10px] text-amber-400" title={`Also used by ${usedBy.join(", ")}`}>
+        <div className="truncate text-[10px] text-warning" title={`Also used by ${usedBy.join(", ")}`}>
           ⚠ used by {usedBy.join(", ")}
         </div>
       )}

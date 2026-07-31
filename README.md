@@ -867,6 +867,74 @@ Encoders before Sources, and a single custom encoding mode renders
 collapsed by default with its own expand/remove controls. No console
 errors.
 
+## Phase 16 — navigation, mixer visibility, and a light/dark theme
+
+Second round of real-unit feedback, all UI-only:
+
+- **Destination name on router-panel encoder tiles.** `EncoderDestTile` now
+  shows the first active push destination's description (from
+  `settings.destinations.basic`/`.rtmp`, filtered on `active`), alongside the
+  existing "Source: …" line — `"+N more"` when more than one destination is
+  active.
+- **Click-through navigation.** Every card (Overview), dense-list row, and
+  router-panel tile now opens that item's own settings page on click. A new
+  `SelectionProvider` (`src/lib/navigation/selection.tsx`) hands the clicked
+  index across the route change via a ref (not a URL param, so no Suspense
+  boundary or bookmarkable-URL complexity) — the destination page
+  (`/inputs`, `/netvideo`, `/mixer`, `/encoders`) consumes it once on load in
+  place of its usual "select the first item" default. `useOpenPipeSettings`
+  is the one-line hook every card/row/tile uses. `StatusCardShell` grew an
+  optional `onClick`, so the whole card becomes a click target without
+  fighting the existing "Audio level overlay" checkbox inside `Thumbnail`
+  (which now stops click propagation so toggling it doesn't also navigate
+  away).
+- **Video mixer nav item hides itself** when the connected unit reports zero
+  `video_mixers` — `Nav.tsx` polls the list every 30s (cheap, just for
+  visibility) and shows the link by default until that first answer arrives,
+  so it doesn't flash-hide. There's no dashboard-side way to *enable* a
+  mixer a unit doesn't have — pipe counts are fixed by the unit's own
+  hardware/license, same as the encoder/input counts elsewhere in this app.
+- **Router panel moved above the resource pages** in the sidebar, right
+  after Overview.
+- **Light/dark theme, defaulting to system.** The whole app was hardcoded
+  dark (`bg-slate-950` etc., directly, no variants) — swapped every "chrome"
+  color class (page/panel backgrounds, borders, body/muted/faint text,
+  accent/status text) for a small set of semantic Tailwind utilities
+  (`bg-page`, `bg-panel`, `text-body`, `text-accent`, `text-danger`, …)
+  backed by CSS custom properties in `globals.css`, switched by an
+  `html[data-theme]` attribute. Deliberately left alone: video/image preview
+  "wells" (thumbnails, the mixer canvas, custom-background preview) stay
+  black regardless of theme — the video-monitor convention — and so do
+  purely decorative bits (status dots, translucent tinted badges, solid
+  accent buttons) that already read fine on either background.
+  - `ThemeProvider` (`src/lib/theme/context.tsx`) tracks a `system | light |
+    dark` preference in `localStorage`, resolves `system` against
+    `prefers-color-scheme`, and live-updates if the OS theme changes.
+  - An inline script in the root layout sets `data-theme` before first
+    paint (the standard Next.js "preventing flash" pattern) from the same
+    storage key — no flash on load. The storage-key constant lives in its
+    own plain module (`src/lib/theme/constants.ts`) specifically so the
+    *server* layout never imports anything from the `"use client"`
+    `context.tsx` module — doing that once by mistake corrupted the constant
+    into a client-reference stub and broke the inline script's JS syntax,
+    caught by browser-console verification, not by `next build`.
+  - `ThemeToggle` — a three-way Auto/Light/Dark control — sits in the
+    header next to the unit switcher.
+  - The one inline-SVG chart (`TimeSeriesChart`) had its grid/axis colors
+    hardcoded as hex attributes rather than Tailwind classes; those now
+    read `var(--chart-grid)` / `var(--chart-axis-text)` instead.
+
+### Verified
+
+`npm run build`, `npm run lint`, `npm test` all pass. Browser-verified in
+mock mode, in both themes (`colorScheme: 'dark'` and `'light'`, plus the
+in-app toggle): no console errors either way; the router panel shows
+destination names; clicking an Overview card navigates to and pre-selects
+that item's settings page; the theme toggle switches instantly and
+persists; light mode renders correctly end-to-end (nav, header, cards, a
+full settings form, the router panel) with video-preview boxes correctly
+staying dark in both themes.
+
 ## Getting started
 
 ```bash

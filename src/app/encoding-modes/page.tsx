@@ -401,13 +401,13 @@ export default function EncodingModesPage() {
 
   if (error) {
     return (
-      <div className="mx-auto max-w-4xl rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+      <div className="mx-auto max-w-4xl rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-danger">
         {error}
       </div>
     );
   }
   if (loading || !draft) {
-    return <p className="text-sm text-slate-500">Loading encoding settings…</p>;
+    return <p className="text-sm text-faint">Loading encoding settings…</p>;
   }
 
   const saveBlocked = writeMode === "live-readonly";
@@ -415,8 +415,8 @@ export default function EncodingModesPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-5 pb-24">
       <div>
-        <h1 className="text-xl font-semibold text-slate-100">Encoding modes</h1>
-        <p className="text-xs text-slate-500">
+        <h1 className="text-xl font-semibold text-fg">Encoding modes</h1>
+        <p className="text-xs text-faint">
           Global encoding defaults, and the unit&apos;s custom encoding mode presets — the
           same list encoders pick from in their &quot;Encoding mode&quot; dropdown. Built-in
           modes are fixed by firmware and shown read-only.
@@ -425,8 +425,8 @@ export default function EncodingModesPage() {
 
       <PermissionBanner mutable={mutable} />
 
-      <section className="space-y-3 rounded-lg border border-slate-800 bg-slate-900/50 p-4">
-        <h2 className="font-medium text-slate-200">Global</h2>
+      <section className="space-y-3 rounded-lg border border-border-default bg-panel p-4">
+        <h2 className="font-medium text-body">Global</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           {globalFields(draft._constraints).map((spec) => (
             <SettingsField key={spec.path} spec={spec} draft={draft} mutable={mutable} onChange={setField} />
@@ -435,7 +435,7 @@ export default function EncodingModesPage() {
       </section>
 
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">
+        <h2 className="text-sm font-medium uppercase tracking-wide text-muted">
           Custom encoding modes ({draft.custom_encoding_modes.length})
         </h2>
         <div className="flex gap-2">
@@ -446,7 +446,7 @@ export default function EncodingModesPage() {
                   prev.size > 0 ? new Set() : new Set(draft.custom_encoding_modes.map((_, i) => i)),
                 )
               }
-              className="rounded border border-slate-700 px-3 py-1 text-xs text-slate-300 hover:bg-slate-800"
+              className="rounded border border-border-strong px-3 py-1 text-xs text-body hover:bg-panel-hover"
             >
               {expanded.size > 0 ? "Collapse all" : "Expand all"}
             </button>
@@ -454,7 +454,7 @@ export default function EncodingModesPage() {
           <button
             onClick={addMode}
             disabled={saveBlocked}
-            className="rounded border border-sky-500/60 bg-sky-500/10 px-3 py-1 text-xs text-sky-300 hover:bg-sky-500/20 disabled:opacity-40"
+            className="rounded border border-sky-500/60 bg-sky-500/10 px-3 py-1 text-xs text-accent hover:bg-sky-500/20 disabled:opacity-40"
           >
             + Add mode
           </button>
@@ -462,7 +462,7 @@ export default function EncodingModesPage() {
       </div>
 
       {draft.custom_encoding_modes.length === 0 && (
-        <p className="text-sm text-slate-500">No custom encoding modes defined.</p>
+        <p className="text-sm text-faint">No custom encoding modes defined.</p>
       )}
 
       {/* Quick-jump nav — expands and scrolls to a mode, useful once there are more than a couple. */}
@@ -472,7 +472,7 @@ export default function EncodingModesPage() {
             <button
               key={i}
               onClick={() => jumpTo(i)}
-              className="rounded border border-slate-700 px-3 py-1 text-xs text-slate-300 hover:bg-slate-800"
+              className="rounded border border-border-strong px-3 py-1 text-xs text-body hover:bg-panel-hover"
             >
               {mode.description || `Custom mode ${i + 1}`}
             </button>
@@ -483,14 +483,14 @@ export default function EncodingModesPage() {
       {draft.custom_encoding_modes.map((mode, i) => {
         const isOpen = expanded.has(i);
         return (
-          <section key={i} id={`custom-mode-${i}`} className="rounded-lg border border-slate-800 bg-slate-900/50 scroll-mt-4">
+          <section key={i} id={`custom-mode-${i}`} className="rounded-lg border border-border-default bg-panel scroll-mt-4">
             <div className="flex items-center justify-between gap-2 p-4">
               <button
                 onClick={() => toggleExpanded(i)}
                 className="flex flex-1 items-center gap-2 text-left"
               >
-                <span className="text-slate-500">{isOpen ? "▾" : "▸"}</span>
-                <h3 className="font-medium text-slate-200">
+                <span className="text-faint">{isOpen ? "▾" : "▸"}</span>
+                <h3 className="font-medium text-body">
                   Custom mode {i + 1}
                   {mode.description ? ` — ${mode.description}` : ""}
                 </h3>
@@ -498,13 +498,13 @@ export default function EncodingModesPage() {
               <button
                 onClick={() => removeMode(i)}
                 disabled={saveBlocked}
-                className="rounded border border-red-500/40 px-2 py-1 text-xs text-red-300 hover:bg-red-500/10 disabled:opacity-40"
+                className="rounded border border-red-500/40 px-2 py-1 text-xs text-danger hover:bg-red-500/10 disabled:opacity-40"
               >
                 Remove
               </button>
             </div>
             {isOpen && (
-              <div className="grid gap-3 border-t border-slate-800 p-4 sm:grid-cols-2">
+              <div className="grid gap-3 border-t border-border-default p-4 sm:grid-cols-2">
                 {customModeFields(mode, i, draft._constraints).map((spec) => (
                   <SettingsField key={spec.path} spec={spec} draft={draft} mutable={mutable} onChange={setField} />
                 ))}
@@ -514,28 +514,28 @@ export default function EncodingModesPage() {
         );
       })}
 
-      <div className="sticky bottom-0 -mx-6 border-t border-slate-800 bg-slate-950/95 px-6 py-3 backdrop-blur">
+      <div className="sticky bottom-0 -mx-6 border-t border-border-default bg-panel-strong px-6 py-3 backdrop-blur">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="text-sm">
             {saveBlocked ? (
-              <span className="text-sky-300">
+              <span className="text-accent">
                 Live unit, read-only mode — saving is disabled by the proxy.
               </span>
             ) : dirty ? (
-              <span className="text-amber-300">
+              <span className="text-warning">
                 {changes.length} unsaved change{changes.length === 1 ? "" : "s"}
               </span>
             ) : (
-              <span className="text-slate-500">No changes.</span>
+              <span className="text-faint">No changes.</span>
             )}
-            {stage === "saved" && <span className="ml-2 text-emerald-400">Saved.</span>}
-            {stage === "error" && saveError && <span className="ml-2 text-red-300">{saveError}</span>}
+            {stage === "saved" && <span className="ml-2 text-success">Saved.</span>}
+            {stage === "error" && saveError && <span className="ml-2 text-danger">{saveError}</span>}
           </div>
           <div className="flex gap-2">
             <button
               onClick={reset}
               disabled={!dirty || stage === "saving"}
-              className="rounded border border-slate-700 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+              className="rounded border border-border-strong px-3 py-1.5 text-sm text-body hover:bg-panel-hover disabled:opacity-40"
             >
               Discard
             </button>

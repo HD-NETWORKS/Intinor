@@ -84,9 +84,9 @@ export function TimeSeriesChart({
 
   if (!stats) {
     return (
-      <figure className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
-        <figcaption className="mb-2 text-sm font-medium text-slate-200">{title}</figcaption>
-        <div className="flex h-32 items-center justify-center text-sm text-slate-500">
+      <figure className="rounded-lg border border-border-default bg-panel p-4">
+        <figcaption className="mb-2 text-sm font-medium text-body">{title}</figcaption>
+        <div className="flex h-32 items-center justify-center text-sm text-faint">
           {emptyMessage}
         </div>
       </figure>
@@ -133,14 +133,14 @@ export function TimeSeriesChart({
   }
 
   return (
-    <figure className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
+    <figure className="rounded-lg border border-border-default bg-panel p-4">
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-        <figcaption className="text-sm font-medium text-slate-200">{title}</figcaption>
+        <figcaption className="text-sm font-medium text-body">{title}</figcaption>
         <div className="flex items-center gap-3">
           {series.length >= 2 && (
             <ul className="flex flex-wrap gap-3">
               {series.map((s) => (
-                <li key={s.name} className="flex items-center gap-1.5 text-xs text-slate-400">
+                <li key={s.name} className="flex items-center gap-1.5 text-xs text-muted">
                   <span
                     className="inline-block h-2 w-2 rounded-full"
                     style={{ background: SERIES_COLORS[s.colorSlot % SERIES_COLORS.length] }}
@@ -152,7 +152,7 @@ export function TimeSeriesChart({
           )}
           <button
             onClick={() => setShowTable((v) => !v)}
-            className="text-xs text-slate-500 underline decoration-dotted hover:text-slate-300"
+            className="text-xs text-faint underline decoration-dotted hover:text-body"
             aria-expanded={showTable}
           >
             {showTable ? "Hide table" : "Table"}
@@ -184,14 +184,14 @@ export function TimeSeriesChart({
               x2={W - PAD.right}
               y1={y(v)}
               y2={y(v)}
-              stroke="#2c2c2a"
+              stroke="var(--chart-grid)"
               strokeWidth={1}
             />
             <text
               x={PAD.left - 6}
               y={y(v) + 3}
               textAnchor="end"
-              fill="#898781"
+              fill="var(--chart-axis-text)"
               fontSize={10}
               style={{ fontVariantNumeric: "tabular-nums" }}
             >
@@ -207,7 +207,7 @@ export function TimeSeriesChart({
             x={x(ts)}
             y={H - 6}
             textAnchor={i === 0 ? "start" : i === xTicks.length - 1 ? "end" : "middle"}
-            fill="#898781"
+            fill="var(--chart-axis-text)"
             fontSize={10}
             style={{ fontVariantNumeric: "tabular-nums" }}
           >
@@ -238,7 +238,7 @@ export function TimeSeriesChart({
               x2={x(hoverTs)}
               y1={PAD.top}
               y2={PAD.top + plotH}
-              stroke="#898781"
+              stroke="var(--chart-axis-text)"
               strokeWidth={1}
               strokeDasharray="3 3"
             />
@@ -252,7 +252,7 @@ export function TimeSeriesChart({
                   cy={y(pt.value)}
                   r={4}
                   fill={SERIES_COLORS[s.colorSlot % SERIES_COLORS.length]}
-                  stroke="#0b0f17"
+                  stroke="var(--page)"
                   strokeWidth={2}
                 />
               );
@@ -262,7 +262,7 @@ export function TimeSeriesChart({
       </svg>
 
       {/* tooltip readout — plain text below the plot, so it never covers data */}
-      <div className="mt-1 min-h-[1.25rem] text-xs text-slate-400">
+      <div className="mt-1 min-h-[1.25rem] text-xs text-muted">
         {hoverTs != null ? (
           <span style={{ fontVariantNumeric: "tabular-nums" }}>
             {new Date(hoverTs).toLocaleString([], {
@@ -285,14 +285,14 @@ export function TimeSeriesChart({
             })}
           </span>
         ) : (
-          <span className="text-slate-600">Hover the chart for values.</span>
+          <span className="text-subtle">Hover the chart for values.</span>
         )}
       </div>
 
       {showTable && (
-        <div className="mt-2 max-h-56 overflow-auto rounded border border-slate-800">
+        <div className="mt-2 max-h-56 overflow-auto rounded border border-border-default">
           <table className="w-full text-xs">
-            <thead className="sticky top-0 bg-slate-900 text-slate-400">
+            <thead className="sticky top-0 bg-panel text-muted">
               <tr>
                 <th className="px-2 py-1 text-left font-medium">Time</th>
                 {series.map((s) => (
@@ -302,9 +302,9 @@ export function TimeSeriesChart({
                 ))}
               </tr>
             </thead>
-            <tbody className="text-slate-300">
+            <tbody className="text-body">
               {allTs.map((ts) => (
-                <tr key={ts} className="border-t border-slate-800/70">
+                <tr key={ts} className="border-t border-border-default">
                   <td className="px-2 py-0.5" style={{ fontVariantNumeric: "tabular-nums" }}>
                     {new Date(ts).toLocaleString([], {
                       month: "short",

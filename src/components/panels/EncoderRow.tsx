@@ -3,12 +3,14 @@
 import { usePolledResource } from "@/hooks/usePolledResource";
 import { useIntinorClient } from "@/hooks/useIntinorClient";
 import { useThumbnailTick, withThumbnailTick } from "@/hooks/useThumbnailTick";
+import { useOpenPipeSettings } from "@/lib/navigation/selection";
 import type { Encoder } from "@/lib/intinor/types";
 import { formatBitrate, formatVideoFormat } from "@/lib/format";
 
 /** Compact row for the dense list view — same data as EncoderCard, laid out for scale. */
 export function EncoderRow({ index }: { index: number }) {
   const client = useIntinorClient();
+  const openSettings = useOpenPipeSettings("encoder", index);
   const { data } = usePolledResource<Encoder>(
     `encoders/${index}?include=settings,status,thumbnails`,
     5000,
@@ -25,7 +27,11 @@ export function EncoderRow({ index }: { index: number }) {
   const destCount = status?.destinations.basic?.length ?? 0;
 
   return (
-    <div className="grid grid-cols-[80px_1fr_1fr_auto] items-center gap-3 p-2.5">
+    <div
+      onClick={openSettings}
+      title="Click to open settings"
+      className="grid cursor-pointer grid-cols-[80px_1fr_1fr_auto] items-center gap-3 p-2.5 hover:bg-panel-hover"
+    >
       <div className="flex h-11 w-20 items-center justify-center overflow-hidden rounded bg-slate-950">
         {thumbUrl ? (
           // Proxied API image — plain <img> is correct here.
@@ -41,18 +47,18 @@ export function EncoderRow({ index }: { index: number }) {
           <span
             className={"h-1.5 w-1.5 shrink-0 rounded-full " + (active ? "bg-emerald-400" : "bg-slate-600")}
           />
-          <span className="truncate text-sm text-slate-200">{data?.description}</span>
+          <span className="truncate text-sm text-body">{data?.description}</span>
         </div>
       </div>
 
-      <div className="min-w-0 text-xs text-slate-400">
+      <div className="min-w-0 text-xs text-muted">
         <div className="truncate">
           {destCount} destination{destCount === 1 ? "" : "s"}
         </div>
-        {video?.format && <div className="truncate text-slate-500">{formatVideoFormat(video.format)}</div>}
+        {video?.format && <div className="truncate text-faint">{formatVideoFormat(video.format)}</div>}
       </div>
 
-      <div className="text-right text-xs text-slate-300">
+      <div className="text-right text-xs text-body">
         {formatBitrate(status?.encoding.total_bitrate)}
       </div>
     </div>

@@ -121,12 +121,12 @@ export function HistoryPanel() {
   if (!loading && data && !data.configured) {
     return (
       <section className="space-y-2">
-        <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">
+        <h2 className="text-sm font-medium uppercase tracking-wide text-muted">
           History &amp; alerts
         </h2>
-        <div className="rounded-lg border border-dashed border-slate-700 bg-slate-900/30 p-5 text-sm text-slate-400">
-          <p className="text-slate-300">History storage isn&apos;t configured yet.</p>
-          <p className="mt-1 text-slate-500">
+        <div className="rounded-lg border border-dashed border-border-strong bg-panel p-5 text-sm text-muted">
+          <p className="text-body">History storage isn&apos;t configured yet.</p>
+          <p className="mt-1 text-faint">
             {data.message} Until then the dashboard still shows live status — it just
             can&apos;t look backwards.
           </p>
@@ -140,7 +140,7 @@ export function HistoryPanel() {
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">
+        <h2 className="text-sm font-medium uppercase tracking-wide text-muted">
           History &amp; alerts
         </h2>
         <div className="flex gap-1">
@@ -154,8 +154,8 @@ export function HistoryPanel() {
               className={
                 "rounded border px-2.5 py-1 text-xs " +
                 (r.hours === hours
-                  ? "border-sky-500/60 bg-sky-500/10 text-sky-300"
-                  : "border-slate-700 text-slate-400 hover:bg-slate-800")
+                  ? "border-sky-500/60 bg-sky-500/10 text-accent"
+                  : "border-border-strong text-muted hover:bg-panel-hover")
               }
             >
               {r.label}
@@ -172,8 +172,8 @@ export function HistoryPanel() {
               className={
                 "rounded border px-3 py-2 text-sm " +
                 (a.severity === "error"
-                  ? "border-red-500/40 bg-red-500/10 text-red-300"
-                  : "border-amber-500/40 bg-amber-500/10 text-amber-300")
+                  ? "border-red-500/40 bg-red-500/10 text-danger"
+                  : "border-amber-500/40 bg-amber-500/10 text-warning")
               }
             >
               <span className="font-medium">{a.severity === "error" ? "●" : "▲"} {a.message}</span>
@@ -186,9 +186,9 @@ export function HistoryPanel() {
       )}
 
       {loading && !data ? (
-        <p className="text-sm text-slate-500">Loading history…</p>
+        <p className="text-sm text-faint">Loading history…</p>
       ) : points.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-slate-700 bg-slate-900/30 p-5 text-sm text-slate-400">
+        <div className="rounded-lg border border-dashed border-border-strong bg-panel p-5 text-sm text-muted">
           No samples in this window yet. The monitor writes one row per poll — history
           appears once the scheduled job has run a few times.
         </div>
@@ -216,12 +216,12 @@ export function HistoryPanel() {
 
 function RecentAlerts({ alerts }: { alerts: AlertRow[] }) {
   return (
-    <figure className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
-      <figcaption className="mb-2 text-sm font-medium text-slate-200">
+    <figure className="rounded-lg border border-border-default bg-panel p-4">
+      <figcaption className="mb-2 text-sm font-medium text-body">
         Alert history
       </figcaption>
       {alerts.length === 0 ? (
-        <p className="text-sm text-slate-500">No alerts in this window. </p>
+        <p className="text-sm text-faint">No alerts in this window. </p>
       ) : (
         <ul className="max-h-44 space-y-1.5 overflow-auto">
           {alerts.map((a) => (
@@ -236,8 +236,8 @@ function RecentAlerts({ alerts }: { alerts: AlertRow[] }) {
                       : "bg-amber-400")
                 }
               />
-              <span className="text-slate-300">{a.message}</span>
-              <span className="ml-1 text-slate-500">
+              <span className="text-body">{a.message}</span>
+              <span className="ml-1 text-faint">
                 — {new Date(a.opened_at).toLocaleString()}
                 {a.closed_at
                   ? `, resolved ${new Date(a.closed_at).toLocaleTimeString()}`

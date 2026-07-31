@@ -28,7 +28,10 @@ export function Thumbnail({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={src} alt={alt} className="aspect-video w-full object-cover" />
       </div>
-      <label className="flex items-center gap-1.5 text-xs text-slate-400">
+      <label
+        className="flex items-center gap-1.5 text-xs text-muted"
+        onClick={(e) => e.stopPropagation()}
+      >
         <input
           type="checkbox"
           checked={ppm}

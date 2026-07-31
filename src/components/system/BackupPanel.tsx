@@ -37,11 +37,11 @@ export function BackupPanel() {
   return (
     <section className="space-y-3">
       <div>
-        <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">
+        <h2 className="text-sm font-medium uppercase tracking-wide text-muted">
           Settings backup
         </h2>
-        <p className="mt-1 text-xs text-slate-500">
-          Downloads the unit&apos;s full settings snapshot (<code className="rounded bg-slate-800 px-1">GET system/config</code>,
+        <p className="mt-1 text-xs text-faint">
+          Downloads the unit&apos;s full settings snapshot (<code className="rounded bg-panel-hover px-1">GET system/config</code>,
           an XML file). Restoring one is intentionally not available here — it{"'"}s a
           destructive write that reboots the unit and this dashboard permanently blocks it at
           the proxy; use the unit&apos;s own IDM console for that.
@@ -51,11 +51,11 @@ export function BackupPanel() {
         <button
           onClick={() => void download()}
           disabled={busy}
-          className="rounded border border-slate-700 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+          className="rounded border border-border-strong px-3 py-1.5 text-sm text-body hover:bg-panel-hover disabled:opacity-40"
         >
           {busy ? "Downloading…" : "Download backup"}
         </button>
-        {error && <span className="text-xs text-red-300">{error}</span>}
+        {error && <span className="text-xs text-danger">{error}</span>}
       </div>
     </section>
   );

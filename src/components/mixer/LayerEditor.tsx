@@ -21,7 +21,7 @@ function NumberField({
   onChange: (v: number) => void;
 }) {
   return (
-    <label className="flex flex-col gap-0.5 text-xs text-slate-400">
+    <label className="flex flex-col gap-0.5 text-xs text-muted">
       {label}
       <input
         type="number"
@@ -30,7 +30,7 @@ function NumberField({
         max={max}
         step={0.05}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full rounded border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-200"
+        className="w-full rounded border border-border-strong bg-page px-2 py-1 text-sm text-body"
       />
     </label>
   );
@@ -71,13 +71,13 @@ export function LayerEditor({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-slate-300">
-          Layers <span className="text-slate-500">(back → front)</span>
+        <h3 className="text-sm font-medium text-body">
+          Layers <span className="text-faint">(back → front)</span>
         </h3>
         <button
           onClick={onAdd}
           disabled={layers.length >= maxLayers}
-          className="rounded border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+          className="rounded border border-border-strong px-2 py-1 text-xs text-body hover:bg-panel-hover disabled:opacity-40"
           title={layers.length >= maxLayers ? `Max ${maxLayers} layers` : "Add a layer"}
         >
           + Add layer
@@ -98,10 +98,10 @@ export function LayerEditor({
               className={
                 "rounded border p-2 " +
                 (disabled
-                  ? "border-slate-800 bg-slate-950/20 opacity-60"
+                  ? "border-border-default bg-panel-strong opacity-60"
                   : selected
                     ? "border-sky-500/60 bg-sky-500/5"
-                    : "border-slate-800 bg-slate-950/50")
+                    : "border-border-default bg-panel-strong")
               }
             >
               <div className="flex items-center gap-2">
@@ -114,7 +114,7 @@ export function LayerEditor({
                 />
                 <button
                   onClick={() => onSelect(i)}
-                  className="flex flex-1 items-center gap-2 text-left text-sm text-slate-200"
+                  className="flex flex-1 items-center gap-2 text-left text-sm text-body"
                 >
                   <span
                     className={
@@ -129,15 +129,15 @@ export function LayerEditor({
                           : "Filler / placeholder"
                     }
                   />
-                  <span className="text-slate-500">L{i}</span>
+                  <span className="text-faint">L{i}</span>
                   <span>{sourceLabel(src)}</span>
-                  {disabled && <span className="text-[10px] text-slate-500">(disabled)</span>}
+                  {disabled && <span className="text-[10px] text-faint">(disabled)</span>}
                 </button>
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => onReorder(i, -1)}
                     disabled={i === 0}
-                    className="rounded px-1 text-xs text-slate-400 hover:bg-slate-800 disabled:opacity-30"
+                    className="rounded px-1 text-xs text-muted hover:bg-panel-hover disabled:opacity-30"
                     title="Send backward"
                   >
                     ↓
@@ -145,14 +145,14 @@ export function LayerEditor({
                   <button
                     onClick={() => onReorder(i, 1)}
                     disabled={i === layers.length - 1}
-                    className="rounded px-1 text-xs text-slate-400 hover:bg-slate-800 disabled:opacity-30"
+                    className="rounded px-1 text-xs text-muted hover:bg-panel-hover disabled:opacity-30"
                     title="Bring forward"
                   >
                     ↑
                   </button>
                   <button
                     onClick={() => onDelete(i)}
-                    className="rounded px-1 text-xs text-red-400 hover:bg-red-500/10"
+                    className="rounded px-1 text-xs text-danger hover:bg-red-500/10"
                     title="Remove layer"
                   >
                     ✕
@@ -161,19 +161,19 @@ export function LayerEditor({
               </div>
 
               {usedElsewhere && usedElsewhere.length > 0 && (
-                <p className="mt-1 pl-6 text-[11px] text-amber-300/90">
+                <p className="mt-1 pl-6 text-[11px] text-warning">
                   ⚠ Also used by {usedElsewhere.join(", ")}
                 </p>
               )}
 
               {selected && (
                 <div className="mt-2 space-y-2">
-                  <label className="flex flex-col gap-0.5 text-xs text-slate-400">
+                  <label className="flex flex-col gap-0.5 text-xs text-muted">
                     Source
                     <select
                       value={src}
                       onChange={(e) => onChangeSource(i, e.target.value)}
-                      className="w-full rounded border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-200"
+                      className="w-full rounded border border-border-strong bg-page px-2 py-1 text-sm text-body"
                     >
                       <option value="">(no source)</option>
                       {sourceOptions.map((opt) => {

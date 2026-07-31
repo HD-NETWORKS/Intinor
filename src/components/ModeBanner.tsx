@@ -36,7 +36,7 @@ export function ModeBanner() {
   const unitLabel = current?.label ? `${current.label} (${current.id})` : (unitId ?? "—");
 
   const authWarning = meta.authDisabled ? (
-    <div className="bg-red-500/15 border-b border-red-500/40 px-6 py-1.5 text-sm text-red-300">
+    <div className="bg-red-500/15 border-b border-red-500/40 px-6 py-1.5 text-sm text-danger">
       <strong>DASHBOARD_AUTH_DISABLED=1</strong> — no login gate. Local dev only; never set this
       on a deployment reachable from the internet.
     </div>
@@ -46,7 +46,7 @@ export function ModeBanner() {
     return (
       <>
         {authWarning}
-        <div className="bg-amber-500/15 border-b border-amber-500/40 px-6 py-1.5 text-sm text-amber-300">
+        <div className="bg-amber-500/15 border-b border-amber-500/40 px-6 py-1.5 text-sm text-warning">
           <strong>Mock mode</strong> — showing fake data ({unitLabel}). No requests reach a real
           unit.
         </div>
@@ -58,7 +58,7 @@ export function ModeBanner() {
     return (
       <>
         {authWarning}
-        <div className="bg-red-500/15 border-b border-red-500/40 px-6 py-1.5 text-sm text-red-300">
+        <div className="bg-red-500/15 border-b border-red-500/40 px-6 py-1.5 text-sm text-danger">
           <strong>Not configured</strong> — set INTINOR_* variables in .env.local
           or enable MOCK=1.
         </div>
@@ -72,8 +72,8 @@ export function ModeBanner() {
       <div
         className={
           meta.writesAllowed
-            ? "bg-red-500/15 border-b border-red-500/40 px-6 py-1.5 text-sm text-red-300"
-            : "bg-sky-500/10 border-b border-sky-500/30 px-6 py-1.5 text-sm text-sky-300"
+            ? "bg-red-500/15 border-b border-red-500/40 px-6 py-1.5 text-sm text-danger"
+            : "bg-sky-500/10 border-b border-sky-500/30 px-6 py-1.5 text-sm text-accent"
         }
       >
         {meta.writesAllowed ? (

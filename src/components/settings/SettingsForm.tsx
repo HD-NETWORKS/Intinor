@@ -22,8 +22,8 @@ export function PermissionBanner({ mutable }: { mutable: string[] | undefined })
       className={
         "rounded border px-4 py-2 text-sm " +
         (mode === "partial"
-          ? "border-slate-700 bg-slate-900/60 text-slate-300"
-          : "border-amber-500/40 bg-amber-500/10 text-amber-300")
+          ? "border-border-strong bg-panel text-body"
+          : "border-amber-500/40 bg-amber-500/10 text-warning")
       }
     >
       {text}
@@ -54,8 +54,8 @@ export function SettingsForm<T extends object>({
   if (error) {
     return (
       <div className={compact ? "" : "mx-auto max-w-4xl"}>
-        <h1 className="text-xl font-semibold text-slate-100">{title}</h1>
-        <div className="mt-4 rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+        <h1 className="text-xl font-semibold text-fg">{title}</h1>
+        <div className="mt-4 rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-danger">
           {error}
         </div>
       </div>
@@ -65,8 +65,8 @@ export function SettingsForm<T extends object>({
   if (loading || !draft) {
     return (
       <div className={compact ? "" : "mx-auto max-w-4xl"}>
-        <h1 className="text-xl font-semibold text-slate-100">{title}</h1>
-        <p className="mt-4 text-sm text-slate-500">Loading settings…</p>
+        <h1 className="text-xl font-semibold text-fg">{title}</h1>
+        <p className="mt-4 text-sm text-faint">Loading settings…</p>
       </div>
     );
   }
@@ -80,11 +80,11 @@ export function SettingsForm<T extends object>({
     <div className={compact ? "space-y-3" : "mx-auto max-w-4xl space-y-5 pb-24"}>
       <div>
         {compact ? (
-          <h2 className="font-medium text-slate-200">{title}</h2>
+          <h2 className="font-medium text-body">{title}</h2>
         ) : (
-          <h1 className="text-xl font-semibold text-slate-100">{title}</h1>
+          <h1 className="text-xl font-semibold text-fg">{title}</h1>
         )}
-        {description && <p className="text-xs text-slate-500">{description}</p>}
+        {description && <p className="text-xs text-faint">{description}</p>}
       </div>
 
       <PermissionBanner mutable={mutable} />
@@ -95,13 +95,13 @@ export function SettingsForm<T extends object>({
           className={
             compact
               ? "space-y-3"
-              : "space-y-3 rounded-lg border border-slate-800 bg-slate-900/50 p-4"
+              : "space-y-3 rounded-lg border border-border-default bg-panel p-4"
           }
         >
           <div className={compact ? "sr-only" : undefined}>
-            <h2 className="font-medium text-slate-200">{section.title}</h2>
+            <h2 className="font-medium text-body">{section.title}</h2>
             {section.description && (
-              <p className="text-xs text-slate-500">{section.description}</p>
+              <p className="text-xs text-faint">{section.description}</p>
             )}
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -122,37 +122,37 @@ export function SettingsForm<T extends object>({
       <div
         className={
           compact
-            ? "border-t border-slate-800 pt-3"
-            : "sticky bottom-0 -mx-6 border-t border-slate-800 bg-slate-950/95 px-6 py-3 backdrop-blur"
+            ? "border-t border-border-default pt-3"
+            : "sticky bottom-0 -mx-6 border-t border-border-default bg-panel-strong px-6 py-3 backdrop-blur"
         }
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="text-sm">
             {saveBlocked ? (
-              <span className="text-sky-300">
+              <span className="text-accent">
                 Live unit, read-only mode — saving is disabled by the proxy.
               </span>
             ) : !anyEditable ? (
-              <span className="text-slate-500">No editable fields for your account.</span>
+              <span className="text-faint">No editable fields for your account.</span>
             ) : dirty ? (
-              <span className="text-amber-300">
+              <span className="text-warning">
                 {changes.length} unsaved change{changes.length === 1 ? "" : "s"}
               </span>
             ) : (
-              <span className="text-slate-500">No changes.</span>
+              <span className="text-faint">No changes.</span>
             )}
             {stage === "saved" && (
-              <span className="ml-2 text-emerald-400">Saved.</span>
+              <span className="ml-2 text-success">Saved.</span>
             )}
             {stage === "error" && editor.saveError && (
-              <span className="ml-2 text-red-300">{editor.saveError}</span>
+              <span className="ml-2 text-danger">{editor.saveError}</span>
             )}
           </div>
           <div className="flex gap-2">
             <button
               onClick={editor.reset}
               disabled={!dirty || stage === "saving"}
-              className="rounded border border-slate-700 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+              className="rounded border border-border-strong px-3 py-1.5 text-sm text-body hover:bg-panel-hover disabled:opacity-40"
             >
               Discard
             </button>

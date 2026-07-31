@@ -30,22 +30,22 @@ export function PipeTable({
     : items;
 
   return (
-    <div className="rounded-lg border border-slate-800 bg-slate-900/50">
-      <div className="flex items-center justify-between gap-3 border-b border-slate-800 p-3">
-        <h3 className="text-sm font-medium text-slate-200">{title}</h3>
+    <div className="rounded-lg border border-border-default bg-panel">
+      <div className="flex items-center justify-between gap-3 border-b border-border-default p-3">
+        <h3 className="text-sm font-medium text-body">{title}</h3>
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Filter…"
-          className="w-48 rounded border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-300 placeholder:text-slate-600"
+          className="w-48 rounded border border-border-strong bg-panel px-2 py-1 text-sm text-body placeholder:text-subtle"
         />
       </div>
       {filtered.length === 0 ? (
-        <p className="p-4 text-sm text-slate-500">
+        <p className="p-4 text-sm text-faint">
           {items.length === 0 ? emptyMessage : "No matches."}
         </p>
       ) : (
-        <div className="divide-y divide-slate-800">
+        <div className="divide-y divide-border-default">
           {filtered.map((it) => (
             <div key={it.index}>{renderRow(it)}</div>
           ))}

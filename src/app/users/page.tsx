@@ -31,35 +31,35 @@ function permissionLabels(
 
 function UserCard({ user }: { user: UserSettingsResponse }) {
   return (
-    <section className="space-y-3 rounded-lg border border-slate-800 bg-slate-900/50 p-4">
+    <section className="space-y-3 rounded-lg border border-border-default bg-panel p-4">
       <div className="flex items-center gap-2">
-        <h2 className="font-medium text-slate-100">{user.username}</h2>
-        <span className="rounded bg-sky-500/15 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-sky-300">
+        <h2 className="font-medium text-fg">{user.username}</h2>
+        <span className="rounded bg-sky-500/15 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-accent">
           {roleLabel(user, user.role)}
         </span>
       </div>
 
       {user.permissions.length === 0 ? (
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-faint">
           No per-resource permission overrides — access follows the {roleLabel(user, user.role).toLowerCase()} role
           default.
         </p>
       ) : (
-        <div className="overflow-hidden rounded border border-slate-800">
+        <div className="overflow-hidden rounded border border-border-default">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-950/60 text-slate-500">
+            <thead className="bg-panel-strong text-faint">
               <tr>
                 <th className="px-3 py-1.5 font-medium">Resource</th>
                 <th className="px-3 py-1.5 font-medium">Access</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-border-default">
               {user.permissions.map((p, i) => {
                 const labels = permissionLabels(user, p.resource, p.role);
                 return (
                   <tr key={i}>
-                    <td className="px-3 py-1.5 text-slate-300">{labels.resource}</td>
-                    <td className="px-3 py-1.5 text-slate-400">{labels.role}</td>
+                    <td className="px-3 py-1.5 text-body">{labels.resource}</td>
+                    <td className="px-3 py-1.5 text-muted">{labels.role}</td>
                   </tr>
                 );
               })}
@@ -100,8 +100,8 @@ export default function UsersPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       <div>
-        <h1 className="text-xl font-semibold text-slate-100">Local users</h1>
-        <p className="text-sm text-slate-500">
+        <h1 className="text-xl font-semibold text-fg">Local users</h1>
+        <p className="text-sm text-faint">
           The unit&apos;s own accounts and permissions — separate from this dashboard&apos;s own
           login. Read-only here by design: create, edit, delete, and password changes stay on the
           unit&apos;s own IDM console.
@@ -109,13 +109,13 @@ export default function UsersPage() {
       </div>
 
       {error && (
-        <div className="rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+        <div className="rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-danger">
           {error}
         </div>
       )}
-      {!error && users === null && <p className="text-sm text-slate-500">Loading local users…</p>}
+      {!error && users === null && <p className="text-sm text-faint">Loading local users…</p>}
       {!error && users?.length === 0 && (
-        <p className="text-sm text-slate-500">This unit has no local users.</p>
+        <p className="text-sm text-faint">This unit has no local users.</p>
       )}
 
       {users?.map((u) => (

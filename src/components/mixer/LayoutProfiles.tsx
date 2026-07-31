@@ -18,7 +18,7 @@ export function LayoutProfiles({
 
   return (
     <div className="space-y-3">
-      <h3 className="text-sm font-medium text-slate-300">Layout profiles</h3>
+      <h3 className="text-sm font-medium text-body">Layout profiles</h3>
 
       <form
         onSubmit={(e) => {
@@ -34,19 +34,19 @@ export function LayoutProfiles({
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="e.g. Sunday service quad"
-          className="min-w-0 flex-1 rounded border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-200"
+          className="min-w-0 flex-1 rounded border border-border-strong bg-page px-2 py-1 text-sm text-body"
         />
         <button
           type="submit"
           disabled={!name.trim()}
-          className="rounded border border-slate-700 px-3 py-1 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+          className="rounded border border-border-strong px-3 py-1 text-sm text-body hover:bg-panel-hover disabled:opacity-40"
         >
           Save current
         </button>
       </form>
 
       {profiles.length === 0 ? (
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-faint">
           No saved profiles yet. Build a layout and save it to switch back with one
           click. Profiles are stored in this browser.
         </p>
@@ -55,21 +55,21 @@ export function LayoutProfiles({
           {profiles.map((p) => (
             <li
               key={p.id}
-              className="flex items-center gap-2 rounded border border-slate-800 bg-slate-950/50 px-2 py-1.5 text-sm"
+              className="flex items-center gap-2 rounded border border-border-default bg-panel-strong px-2 py-1.5 text-sm"
             >
-              <span className="flex-1 truncate text-slate-200" title={p.name}>
+              <span className="flex-1 truncate text-body" title={p.name}>
                 {p.name}
               </span>
-              <span className="text-xs text-slate-500">{p.layers.length} layers</span>
+              <span className="text-xs text-faint">{p.layers.length} layers</span>
               <button
                 onClick={() => onApply(p)}
-                className="rounded border border-slate-700 px-2 py-0.5 text-xs text-sky-300 hover:bg-slate-800"
+                className="rounded border border-border-strong px-2 py-0.5 text-xs text-accent hover:bg-panel-hover"
               >
                 Load
               </button>
               <button
                 onClick={() => onDelete(p.id)}
-                className="rounded px-1 text-xs text-red-400 hover:bg-red-500/10"
+                className="rounded px-1 text-xs text-danger hover:bg-red-500/10"
                 title="Delete profile"
               >
                 ✕
