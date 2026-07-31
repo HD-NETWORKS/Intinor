@@ -5,7 +5,10 @@ import type { NetworkInterfacesList } from "@/lib/intinor/types";
 import { formatBitrate } from "@/lib/format";
 
 export function NetworkInterfacesPanel() {
-  const { data, error } = usePolledResource<NetworkInterfacesList>("network_interfaces", 5000);
+  const { data, error } = usePolledResource<NetworkInterfacesList>(
+    "network_interfaces?include=status",
+    5000,
+  );
 
   if (error && !data) {
     return (

@@ -14,7 +14,10 @@ import type { NetworkInterfacesList } from "@/lib/intinor/types";
  * changes and never leaks anywhere unauthenticated.
  */
 function useCurrentUnitIp(): string | null {
-  const { data } = usePolledResource<NetworkInterfacesList>("network_interfaces", 10_000);
+  const { data } = usePolledResource<NetworkInterfacesList>(
+    "network_interfaces?include=status",
+    10_000,
+  );
   const statuses = data?.status?.status;
   const primary = statuses?.find((s) => s.primary_interface) ?? statuses?.[0];
   return primary?.ip?.address ?? primary?.ethernet?.address ?? null;
