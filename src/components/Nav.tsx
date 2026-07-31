@@ -9,6 +9,7 @@ const ITEMS = [
   { href: "/netvideo", label: "Netvideo inputs" },
   { href: "/mixer", label: "Video mixer" },
   { href: "/encoders", label: "Encoders" },
+  { href: "/encoding-modes", label: "Encoding modes" },
   { href: "/system", label: "System" },
 ];
 

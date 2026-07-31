@@ -11,6 +11,7 @@ import type {
   EncoderSettingsResponse,
   EncoderStatus,
   EncodingModesResponse,
+  EncodingSettingsResponse,
   NetworkInput,
   NetworkInputsList,
   NetworkInputSettingsResponse,
@@ -649,7 +650,143 @@ export const mockEncodingModes: EncodingModesResponse = {
       },
       audio: { codec: "aac", bitrate: 192_000, tracks: 1, samplerate: 48000 },
     },
+    {
+      id: "custom-low-latency-mobile",
+      description: "Low-latency mobile",
+      group: "custom",
+      group_description: "Custom",
+      total_bitrate: 2_192_000,
+      video: {
+        codec: "h264",
+        format: "1280x720p/25",
+        bitrate: 2_000_000,
+        profile: "main",
+        level: "3.1",
+        gop: 25,
+        chroma: "4:2:0",
+        latency_quality_mode: "low_latency",
+        scene_change_detection: true,
+      },
+      audio: { codec: "aac", bitrate: 128_000, tracks: 1, samplerate: 48000 },
+    },
   ],
+};
+
+// ---------------------------------------------------------------------------
+// Global encoding settings (`GET/PUT /encoding/settings`) — built-in-mode
+// audio defaults, default SD aspect ratio, and the editable custom-mode list.
+// ---------------------------------------------------------------------------
+
+export const mockEncodingSettings: EncodingSettingsResponse = {
+  builtin_encoding_modes: { audio: { downmix: "none", tracks: 1 } },
+  video_input: { sd_aspect_ratio: "16:9" },
+  // Only the custom (non-"hd"-group) modes from mockEncodingModes belong here —
+  // built-in modes are fixed by firmware and only ever read via encoding_modes.
+  custom_encoding_modes: mockEncodingModes.encoding_modes.filter((m) => m.group === "custom"),
+  _version: "mock-1",
+  _constraints: {
+    mutable: ["*"],
+    builtin_encoding_modes: {
+      audio: {
+        tracks: { min: 1, max: 8 },
+        downmix: [
+          { value: "none", description: "None" },
+          { value: "stereo", description: "Downmix to stereo" },
+        ],
+      },
+    },
+    video_input: {
+      sd_aspect_ratio: [
+        { value: "16:9", description: "16:9" },
+        { value: "4:3", description: "4:3" },
+      ],
+    },
+    custom_encoding_modes: {
+      audio_codecs: [
+        {
+          value: "aac",
+          description: "AAC",
+          bitrate: { min: 64_000, max: 384_000 },
+          tracks: { min: 1, max: 8 },
+          samplerate: [
+            { value: 48000, description: "48 kHz" },
+            { value: 44100, description: "44.1 kHz" },
+          ],
+          downmix: [
+            { value: "none", description: "None" },
+            { value: "stereo", description: "Downmix to stereo" },
+          ],
+        },
+        {
+          value: "mp2",
+          description: "MPEG-1 Layer II",
+          bitrate: { min: 64_000, max: 384_000 },
+          tracks: { min: 1, max: 4 },
+          samplerate: [{ value: 48000, description: "48 kHz" }],
+        },
+      ],
+      video_codecs: [
+        {
+          value: "h264",
+          description: "H.264",
+          capabilities: { scene_change_detection: true },
+          chroma: [
+            { value: "4:2:0", description: "4:2:0" },
+            { value: "4:2:2", description: "4:2:2" },
+          ],
+          format: [
+            { value: "1920x1080p/25", description: "1080p25" },
+            { value: "1920x1080p/50", description: "1080p50" },
+            { value: "1280x720p/50", description: "720p50" },
+            { value: "1280x720p/25", description: "720p25" },
+          ],
+          gop: { min: 1, max: 300 },
+          bitrate: { min: 500_000, max: 20_000_000 },
+          bitrate_buffer: [
+            { value: 1, description: "1x (low latency)" },
+            { value: 2, description: "2x" },
+            { value: 4, description: "4x (high quality)" },
+          ],
+          level: [
+            { value: "3.1", description: "3.1" },
+            { value: "3.2", description: "3.2" },
+            { value: "4.0", description: "4.0" },
+            { value: "4.1", description: "4.1" },
+          ],
+          profile: [
+            { value: "main", description: "Main" },
+            { value: "high", description: "High" },
+          ],
+          latency_quality_mode: [
+            { value: "low_latency", description: "Low latency" },
+            { value: "balanced", description: "Balanced" },
+            { value: "high_quality", description: "High quality" },
+          ],
+        },
+        {
+          value: "hevc",
+          description: "H.265 / HEVC",
+          capabilities: { scene_change_detection: true },
+          chroma: [{ value: "4:2:0", description: "4:2:0" }],
+          format: [
+            { value: "1920x1080p/25", description: "1080p25" },
+            { value: "1920x1080p/50", description: "1080p50" },
+          ],
+          gop: { min: 1, max: 300 },
+          bitrate: { min: 500_000, max: 20_000_000 },
+          level: [
+            { value: "4.0", description: "4.0" },
+            { value: "4.1", description: "4.1" },
+          ],
+          profile: [{ value: "main", description: "Main" }],
+          latency_quality_mode: [
+            { value: "low_latency", description: "Low latency" },
+            { value: "balanced", description: "Balanced" },
+          ],
+        },
+      ],
+    },
+  },
 };
 
 // ---------------------------------------------------------------------------

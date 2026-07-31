@@ -21,6 +21,7 @@ import {
   mockEncoderSettings,
   mockEncoderStatus,
   mockEncodingModes,
+  mockEncodingSettings,
   mockNetworkInput,
   mockNetworkInputsList,
   mockNetworkInputSettings,
@@ -69,6 +70,7 @@ import {
 import { defaultUnitId } from "../server/config";
 import type {
   EncoderSettingsResponse,
+  EncodingSettingsResponse,
   NetworkInputSettingsResponse,
   VideoInputSettingsResponse,
   VideoMixerLayerSettings,
@@ -117,6 +119,15 @@ function putSettings(kind: SettingsKind, index: number, body: unknown, unitId?: 
 
 function currentMixerSettings(index: number, unitId?: string): VideoMixerSettingsResponse {
   return currentSettings("video_mixers", index, unitId) as VideoMixerSettingsResponse;
+}
+
+/** Global (non-indexed) encoding settings — one per unit, not per-pipe. */
+function currentEncodingSettings(unitId?: string): EncodingSettingsResponse {
+  return currentWithOverride(`${unitId ?? defaultUnitId()}/encoding_settings`, mockEncodingSettings);
+}
+
+function putEncodingSettings(body: unknown, unitId?: string): void {
+  putOverride(`${unitId ?? defaultUnitId()}/encoding_settings`, body);
 }
 
 export interface MockResponse {
@@ -293,8 +304,9 @@ const GET_ROUTES: Record<string, () => unknown> = {
   }),
   network_interfaces: () => liveNetworkInterfaces(),
   "storage/status": () => faultStorageStatus(null) ?? { present: false, removable: false },
-  encoding: () => ({ encoding_modes: mockEncodingModes }),
+  encoding: () => ({ encoding_modes: mockEncodingModes, settings: currentEncodingSettings() }),
   "encoding/encoding_modes": () => mockEncodingModes,
+  "encoding/settings": () => withMockPermissions(currentEncodingSettings(), "encoding"),
   multiviews: () => ({ multiviews: [] }),
   video_inputs: () => mockVideoInputsList,
   "video_inputs/0": () => ({
@@ -334,8 +346,12 @@ function bigGetRoutes(unitId: string): Record<string, () => unknown> {
     video_mixers: () => bigVideoMixersList(),
     network_interfaces: () => liveNetworkInterfaces(),
     "storage/status": () => faultStorageStatus(null) ?? { present: false, removable: false },
-    encoding: () => ({ encoding_modes: mockEncodingModes }),
+    encoding: () => ({
+      encoding_modes: mockEncodingModes,
+      settings: currentEncodingSettings(unitId),
+    }),
     "encoding/encoding_modes": () => mockEncodingModes,
+    "encoding/settings": () => withMockPermissions(currentEncodingSettings(unitId), "encoding"),
     multiviews: () => ({ multiviews: [] }),
     video_outputs: () => ({ video_outputs: [] }),
     profiles: () => ({ profiles: [] }),
@@ -561,6 +577,10 @@ export function resolveMock(
       const index = Number(settingsPut[2]);
       putSettings(kind, index, requestBody, unitId);
       return { status: 200, body: currentSettings(kind, index, unitId) };
+    }
+    if (path === "encoding/settings") {
+      putEncodingSettings(requestBody, unitId);
+      return { status: 200, body: currentEncodingSettings(unitId) };
     }
     return { status: 200, body: requestBody ?? {} };
   }

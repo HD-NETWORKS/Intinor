@@ -19,6 +19,8 @@ import type {
   EncoderSettingsResponse,
   EncoderStatus,
   EncodingModesResponse,
+  EncodingSettingsRequest,
+  EncodingSettingsResponse,
   NetworkInput,
   NetworkInputSettings,
   NetworkInputSettingsResponse,
@@ -214,6 +216,10 @@ export function createIntinorClient(base: string = UNIT_PROXY_BASE) {
 
     // -- encoding modes / interfaces / profiles ----------------------------
     getEncodingModes: () => get<EncodingModesResponse>("encoding/encoding_modes"),
+    getEncodingSettings: () =>
+      get<EncodingSettingsResponse>(`encoding/settings${CONSTRAINTS}`),
+    putEncodingSettings: (body: EncodingSettingsRequest) =>
+      put<EncodingSettingsResponse>("encoding/settings", body),
     getNetworkInterfaces: () => get<NetworkInterfacesList>("network_interfaces"),
     getProfiles: () => get<ProfilesList>("profiles"),
   };

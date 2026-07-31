@@ -266,6 +266,90 @@ export interface EncodingModesResponse extends ResponseMetadata {
   encoding_modes: EncodingMode[];
 }
 
+// ---------------------------------------------------------------------------
+// Global encoding settings (`GET/PUT /encoding/settings`) — built-in-mode
+// audio defaults, the unit-wide default SD aspect ratio, and the editable
+// list of custom encoding modes. Distinct from `encoding/encoding_modes`
+// (the combined built-in + custom read-only list used to populate a pipe's
+// `encoding_mode` dropdown, via EncodingModesResponse above) — this is where
+// custom modes are actually authored.
+// ---------------------------------------------------------------------------
+
+export interface BuiltinEncodingModesSettings {
+  audio: { downmix?: string; tracks: number };
+}
+
+export interface BuiltinEncodingModesConstraints {
+  audio: { tracks: IntegerMinMax; downmix: DescriptionValue[] };
+}
+
+export interface EncodingSettingsVideoInput {
+  sd_aspect_ratio?: string;
+}
+
+export interface EncodingSettingsVideoInputConstraints {
+  sd_aspect_ratio: DescriptionValue[];
+}
+
+export interface CustomEncodingModesConstraintsAudioCodec {
+  value: string;
+  description: string;
+  bitrate: IntegerMinMax;
+  tracks: IntegerMinMax;
+  samplerate?: DescriptionIntegerValue[];
+  downmix?: DescriptionValue[];
+}
+
+export interface CustomEncodingModesConstraintsLatencyQualityMode {
+  value: string;
+  description: string;
+  coded_picture_buffer?: { seconds?: number; frames?: number };
+  encoding_latency?: { frames?: number; seconds?: number };
+}
+
+export interface CustomEncodingModesConstraintsVideoCodec {
+  value: string;
+  description: string;
+  capabilities?: { scene_change_detection?: boolean };
+  chroma: DescriptionValue[];
+  format?: VideoFormatConstraint[];
+  gop: IntegerMinMax;
+  bitrate: IntegerMinMax;
+  bitrate_buffer?: Array<{ value?: number; description: string }>;
+  level: DescriptionValue[];
+  profile: DescriptionValue[];
+  adaptive_bitrate?: { bitrate_lower_factor?: number; bitrate_upper_factor?: number };
+  latency_quality_mode?: CustomEncodingModesConstraintsLatencyQualityMode[];
+}
+
+export interface CustomEncodingModesConstraints {
+  audio_codecs: CustomEncodingModesConstraintsAudioCodec[];
+  video_codecs: CustomEncodingModesConstraintsVideoCodec[];
+}
+
+export interface CommonEncodingSettings {
+  builtin_encoding_modes: BuiltinEncodingModesSettings;
+  custom_encoding_modes: EncodingMode[];
+  video_input: EncodingSettingsVideoInput;
+}
+
+export interface EncodingSettings extends CommonEncodingSettings {
+  _version?: string;
+}
+
+export interface EncodingSettingsConstraints {
+  mutable: MutableList;
+  builtin_encoding_modes: BuiltinEncodingModesConstraints;
+  custom_encoding_modes: CustomEncodingModesConstraints;
+  video_input: EncodingSettingsVideoInputConstraints;
+  [key: string]: unknown;
+}
+
+export type EncodingSettingsRequest = EncodingSettings & RequestMetadata;
+
+export type EncodingSettingsResponse = EncodingSettings &
+  ResponseMetadata & { _constraints?: EncodingSettingsConstraints };
+
 export interface PipeEncodingSettings {
   /** id of an encoding_mode */
   encoding_mode: string;

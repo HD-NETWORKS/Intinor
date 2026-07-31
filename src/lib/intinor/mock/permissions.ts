@@ -18,7 +18,7 @@
 
 export type MockRole = "admin" | "operator" | "viewer" | "unknown";
 
-export type MockResource = "encoder" | "network_input" | "video_input" | "video_mixer";
+export type MockResource = "encoder" | "network_input" | "video_input" | "video_mixer" | "encoding";
 
 export function mockRole(): MockRole {
   const raw = (process.env.MOCK_ROLE ?? "admin").toLowerCase();
@@ -47,6 +47,7 @@ const OPERATOR_GRANTS: Record<MockResource, string[]> = {
   ],
   video_input: ["description", "netvideo_source.type", "netvideo_source.audio_select"],
   video_mixer: ["program", "preview", "layout_profiles", "source_profiles"],
+  encoding: ["custom_encoding_modes"],
 };
 
 /** The `mutable` list the mock should report for a resource, or undefined. */

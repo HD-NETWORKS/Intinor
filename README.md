@@ -517,11 +517,9 @@ to the mock state store and survives a reload.
 
 ### Still open from the same audit (not in this phase)
 
-- **Custom encoding modes CRUD**, **custom test picture upload**, **router
-  panel** (drag-and-drop patch bay UX), **richer firmware upgrade flow**,
-  **settings backup save**, and **local user/RBAC provisioning on the unit
-  itself** — all still just the fixed dropdown / single-button versions
-  described in the Phase 5-7 sections above.
+- **Custom test picture upload**, **router panel** (drag-and-drop patch bay
+  UX), **richer firmware upgrade flow**, **settings backup save**, and
+  **local user/RBAC provisioning on the unit itself** — still not built.
 
 ## Phase 9 — Netvideo inputs (`video_input`), a whole second ingest resource
 
@@ -576,6 +574,60 @@ selectable/editable on `/netvideo`, and the encoder source dropdown lists
 all 35 options (2 mixers + 16 network inputs + 16 Netvideo inputs + test
 picture) — confirming Netvideo inputs fan out through the existing
 cross-resource usage-indicator machinery with no changes needed there.
+
+## Phase 10 — Custom encoding modes CRUD
+
+The `/encoding` root previously only ever fed `encoding_modes` (a read-only
+merged built-in+custom list, for populating a pipe's "Encoding mode"
+dropdown). The unit-wide `encoding_settings` resource
+(`GET/PUT /encoding/settings`, fully documented in
+`docs/02-intinor-api-definitions-full.md`) is where custom modes are
+actually authored — this phase adds a page for it, plus the global
+defaults that live alongside it.
+
+- **Types**: `EncodingSettings(Response/Request)`, `BuiltinEncodingModesSettings/Constraints`,
+  `EncodingSettingsVideoInput(Constraints)`, `CustomEncodingModesConstraints`
+  (`video_codecs[]`/`audio_codecs[]`, each carrying its own valid
+  bitrate/GOP/chroma/profile/level/latency-mode/sample-rate/downmix ranges —
+  the existing `EncodingMode`/`EncodingModeVideo`/`EncodingModeAudio` types
+  already matched the schema exactly and needed no changes).
+- **Client**: `getEncodingSettings()` / `putEncodingSettings()`.
+- **New page** `/encoding-modes`: a "Global" section (built-in-mode audio
+  track/downmix defaults, default SD aspect ratio) plus one card per custom
+  mode, each with codec-dependent field options (picking `h264` narrows
+  format/level/profile/chroma/GOP/bitrate to that codec's own constraint
+  entry; picking `hevc` narrows to a different set) — and **Add mode**
+  (seeded from the first available codec's constraints) / **Remove**
+  buttons per mode.
+- **Architecture note — why this page doesn't use `useSettingsEditor`**: every
+  other settings page edits a fixed set of fields computed once from the
+  loaded object. Custom encoding modes are an arbitrary-length list the user
+  can grow or shrink, which that model doesn't fit (there's no fixed path to
+  diff against for a mode that doesn't exist yet, or one that's just been
+  removed). This page reimplements the same GET → diff → confirm → PUT
+  shape independently, reusing the existing pure helpers (`diffSettings`,
+  `buildPutBody`, `detectConflicts`, `setAtPath`) and components
+  (`SettingsField`, `ConfirmChangesDialog`, the now-exported
+  `PermissionBanner`) rather than forking or generalizing the hook for one
+  page. Per-field specs are also recomputed from the **draft** here (not the
+  original, unlike the rest of the app) so changing a mode's codec
+  immediately narrows its other fields' options.
+- **Known simplification**: adding or removing a mode is inherently a
+  whole-array operation (there's no per-element create/delete endpoint —
+  same as everywhere else in this API). When the array length changes, the
+  confirm dialog and PUT collapse to one line ("Custom encoding modes:
+  N mode(s) → M mode(s)") covering the whole list, rather than itemizing
+  every field of the added/removed mode; in-place edits to existing modes
+  (no length change) still get fully itemized, field-by-field diffs like
+  every other page.
+
+### Verified
+
+`npm run build`, `npm run lint`, `npm test` all pass. Browser-verified in
+mock mode: editing an existing custom mode's description and adding a new
+mode (seeded from the mock's first H.264/AAC constraint entry) collapses to
+a single "1 mode(s) → 2 mode(s)" confirm-dialog line; saving persists across
+reload; removing a mode back down to 1 also persists correctly.
 
 ## Getting started
 

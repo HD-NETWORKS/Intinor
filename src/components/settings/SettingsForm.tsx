@@ -6,7 +6,7 @@ import { isMutable, permissionMode } from "@/lib/settings/mutable";
 import { ConfirmChangesDialog } from "./ConfirmChangesDialog";
 import { SettingsField } from "./SettingsField";
 
-function PermissionBanner({ mutable }: { mutable: string[] | undefined }) {
+export function PermissionBanner({ mutable }: { mutable: string[] | undefined }) {
   const mode = permissionMode(mutable);
   if (mode === "all") return null;
 
