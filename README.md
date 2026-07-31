@@ -1053,3 +1053,31 @@ To go live (read-only) against the real unit, set in `.env.local`:
 Phase 0 definition of done: the deployed shell renders (after signing in) and
 `https://<app>.vercel.app/api/unit/encoders` returns mock encoder JSON to an
 authenticated session.
+
+### Deploying without Vercel's GitHub integration (private org repos)
+
+Vercel's free Hobby plan won't link a private repo owned by a GitHub
+*organization* (only individually-owned private repos) — the flow above
+will hit "Deploying from a private GitHub organization requires a Vercel
+Pro plan" if this repo stays under an org. `.github/workflows/deploy-vercel.yml`
+sidesteps that: it deploys via the Vercel CLI with a token, the same as
+running `vercel` from a laptop, which has no such restriction regardless of
+plan or repo visibility.
+
+One-time setup:
+
+1. Locally: `npm i -g vercel`, then `vercel login` and `vercel link` (creates
+   the Vercel project and writes `.vercel/project.json`, gitignored).
+2. In this repo's **Settings → Secrets and variables → Actions**, add:
+   - `VERCEL_TOKEN` — from `vercel tokens create` (or Account Settings →
+     Tokens on vercel.com)
+   - `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` — both in `.vercel/project.json`
+     after step 1
+3. Set the app's own environment variables (`MOCK`, `DASHBOARD_USERNAME`,
+   etc. — same list as above) on the Vercel project itself (**Settings →
+   Environment Variables**); the workflow only builds and deploys, it
+   doesn't manage those.
+
+Every push to `main` then deploys to production automatically (or trigger
+it manually from the Actions tab — the workflow has `workflow_dispatch`
+too), without ever going through Vercel's GitHub App.

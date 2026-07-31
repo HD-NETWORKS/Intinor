@@ -1,0 +1,50 @@
+name: Deploy to Vercel
+
+# Deploys straight to Vercel via the CLI, bypassing Vercel's GitHub App
+# integration entirely — that integration is what requires a Pro plan for
+# a private-organization repo. This workflow just runs `vercel` commands
+# with a token, the same as deploying from a laptop, so it works on Vercel's
+# free Hobby plan regardless of the repo's visibility or ownership.
+#
+# One-time setup (see README.md "Deploying" section):
+#   1. `vercel login` and `vercel link` locally to create the Vercel project.
+#   2. In this repo's Settings → Secrets and variables → Actions, add:
+#        VERCEL_TOKEN      — from `vercel tokens create` (or the dashboard)
+#        VERCEL_ORG_ID     — from .vercel/project.json after `vercel link`
+#        VERCEL_PROJECT_ID — from .vercel/project.json after `vercel link`
+#   3. Set the app's environment variables (MOCK, DASHBOARD_USERNAME, etc.)
+#      in the Vercel project itself (Settings → Environment Variables) —
+#      this workflow does not manage those.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel project settings
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Build
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Deploy
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
