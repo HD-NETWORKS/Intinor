@@ -51,6 +51,8 @@ export default function Overview() {
         <p className="text-sm text-faint">Live status — read-only. Updates every 5 seconds.</p>
       </div>
 
+      <NetworkInterfacesPanel />
+
       <SystemPanel />
 
       <div>
@@ -142,8 +144,6 @@ export default function Overview() {
           the hardware/license provides and cannot add encoders, mixers, or inputs.
         </p>
       </div>
-
-      <NetworkInterfacesPanel />
 
       <HistoryPanel />
     </div>

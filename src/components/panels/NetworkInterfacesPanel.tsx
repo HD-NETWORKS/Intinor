@@ -1,8 +1,32 @@
 "use client";
 
+import { useState } from "react";
 import { usePolledResource } from "@/hooks/usePolledResource";
 import type { NetworkInterfacesList } from "@/lib/intinor/types";
 import { formatBitrate } from "@/lib/format";
+
+function CopyIpButton({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(value);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        } catch {
+          // Clipboard API unavailable/denied — address is still visible to select and copy by hand.
+        }
+      }}
+      className="rounded border border-border-strong px-2 py-0.5 text-xs text-muted hover:bg-panel-hover"
+      aria-label={`Copy ${value} to clipboard`}
+    >
+      {copied ? "Copied!" : "Copy"}
+    </button>
+  );
+}
 
 export function NetworkInterfacesPanel() {
   const { data, error } = usePolledResource<NetworkInterfacesList>(
@@ -19,15 +43,29 @@ export function NetworkInterfacesPanel() {
   }
   if (!data) return null;
 
+  const statuses = data.status?.status;
+  const primary = statuses?.find((s) => s.primary_interface) ?? statuses?.[0];
+  const primaryIp = primary?.ip?.address ?? primary?.ethernet?.address ?? null;
+
   return (
     <div className="rounded-lg border border-border-default bg-panel p-4">
       <h2 className="mb-3 font-medium text-body">Network interfaces</h2>
+
+      <div className="mb-4 flex flex-wrap items-center gap-3 rounded border border-sky-500/40 bg-sky-500/10 px-3 py-2.5">
+        <span className="text-xs font-medium uppercase tracking-wide text-muted">
+          Primary IP
+        </span>
+        <span className="font-mono text-lg font-semibold text-body">{primaryIp ?? "—"}</span>
+        {primaryIp && <CopyIpButton value={primaryIp} />}
+      </div>
+
       <div className="grid gap-3 sm:grid-cols-2">
         {data.network_interfaces.map((iface, i) => {
           const status = data.status?.status[i];
           const linked = status?.ethernet
             ? Boolean(status.ethernet.link && status.ethernet.link > 0)
             : Boolean(status?.cellular_modem?.connected);
+          const ip = status?.ip?.address ?? status?.ethernet?.address ?? null;
 
           return (
             <div
@@ -49,7 +87,10 @@ export function NetworkInterfacesPanel() {
               <div className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 text-xs text-muted">
                 <div>RX: {formatBitrate(status?.rx_bitrate)}</div>
                 <div>TX: {formatBitrate(status?.tx_bitrate)}</div>
-                <div>IP: {status?.ip?.address ?? status?.ethernet?.address ?? "—"}</div>
+                <div className="flex items-center gap-1.5">
+                  IP: {ip ?? "—"}
+                  {ip && <CopyIpButton value={ip} />}
+                </div>
                 <div>{status?.internet_access ? "Internet OK" : "No internet"}</div>
               </div>
               {status?.cellular_modem && !status.cellular_modem.connected && (
