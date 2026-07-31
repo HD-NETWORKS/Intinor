@@ -1,4 +1,6 @@
 import { DangerZone } from "@/components/system/DangerZone";
+import { FirmwarePanel } from "@/components/system/FirmwarePanel";
+import { BackupPanel } from "@/components/system/BackupPanel";
 
 export default function SystemPage() {
   return (
@@ -6,11 +8,14 @@ export default function SystemPage() {
       <div>
         <h1 className="text-xl font-semibold text-slate-100">System maintenance</h1>
         <p className="text-sm text-slate-500">
-          Unit health lives on the overview page. This page is only whole-unit maintenance
-          actions — kept on its own screen, away from every routine control, on purpose.
+          Unit health lives on the overview page. This page is whole-unit maintenance —
+          firmware, backups, and destructive actions — kept on its own screen, away from every
+          routine control, on purpose.
         </p>
       </div>
 
+      <FirmwarePanel />
+      <BackupPanel />
       <DangerZone />
     </div>
   );

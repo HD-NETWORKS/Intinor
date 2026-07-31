@@ -458,6 +458,362 @@ encoder source picker shows mixer options fanning out to multiple encoders
 in the same way; the network input settings page shows "Used by Mixer #0"
 for input #0.
 
+## Phase 8 — real-unit ground-truth audit: recording, access control, extra destinations, muxing
+
+The user walked the actual D01796 stock console screen-by-screen and shared
+screenshots of every settings tab, to check our data model against ground
+truth before launch. Several fields already existed in `types.ts` (matching
+`docs/02-intinor-api-definitions-full.md`) but had no settings-page UI at
+all — a pure wiring gap, not a missing capability. This phase closes the
+cheapest, highest-confidence gaps from that audit:
+
+- **Recording** (`recording.mpegts` / `recording.flv` — active, path, max
+  file size) — now rendered on both the encoder and network input settings
+  pages.
+- **Access control** (`access_control[]` — per-rule IP/key/serial allow-list)
+  — one section per configured rule, same on both pages.
+- **Network input direct-passthrough destinations** (`destinations.basic[]`
+  on `NetworkInputSettings`) — the input can push its raw ingest onward,
+  bypassing this unit's own encoders (non-DVB-compliant, but a real, typed
+  capability that had no UI).
+- **Encoder's other destination shapes** — `destinations.srt_on_request` /
+  `tcp_on_request` (unit listens, remote pulls) and `destinations.rtmp[]`
+  were already in the mock data and the type system; only `destinations.basic[]`
+  had a settings section. All three now render.
+
+The builders above (`recordingSections`, `accessControlSections`,
+`basicDestinationSections`, `onRequestDestinationSections`,
+`rtmpDestinationSections`) moved into `lib/settings/common-sections.ts` since
+the encoder and input pages needed the identical shape — `encoders/page.tsx`'s
+inline `destinations.basic[]` loop was extracted rather than duplicated.
+
+### Muxing (new)
+
+The real unit's encoder settings have a "Muxing" tab — transport stream ID,
+program number, video/audio PIDs, PCR/PMT timing, and the DVB PSI/SI tables
+(NIT/EIT/TDT/SDT) — entirely absent from both bundled API reference docs
+(`docs/01-intinor-api-reference.md`, `docs/02-...-full.md`), which predate
+this UI on the real unit. `MuxingSettings`/`MuxingSettingsConstraints`
+(`lib/intinor/types.ts`) and the "Muxing" section on the encoder page are
+built from the screenshots, not a confirmed schema.
+
+**This section's field names are unverified against the live API.** Every
+field still goes through the same `_constraints.mutable` gate as everything
+else, so a wrong field name fails safe: the constraint key just won't be
+present on a real unit's response, and the section either won't render or
+won't be editable — it will not send a malformed PUT. Once the real unit's
+`GET /encoders/{index}/settings` response (with muxing populated) is
+available, `muxing.*` paths and the constraint shape should be reconciled
+against it.
+
+### Verified
+
+`npm run build` and `npm run lint` pass. Browser-verified against mock mode:
+Destination/SRT-on-request/TCP-on-request/RTMP/Recording/Access rule/Muxing
+sections all render with the expected fields and values; editing a muxing
+text field and a muxing checkbox produces a correct confirm-diff (`Intinor →
+HD Networks Direkt`, `off → on`) against the right dot-paths; saving commits
+to the mock state store and survives a reload.
+
+### Still open from the same audit (not in this phase)
+
+- **Router panel** (drag-and-drop patch bay UX), **richer firmware upgrade
+  flow**, **settings backup save**, and **local user/RBAC provisioning on
+  the unit itself** — still not built.
+
+## Phase 9 — Netvideo inputs (`video_input`), a whole second ingest resource
+
+The biggest gap from the Phase 8 audit: the real D01796 has two distinct
+sets of inputs — "IP stream in" (`network_input`, already modeled) and
+"Netvideo in" (`video_input`), a second resource type offering pull-based
+ingest (RTSP/HLS/NDI/RTMP) in addition to SRT caller/listener. Unlike
+Muxing in Phase 8, this one is fully documented in
+`docs/02-intinor-api-definitions-full.md` (`video_input`,
+`video_input_settings`, `netvideo_source_settings(_constraints)`,
+`video_input_status`) — no guessing required.
+
+- **Types** (`lib/intinor/types.ts`): `NetvideoSourceSettings` (one active
+  ingest kind at a time, selected by `type`: `rtsp_pull` / `hls` / `ndi` /
+  `srt_caller` / `srt_listener` / `rtmp_receive` / `rtmp_pull`), its
+  constraints and status shapes, `VideoInputSettings(Response)`,
+  `VideoInputStatus`, `VideoInput`, `VideoInputsList`.
+- **Client** (`lib/intinor-client.ts`): `getVideoInputs` / `getVideoInput` /
+  `getVideoInputSettings` / `putVideoInputSettings` / `getVideoInputStatus` /
+  `videoInputThumbnailUrl` — same shape as the existing network-input methods.
+- **New page** `/netvideo` (`app/netvideo/page.tsx`): a `PipePicker` plus a
+  settings form that only renders the sub-section matching whichever
+  ingest kind is actually present in the loaded settings (mirrors how
+  `inputs/page.tsx` conditionally renders `network_sources.*`).
+- **Mock**: `mockVideoInputSettings`/`Status`/`Input`/`InputsList` (one
+  Netvideo input on the primary unit, SRT listener by default) in
+  `mock/data.ts`; real GET/PUT routes replacing the old `video_inputs: []`
+  stub in `mock/resolve.ts`; `BIG_VIDEO_INPUT_COUNT = 16` and
+  `bigVideoInput(Status)/bigVideoInputsList` in `mock/bigUnit.ts`, wired into
+  `bigGetRoutes()` the same way as the other big-unit resources.
+- **Sources**: Netvideo inputs are a legitimate mixer/encoder source like
+  any other pipe. `bigVideoInputSourceOptions()` folds all 16 into both
+  `bigEncoderSettings()`'s and `bigVideoMixerSettings()`'s
+  `_constraints.video_source.source` / `program.layers.input.source` lists,
+  alongside network inputs and mixers.
+- **UI**: new "Netvideo inputs" nav entry; `VideoInputCard`/`VideoInputRow`
+  mirror the network-input card/row for the overview page's card grid and
+  dense list view; signal-chain count line now reads
+  `N input · M Netvideo · ...`.
+- **Permissions**: `"video_input"` added to the mock role system
+  (`mock/permissions.ts`) with its own operator grant.
+
+### Verified
+
+`npm run build` and `npm run lint` pass. Browser-verified: on the primary
+mock unit, `/netvideo` shows "Netvideo in 1" (SRT listener, port 7501) as a
+distinct settings page from `/inputs`, and the overview card grid shows both
+side by side. On the big-unit fixture (`INTINOR_UNITS` with a second entry),
+the overview lists "16 input · 16 Netvideo · 2 mixer · 17 encoder", the dense
+list view shows a separate "Netvideo inputs (16)" table, all 16 are
+selectable/editable on `/netvideo`, and the encoder source dropdown lists
+all 35 options (2 mixers + 16 network inputs + 16 Netvideo inputs + test
+picture) — confirming Netvideo inputs fan out through the existing
+cross-resource usage-indicator machinery with no changes needed there.
+
+## Phase 10 — Custom encoding modes CRUD
+
+The `/encoding` root previously only ever fed `encoding_modes` (a read-only
+merged built-in+custom list, for populating a pipe's "Encoding mode"
+dropdown). The unit-wide `encoding_settings` resource
+(`GET/PUT /encoding/settings`, fully documented in
+`docs/02-intinor-api-definitions-full.md`) is where custom modes are
+actually authored — this phase adds a page for it, plus the global
+defaults that live alongside it.
+
+- **Types**: `EncodingSettings(Response/Request)`, `BuiltinEncodingModesSettings/Constraints`,
+  `EncodingSettingsVideoInput(Constraints)`, `CustomEncodingModesConstraints`
+  (`video_codecs[]`/`audio_codecs[]`, each carrying its own valid
+  bitrate/GOP/chroma/profile/level/latency-mode/sample-rate/downmix ranges —
+  the existing `EncodingMode`/`EncodingModeVideo`/`EncodingModeAudio` types
+  already matched the schema exactly and needed no changes).
+- **Client**: `getEncodingSettings()` / `putEncodingSettings()`.
+- **New page** `/encoding-modes`: a "Global" section (built-in-mode audio
+  track/downmix defaults, default SD aspect ratio) plus one card per custom
+  mode, each with codec-dependent field options (picking `h264` narrows
+  format/level/profile/chroma/GOP/bitrate to that codec's own constraint
+  entry; picking `hevc` narrows to a different set) — and **Add mode**
+  (seeded from the first available codec's constraints) / **Remove**
+  buttons per mode.
+- **Architecture note — why this page doesn't use `useSettingsEditor`**: every
+  other settings page edits a fixed set of fields computed once from the
+  loaded object. Custom encoding modes are an arbitrary-length list the user
+  can grow or shrink, which that model doesn't fit (there's no fixed path to
+  diff against for a mode that doesn't exist yet, or one that's just been
+  removed). This page reimplements the same GET → diff → confirm → PUT
+  shape independently, reusing the existing pure helpers (`diffSettings`,
+  `buildPutBody`, `detectConflicts`, `setAtPath`) and components
+  (`SettingsField`, `ConfirmChangesDialog`, the now-exported
+  `PermissionBanner`) rather than forking or generalizing the hook for one
+  page. Per-field specs are also recomputed from the **draft** here (not the
+  original, unlike the rest of the app) so changing a mode's codec
+  immediately narrows its other fields' options.
+- **Known simplification**: adding or removing a mode is inherently a
+  whole-array operation (there's no per-element create/delete endpoint —
+  same as everywhere else in this API). When the array length changes, the
+  confirm dialog and PUT collapse to one line ("Custom encoding modes:
+  N mode(s) → M mode(s)") covering the whole list, rather than itemizing
+  every field of the added/removed mode; in-place edits to existing modes
+  (no length change) still get fully itemized, field-by-field diffs like
+  every other page.
+
+### Verified
+
+`npm run build`, `npm run lint`, `npm test` all pass. Browser-verified in
+mock mode: editing an existing custom mode's description and adding a new
+mode (seeded from the mock's first H.264/AAC constraint entry) collapses to
+a single "1 mode(s) → 2 mode(s)" confirm-dialog line; saving persists across
+reload; removing a mode back down to 1 also persists correctly.
+
+## Phase 11 — Test picture settings + custom background upload
+
+`docs/01-intinor-api-reference.md` documents three `test_picture` endpoints:
+`GET /test_picture`, `GET/PUT /test_picture/settings` (a normal typed
+resource — active/background/audio/animation-overlay/text-overlay, all
+constraint-driven like everything else), and `GET/PUT
+/test_picture/custom_background`, which has **no JSON schema** in the
+unit's swagger dump — it's a raw image, not a settings object. Building
+this required a real capability the proxy didn't have yet: passing a
+binary body through untouched.
+
+- **New page** `/test-picture`: a standard `useSettingsEditor`/`SettingsForm`
+  section for the typed settings (background/audio/animation-overlay
+  dropdowns come from `_constraints`, same as everywhere else; the
+  text-overlay field's help text surfaces the unit's `layout_codes`
+  time-code placeholders and `default_text_overlay`), plus a separate
+  "Custom background" card with a file input, live preview (`<img>` against
+  the proxied `custom_background` URL), and an upload button — this part
+  isn't a settings-diff at all, just a direct file PUT.
+- **Proxy binary passthrough** (`server/proxy-handler.ts`, `server/unit-fetch.ts`):
+  previously every request body went through `req.text()`, which corrupts
+  non-UTF8 bytes. The proxy now checks the request's Content-Type and only
+  uses `.text()` for JSON/text bodies; anything else (`image/png`, etc.) goes
+  through `.arrayBuffer()` and is forwarded as raw bytes end-to-end, both to
+  the real unit and into the mock resolver. `intinor-client.ts` gained a
+  `putBinary()` path alongside the existing JSON `request()` helper —
+  `putCustomBackground(file: Blob)` posts the file's own bytes and
+  content-type directly, no JSON envelope.
+- **Mock**: a second in-memory store in `mock/state.ts`
+  (`putBinaryOverride`/`getBinaryOverride`, parallel to the existing JSON
+  `overrides` map, since binary blobs don't fit that map's
+  clone-and-strip-`_constraints` logic) holds the uploaded bytes; GET serves
+  them back with the original content-type, or a placeholder "NO CUSTOM
+  BACKGROUND UPLOADED" SVG if nothing's been uploaded yet.
+
+### Bug caught during verification
+
+The first version of `customBackgroundUrl()` cache-busted with
+`` `?_r=${Date.now()}` `` baked into the client method itself. Since the
+image `<img src>` is computed during the initial render, this produced a
+React hydration-mismatch warning (the server-rendered HTML and the
+client's first render computed different timestamps). Fixed by moving the
+cache-bust token out of the client method and into caller-owned React state
+(a counter starting at `0`/`undefined`, only incremented after a successful
+upload) — deterministic across server and client, and still forces a fresh
+fetch exactly when the image has actually changed.
+
+### Verified
+
+`npm run build`, `npm run lint`, `npm test` all pass. Confirmed with a raw
+`curl` PUT/GET round-trip that a real PNG survives the proxy byte-for-byte
+(`cmp` reported the files identical). Browser-verified: settings edits
+(text overlay, background selection) save and persist; uploading a file
+through the actual `<input type=file>` + Upload button round-trips
+correctly (`img.complete`/`naturalWidth`/`naturalHeight` confirmed against
+the uploaded file's real dimensions); no hydration warnings or console
+errors on load, edit, or upload.
+
+## Phase 12 — Richer firmware upgrade + settings backup download
+
+Both fully documented in `docs/01-intinor-api-reference.md`:
+`GET /system/available_firmwares` (upgrade-server + USB-media candidates),
+`POST /system/actions/upgrade_firmware?version=&source=` (previously fired
+with no params — just "install whatever the unit already flagged"), and
+`GET /system/config` / `PUT /system/config` (XML backup — GET is a safe
+read; PUT restores and reboots, and was already permanently blocked at the
+proxy since Phase 5, correctly so).
+
+- **Types**: `AvailableFirmware`, `AvailableFirmwaresResponse` — the latter's
+  wrapper shape (`{ available_firmwares: [...] } & common_response_metadata`)
+  isn't a named schema in the unit's swagger dump, but every other list
+  endpoint in this API follows that exact convention, so it's a low-risk
+  inference, not a guess — flagged as such in the type's own doc comment.
+- **`FirmwarePanel`** (new, on `/system`): read-only running/default/recovery
+  firmware versions and dates from `system/status.firmware` (already fully
+  typed from earlier phases — no new fields needed there), plus an
+  "update available" banner when running ≠ default. Explicitly notes that
+  validating firmware integrity or swapping to the recovery slot — both
+  visible in the user's screenshots — have no corresponding endpoint in
+  either bundled reference doc, so unlike Muxing (Phase 8) this dashboard
+  does **not** fabricate actions for them.
+- **`BackupPanel`** (new, on `/system`): a "Download backup" button —
+  `GET /system/config`, triggers a browser download of the XML. No danger-
+  zone gating; it's a plain read. Restoring one stays exactly as blocked as
+  before.
+- **Danger Zone → Upgrade firmware**: revealing the confirm box now also
+  shows a version/channel picker sourced from `getAvailableFirmwares()`,
+  defaulting to "the unit's own recommended choice" (no params sent, same
+  as before this phase) or a specific candidate. `performSystemAction`
+  (`server/system-actions.ts`) gained an optional `{version, source}` param,
+  appended as `?version=&source=` only for this one action — still behind
+  both existing gates (env flag + typed `UPGRADE_FIRMWARE` confirmation).
+
+### Verified
+
+`npm run build`, `npm run lint`, `npm test` all pass. Browser-verified with
+`INTINOR_ALLOW_DESTRUCTIVE_ACTIONS=1`: the firmware picker lists all three
+mock candidates; downloading the backup produces a real file with the
+expected XML content; selecting a specific firmware version and confirming
+sends `POST system/actions/upgrade_firmware?version=S5.2.0-1&source=upgrade_server`
+(confirmed via the actual dev server request log) rather than the bare
+unparameterized action.
+
+## Phase 13 — Router panel (drag-and-drop source assignment)
+
+The last UX-only item from the original audit: the real unit's Router panel
+is a visual patch bay — drag a source thumbnail onto a destination thumbnail
+— as an alternative to picking a source from a dropdown on the encoder
+settings page. Confirmed this is genuinely just a different UI over the
+same write: no new API capability, no new types needed.
+
+- **New page** `/router`: two sections — **Sources** (every network input,
+  Netvideo input, video mixer, and the test picture, each a draggable tile
+  with a live thumbnail/status dot, reusing `usePolledResource` the same way
+  `NetworkInputRow`/`EncoderRow` already do) and **Encoders** (drop targets,
+  each showing its current source and highlighting on drag-over).
+- The master list of valid sources — and their exact href values — comes
+  from an encoder's own `_constraints.video_source.source` (the same
+  constraint list the dropdown-based encoder settings page already reads),
+  not reconstructed by guessing URL shapes. `parseSourceHref()` maps each
+  href back to a resource kind + index (network_inputs/video_inputs/
+  video_mixers/test_picture) purely to pick the right thumbnail URL builder.
+- **Write path**: dropping a source fetches that encoder's current settings
+  once, checks `video_source.source` is mutable for the account, and — if
+  so — opens the existing `ConfirmChangesDialog` (same component every
+  other settings page uses, so live-write units still get the "type SAVE"
+  gate) with a single `SettingsChange` entry. Confirming reuses
+  `buildPutBody`/`putEncoderSettings` exactly as the encoder settings page
+  does. `useSourceUsage()` (Phase 7) already annotates every source tile
+  with "⚠ used by …" for cross-resource fan-out — no changes needed there
+  either.
+- Deliberately scoped to encoders only, not mixer layers — an encoder has
+  exactly one source, a clean drop target; a mixer can have several layers,
+  which doesn't reduce to "drop a thumbnail on a thumbnail" without also
+  picking which layer, so that stays on the existing mixer builder page.
+
+### Verified
+
+`npm run build`, `npm run lint`, `npm test` all pass. Browser-verified on
+the primary mock unit: dragging "Network input 1" onto the encoder opens a
+confirm dialog reading "Video source: Video mixer 1 → Network input 1";
+confirming saves and survives a reload. Re-verified on the big-unit fixture
+(2 mixers + 16 network inputs + 16 Netvideo inputs + test picture = 35
+source tiles, 17 encoder destinations, all with live thumbnails) with zero
+console errors.
+
+## Phase 14 — Local users, read-only
+
+The last open item from the launch audit: the unit's own local user system
+(roles, per-category permissions for media bank/recording/test picture/
+encoding settings, per-video-resource permissions for every input/encoder)
+is entirely separate from this dashboard's own single-shared-account login
+(Phase 5). Asked the user directly whether to build nothing, read-only
+visibility, or full CRUD here — **read-only visibility** was the call:
+security-sensitive, rarely-touched account/permission management is exactly
+the kind of thing that should stay on the vendor's own console as the
+source of truth, but a glanceable view of "who has access to what" from
+the same dashboard is low-risk and genuinely useful.
+
+Fully documented in both bundled reference docs — `GET /users`,
+`GET/PUT /users/{username}/settings` — and it turned out `User`/
+`UserSettings`/`UserList` were already scaffolded in `types.ts` back in
+Phase 0 (matching this schema exactly) even though no page ever used them.
+Added only what was missing: `UserSettingsConstraints` (role and
+per-resource permission options, each with a human description) and
+`UserSettingsResponse`.
+
+- **New page** `/users`: one card per local user — role badge, and a
+  permissions table (resource → access level) with labels resolved from
+  that user's own `_constraints.permissions` descriptions rather than
+  hardcoded strings. No edit, create, or delete controls anywhere — the
+  client only has `getUsers()`/`getUserSettings()`, no write methods at
+  all, so there's no write path to accidentally expose later.
+- Passwords are typed as always write-only/never rendered, matching how
+  every other settings page treats password fields.
+- Mock: two example accounts (`admin`, `operator`) with realistic
+  permission sets, so the page has something to show.
+
+### Verified
+
+`npm run build`, `npm run lint`, `npm test` all pass. Browser-verified:
+both mock accounts render with correct role badges; the permissions table
+shows human-readable resource/access labels (e.g. "IP stream in 1 — Video
+user") rather than raw API strings; no console errors.
+
 ## Getting started
 
 ```bash

@@ -31,6 +31,9 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     );
   }
 
-  const result = await performSystemAction(unitId, action, confirm);
+  const version = typeof body?.version === "string" ? body.version : undefined;
+  const source = typeof body?.source === "string" ? body.source : undefined;
+
+  const result = await performSystemAction(unitId, action, confirm, { version, source });
   return NextResponse.json(result.body, { status: result.status });
 }

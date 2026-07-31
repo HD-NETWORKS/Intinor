@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useCurrentUnit } from "@/lib/units/context";
+import { useIntinorClient } from "@/hooks/useIntinorClient";
+import type { AvailableFirmware } from "@/lib/intinor/types";
 
 interface Meta {
   mock: boolean;
@@ -28,7 +30,7 @@ const ACTIONS: ActionDef[] = [
     label: "Upgrade firmware",
     severity: "high",
     description:
-      "Installs the firmware version the unit has already flagged as available, then reboots to apply it.",
+      "Installs a firmware version and reboots to apply it. Defaults to the unit's own recommended choice, or pick a specific version/channel below.",
   },
   {
     action: "reboot",
@@ -105,10 +107,31 @@ export function DangerZone() {
 
 function ActionCard({ def }: { def: ActionDef }) {
   const { unitId, defaultUnitId } = useCurrentUnit();
+  const client = useIntinorClient();
   const [revealed, setRevealed] = useState(false);
   const [typed, setTyped] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  const isFirmwareUpgrade = def.action === "upgrade_firmware";
+  const [firmwares, setFirmwares] = useState<AvailableFirmware[]>([]);
+  const [selected, setSelected] = useState<string>("");
+
+  useEffect(() => {
+    if (!isFirmwareUpgrade) return;
+    let cancelled = false;
+    client
+      .getAvailableFirmwares()
+      .then((r) => {
+        if (!cancelled) setFirmwares(r.available_firmwares);
+      })
+      .catch(() => {
+        if (!cancelled) setFirmwares([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isFirmwareUpgrade, client]);
 
   const expected = def.action.toUpperCase();
   const canConfirm = typed === expected && !busy;
@@ -124,11 +147,16 @@ function ActionCard({ def }: { def: ActionDef }) {
   async function run() {
     setBusy(true);
     setResult(null);
+    const chosen = firmwares.find((f) => `${f.source}:${f.version}` === selected);
     try {
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: def.action, confirm: typed }),
+        body: JSON.stringify({
+          action: def.action,
+          confirm: typed,
+          ...(chosen ? { version: chosen.version, source: chosen.source } : {}),
+        }),
       });
       const body = await res.json().catch(() => ({}));
       if (res.ok) {
@@ -170,6 +198,24 @@ function ActionCard({ def }: { def: ActionDef }) {
 
       {revealed && (
         <div className="mt-3 space-y-2 border-t border-slate-800 pt-3">
+          {isFirmwareUpgrade && (
+            <div className="space-y-1">
+              <label className="text-xs text-slate-400">Version</label>
+              <select
+                value={selected}
+                onChange={(e) => setSelected(e.target.value)}
+                className="w-full rounded border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-slate-200"
+              >
+                <option value="">Recommended default (unit&apos;s own choice)</option>
+                {firmwares.map((f) => (
+                  <option key={`${f.source}:${f.version}`} value={`${f.source}:${f.version}`}>
+                    {f.version} — {f.release ?? f.source}
+                    {f.datetime ? ` (${new Date(f.datetime).toLocaleDateString()})` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <p className="text-xs text-red-300">
             Type <code className="rounded bg-slate-800 px-1">{expected}</code> to confirm
             {unitId ? ` on ${unitId}` : ""}.

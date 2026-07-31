@@ -266,6 +266,90 @@ export interface EncodingModesResponse extends ResponseMetadata {
   encoding_modes: EncodingMode[];
 }
 
+// ---------------------------------------------------------------------------
+// Global encoding settings (`GET/PUT /encoding/settings`) — built-in-mode
+// audio defaults, the unit-wide default SD aspect ratio, and the editable
+// list of custom encoding modes. Distinct from `encoding/encoding_modes`
+// (the combined built-in + custom read-only list used to populate a pipe's
+// `encoding_mode` dropdown, via EncodingModesResponse above) — this is where
+// custom modes are actually authored.
+// ---------------------------------------------------------------------------
+
+export interface BuiltinEncodingModesSettings {
+  audio: { downmix?: string; tracks: number };
+}
+
+export interface BuiltinEncodingModesConstraints {
+  audio: { tracks: IntegerMinMax; downmix: DescriptionValue[] };
+}
+
+export interface EncodingSettingsVideoInput {
+  sd_aspect_ratio?: string;
+}
+
+export interface EncodingSettingsVideoInputConstraints {
+  sd_aspect_ratio: DescriptionValue[];
+}
+
+export interface CustomEncodingModesConstraintsAudioCodec {
+  value: string;
+  description: string;
+  bitrate: IntegerMinMax;
+  tracks: IntegerMinMax;
+  samplerate?: DescriptionIntegerValue[];
+  downmix?: DescriptionValue[];
+}
+
+export interface CustomEncodingModesConstraintsLatencyQualityMode {
+  value: string;
+  description: string;
+  coded_picture_buffer?: { seconds?: number; frames?: number };
+  encoding_latency?: { frames?: number; seconds?: number };
+}
+
+export interface CustomEncodingModesConstraintsVideoCodec {
+  value: string;
+  description: string;
+  capabilities?: { scene_change_detection?: boolean };
+  chroma: DescriptionValue[];
+  format?: VideoFormatConstraint[];
+  gop: IntegerMinMax;
+  bitrate: IntegerMinMax;
+  bitrate_buffer?: Array<{ value?: number; description: string }>;
+  level: DescriptionValue[];
+  profile: DescriptionValue[];
+  adaptive_bitrate?: { bitrate_lower_factor?: number; bitrate_upper_factor?: number };
+  latency_quality_mode?: CustomEncodingModesConstraintsLatencyQualityMode[];
+}
+
+export interface CustomEncodingModesConstraints {
+  audio_codecs: CustomEncodingModesConstraintsAudioCodec[];
+  video_codecs: CustomEncodingModesConstraintsVideoCodec[];
+}
+
+export interface CommonEncodingSettings {
+  builtin_encoding_modes: BuiltinEncodingModesSettings;
+  custom_encoding_modes: EncodingMode[];
+  video_input: EncodingSettingsVideoInput;
+}
+
+export interface EncodingSettings extends CommonEncodingSettings {
+  _version?: string;
+}
+
+export interface EncodingSettingsConstraints {
+  mutable: MutableList;
+  builtin_encoding_modes: BuiltinEncodingModesConstraints;
+  custom_encoding_modes: CustomEncodingModesConstraints;
+  video_input: EncodingSettingsVideoInputConstraints;
+  [key: string]: unknown;
+}
+
+export type EncodingSettingsRequest = EncodingSettings & RequestMetadata;
+
+export type EncodingSettingsResponse = EncodingSettings &
+  ResponseMetadata & { _constraints?: EncodingSettingsConstraints };
+
 export interface PipeEncodingSettings {
   /** id of an encoding_mode */
   encoding_mode: string;
@@ -509,6 +593,52 @@ export interface AccessControlSettings {
 }
 
 // ---------------------------------------------------------------------------
+// Muxing (transport stream / PSI-SI) — per-encoder MPEG-TS packaging.
+// Not present in docs/02-intinor-api-definitions-full.md (that dump predates
+// this UI on the real unit); field names below are inferred from the stock
+// console's "Muxing" tab and unverified against the live API. Since every
+// field is gated by `_constraints.mutable` like the rest of the form, a wrong
+// field name just means the section won't render (or won't be editable) on a
+// real unit rather than sending a bad PUT — safe to ship ahead of confirmation.
+// ---------------------------------------------------------------------------
+
+export interface MuxingAudioStreamSettings {
+  pid?: number;
+  component_tag?: string;
+}
+
+export interface MuxingSettings {
+  mode: string;
+  transport_stream_id: number;
+  program_number: number;
+  mp2_audio_stream_type: string;
+  video: { pid: number; component_tag?: string };
+  audio: MuxingAudioStreamSettings[];
+  pcr: { repetition_interval: number };
+  pat: { pid: number };
+  pmt: { pid: number; repetition_interval: number };
+  dvb: {
+    nit: { network_name: string; network_id: number; repetition_interval: number };
+    eit: { repetition_interval: number };
+    tdt: { repetition_interval: number };
+    sdt: {
+      service_name: string;
+      service_provider_name: string;
+      repetition_interval: number;
+    };
+  };
+  klv_metadata: { active: boolean };
+  authentication_metadata: { active: boolean };
+}
+
+export interface MuxingSettingsConstraints {
+  mode?: DescriptionValue[];
+  mp2_audio_stream_type?: DescriptionValue[];
+  transport_stream_id?: IntegerMinMax;
+  [key: string]: unknown;
+}
+
+// ---------------------------------------------------------------------------
 // Encoder
 // ---------------------------------------------------------------------------
 
@@ -518,6 +648,8 @@ export interface EncoderSettings extends CommonPipeSettings {
   video_source: VideoSourceSettings;
   access_control?: AccessControlSettings[];
   destinations: DestinationsSettings;
+  /** Not on every unit/firmware — see MuxingSettings note above. */
+  muxing?: MuxingSettings;
 }
 
 export interface EncoderSettingsConstraints
@@ -526,6 +658,7 @@ export interface EncoderSettingsConstraints
   destinations: DestinationsSettingsConstraints;
   mutable: MutableList;
   video_source: VideoSourceSettingsConstraints;
+  muxing?: MuxingSettingsConstraints;
   [key: string]: unknown;
 }
 
@@ -685,6 +818,107 @@ export interface NetworkInputsList {
 }
 
 // ---------------------------------------------------------------------------
+// Video input ("Netvideo in" on the stock console) — a second, distinct
+// ingest resource alongside network_input ("IP stream in"): pull-based
+// sources (RTSP/HLS/NDI/RTMP) in addition to the SRT/RTMP push-or-listen
+// shapes network_input offers. Only one `netvideo_source.*` sub-object is
+// active at a time, selected by `netvideo_source.type`.
+// ---------------------------------------------------------------------------
+
+export interface NetvideoSourceSettings {
+  /** Selects which sibling object below is active. */
+  type: string;
+  rtsp_pull?: { url: string };
+  hls?: { url?: string };
+  ndi?: { audio_gain?: number; source?: string };
+  srt_caller?: {
+    address: string;
+    port: number;
+    latency?: number;
+    stream_id?: string;
+    password?: string;
+    adapter?: string;
+    rendezvous?: boolean;
+  };
+  srt_listener?: {
+    address?: string;
+    port: number;
+    latency?: number;
+    password?: string;
+    adapter?: string;
+    rendezvous?: boolean;
+  };
+  rtmp_receive?: { stream: string };
+  rtmp_pull?: { url: string; stream: string };
+  audio_select?: Array<{ value: string; target: string }>;
+}
+
+export interface NetvideoSourceSettingsConstraints {
+  type: Array<{ value: string; description: string }>;
+  advanced?: { source_clock_reconstruction?: DescriptionIntegerValue[] };
+  rtmp_receive?: { rtmp_url_example: string };
+  audio_select?: Array<{ target: string; description: string }>;
+  network_interface?: DescriptionValue[];
+  [key: string]: unknown;
+}
+
+export interface NetvideoSourceStatusHlsProgram {
+  bitrate?: number;
+  audio?: Array<{ channels?: number; description?: string; language?: string }>;
+  video?: { width?: number; height?: number; framerate?: number };
+}
+
+export interface NetvideoSourceStatus {
+  rtmp_receive?: { address?: string; bitrate?: number };
+  hls?: { detected_programs: NetvideoSourceStatusHlsProgram[]; selected_program?: number };
+  srt?: {
+    latency?: number;
+    bitrate?: number;
+    address?: string;
+    packet_loss?: { before?: number; after?: number };
+  };
+}
+
+export interface VideoInStatus {
+  audio: AudioStatus[];
+  video?: VideoStatus;
+  available: boolean;
+}
+
+export interface VideoInputSettings extends CommonPipeSettings {
+  netvideo_source: NetvideoSourceSettings;
+}
+
+export interface VideoInputSettingsConstraints
+  extends CommonPipeSettingsConstraints {
+  netvideo_source: NetvideoSourceSettingsConstraints;
+  mutable: MutableList;
+  [key: string]: unknown;
+}
+
+export type VideoInputSettingsRequest = VideoInputSettings & RequestMetadata;
+
+export type VideoInputSettingsResponse = VideoInputSettings &
+  ResponseMetadata & { _constraints?: VideoInputSettingsConstraints };
+
+export interface VideoInputStatus extends CommonPipeStatus {
+  netvideo_source: NetvideoSourceStatus;
+  video_in?: VideoInStatus;
+}
+
+export interface VideoInput extends CommonPipeInfo {
+  _constraints?: CommonPipeConstraints;
+  status?: VideoInputStatus;
+  settings?: VideoInputSettingsResponse;
+  thumbnails?: PipeThumbnails;
+}
+
+export interface VideoInputsList {
+  video_inputs: VideoInput[];
+  _links?: Link[];
+}
+
+// ---------------------------------------------------------------------------
 // Video mixer (custom layered compositing — quad grid etc.)
 // ---------------------------------------------------------------------------
 
@@ -806,6 +1040,27 @@ export interface FirmwareStatus {
   datetime: string;
   valid?: boolean;
   version: string;
+}
+
+/** One row of `GET /system/available_firmwares` (upgrade server + USB media candidates). */
+export interface AvailableFirmware {
+  version: string;
+  release?: string;
+  source: string;
+  datetime?: string;
+}
+
+/**
+ * Wrapper shape inferred from this API's otherwise-universal
+ * `{ <plural_key>: T[] } & common_response_metadata` list convention — the
+ * unit's swagger dump doesn't name a distinct response schema for this
+ * endpoint (only the `available_firmware` element type), unlike the Muxing
+ * settings note elsewhere in this file, so this is a low-risk inference
+ * rather than a guess: worst case it's read via `.available_firmwares` and
+ * gets an empty list back until confirmed against a real unit.
+ */
+export interface AvailableFirmwaresResponse extends ResponseMetadata {
+  available_firmwares: AvailableFirmware[];
 }
 
 export interface SystemStatus {
@@ -1000,6 +1255,66 @@ export interface ProfilesList {
   profiles: ProfileBrief[];
   _links?: Link[];
 }
+
+// ---------------------------------------------------------------------------
+// Test picture (unit-wide fallback source) — `GET /test_picture`,
+// `GET/PUT /test_picture/settings`, `GET/PUT /test_picture/custom_background`.
+// The last one is a raw image (no JSON schema in the unit's swagger) rather
+// than a typed settings object — see the custom-background client/proxy
+// notes in intinor-client.ts.
+// ---------------------------------------------------------------------------
+
+export interface TestPictureSettings {
+  active: boolean;
+  background: string;
+  audio: string;
+  text_overlay?: string;
+  animation_overlay?: string;
+}
+
+export interface TestPictureSettingsConstraints {
+  mutable: MutableList;
+  background: DescriptionDocumentationValue[];
+  audio: DescriptionDocumentationValue[];
+  animation_overlay: DescriptionDocumentationValue[];
+  /** Documents the `%h`/`%m`/`%s`-style codes usable inside `text_overlay`. */
+  layout_codes: DescriptionDocumentationValue[];
+  default_text_overlay: string;
+}
+
+export type TestPictureSettingsRequest = TestPictureSettings & RequestMetadata;
+
+export type TestPictureSettingsResponse = TestPictureSettings &
+  ResponseMetadata & { _constraints?: TestPictureSettingsConstraints };
+
+export interface TestPicture {
+  _links?: Link[];
+  settings?: TestPictureSettingsResponse;
+}
+
+// ---------------------------------------------------------------------------
+// Local users — read-only constraints/response wrapper (see `User`/
+// `UserSettings`/`UserList` above for the base shapes, already scaffolded in
+// Phase 0). This dashboard only ever GETs these: `POST /users` (create) and
+// `PUT/DELETE` exist on the real API, but the unit's own accounts, roles,
+// and permissions stay managed on its stock IDM console — a separate,
+// dashboard-only login (Phase 5) gates this app instead. See the Phase 14
+// README section for the reasoning.
+// ---------------------------------------------------------------------------
+
+export interface UserSettingsConstraints {
+  mutable: MutableList;
+  role: DescriptionDocumentationValue[];
+  permissions: Array<{
+    resource: string;
+    role: DescriptionDocumentationValue[];
+    description: string;
+  }>;
+  username?: string;
+}
+
+export type UserSettingsResponse = UserSettings &
+  ResponseMetadata & { _constraints?: UserSettingsConstraints };
 
 // ---------------------------------------------------------------------------
 // API root

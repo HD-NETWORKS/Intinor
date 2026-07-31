@@ -6,18 +6,29 @@
  */
 
 import type {
+  AvailableFirmwaresResponse,
+  DescriptionDocumentationValue,
   Encoder,
   EncodersList,
   EncoderSettingsResponse,
   EncoderStatus,
   EncodingModesResponse,
+  EncodingSettingsResponse,
   NetworkInput,
+  TestPictureSettingsResponse,
   NetworkInputsList,
   NetworkInputSettingsResponse,
   NetworkInputStatus,
   NetworkInterfacesList,
   SystemInformation,
   SystemStatus,
+  UserList,
+  UserSettingsConstraints,
+  UserSettingsResponse,
+  VideoInput,
+  VideoInputSettingsResponse,
+  VideoInputsList,
+  VideoInputStatus,
   VideoMixer,
   VideoMixersList,
   VideoMixerSettingsResponse,
@@ -63,6 +74,24 @@ export const mockSystemStatus: SystemStatus = {
   },
 };
 
+export const mockAvailableFirmwares: AvailableFirmwaresResponse = {
+  available_firmwares: [
+    { version: "S5.1.2-1", release: "stable", source: "upgrade_server", datetime: "2025-11-04T09:12:00Z" },
+    { version: "S5.2.0-1", release: "stable", source: "upgrade_server", datetime: "2026-02-18T10:00:00Z" },
+    { version: "S5.3.0-rc1", release: "beta", source: "upgrade_server", datetime: "2026-06-01T08:30:00Z" },
+  ],
+};
+
+/** A minimal, plausible XML settings backup — enough to exercise "download" without a real unit. */
+export const mockSystemConfigXml = `<?xml version="1.0" encoding="UTF-8"?>
+<direkt_config unit="${process.env.INTINOR_UNIT_ID || "D01393"}" generated="mock">
+  <system firmware="S5.1.2-1" />
+  <encoders count="1" />
+  <network_inputs count="1" />
+  <video_mixers count="1" />
+</direkt_config>
+`;
+
 export const mockSystem: SystemInformation = {
   product_type: "direkt_router",
   model_name: "Direkt router",
@@ -75,6 +104,75 @@ export const mockSystem: SystemInformation = {
   oem: "intinor",
   messages: [],
   _links: [{ rel: "self", method: "GET", href: `${UNIT_BASE}/system` }],
+};
+
+// ---------------------------------------------------------------------------
+// Local users — read-only visibility only (see Phase 14 README note); two
+// example accounts so the page has something to show.
+// ---------------------------------------------------------------------------
+
+const USER_ROLE_OPTIONS: DescriptionDocumentationValue[] = [
+  { value: "administrator", description: "Administrator", documentation: "Full access to every resource." },
+  { value: "user", description: "User", documentation: "Can operate but not reconfigure system-level settings." },
+];
+
+const CATEGORY_ROLE_OPTIONS: DescriptionDocumentationValue[] = [
+  { value: "observer", description: "Observer", documentation: "Can view but not change." },
+  { value: "user", description: "User", documentation: "Can view and change." },
+];
+
+const VIDEO_ROLE_OPTIONS: DescriptionDocumentationValue[] = [
+  { value: "none", description: "No access", documentation: "Cannot view or use this resource." },
+  { value: "video_observer", description: "Video observer", documentation: "Can view thumbnails/status only." },
+  { value: "video_user", description: "Video user", documentation: "Can view and change settings." },
+  { value: "video_administrator", description: "Video administrator", documentation: "Full control, including access control lists." },
+];
+
+const USER_PERMISSION_CONSTRAINTS: UserSettingsConstraints["permissions"] = [
+  { resource: "media_bank", role: CATEGORY_ROLE_OPTIONS, description: "Media bank" },
+  { resource: "recording", role: CATEGORY_ROLE_OPTIONS, description: "Recording" },
+  { resource: "test_picture", role: CATEGORY_ROLE_OPTIONS, description: "Test picture" },
+  { resource: "encoding_settings", role: CATEGORY_ROLE_OPTIONS, description: "Encoding settings" },
+  { resource: "network_inputs/0", role: VIDEO_ROLE_OPTIONS, description: "IP stream in 1" },
+  { resource: "encoders/0", role: VIDEO_ROLE_OPTIONS, description: "Encoder 1" },
+];
+
+export const mockUserSettingsAdmin: UserSettingsResponse = {
+  username: "admin",
+  role: "administrator",
+  permissions: [],
+  _version: "mock-1",
+  _constraints: {
+    mutable: ["*"],
+    role: USER_ROLE_OPTIONS,
+    permissions: USER_PERMISSION_CONSTRAINTS,
+  },
+};
+
+export const mockUserSettingsOperator: UserSettingsResponse = {
+  username: "operator",
+  role: "user",
+  permissions: [
+    { resource: "media_bank", role: "observer" },
+    { resource: "recording", role: "user" },
+    { resource: "test_picture", role: "observer" },
+    { resource: "encoding_settings", role: "observer" },
+    { resource: "network_inputs/0", role: "video_user" },
+    { resource: "encoders/0", role: "video_user" },
+  ],
+  _version: "mock-1",
+  _constraints: {
+    mutable: ["*"],
+    role: USER_ROLE_OPTIONS,
+    permissions: USER_PERMISSION_CONSTRAINTS,
+  },
+};
+
+export const mockUsersList: UserList = {
+  users: [
+    { username: "admin", href: `${UNIT_BASE}/users/admin` },
+    { username: "operator", href: `${UNIT_BASE}/users/operator` },
+  ],
 };
 
 // ---------------------------------------------------------------------------
@@ -108,11 +206,23 @@ export const mockNetworkInputSettings: NetworkInputSettingsResponse = {
     advanced: { tcp_receive_buffer: 2.0, decoder_buffer: 0.5 },
     encryption: false,
   },
-  access_control: [],
+  destinations: { basic: [] },
+  recording: {
+    mpegts: { active: false, path: "recordings/", max_file_size: 4096 },
+  },
+  access_control: [
+    { active: false, description: "Field crew laptop", ip: "", key: "", serial: "" },
+  ],
   _version: "mock-1",
   _constraints: {
     mutable: ["*"],
     capabilities: { deactivatable: true },
+    destinations: {
+      protocol: [
+        { value: "srt", type: "srt", description: "SRT" },
+        { value: "udp", type: "udp", description: "UDP" },
+      ],
+    },
   },
 };
 
@@ -176,6 +286,95 @@ export const mockNetworkInput: NetworkInput = {
 export const mockNetworkInputsList: NetworkInputsList = {
   network_inputs: [mockNetworkInput],
   _links: [{ rel: "self", method: "GET", href: `${UNIT_BASE}/network_inputs` }],
+};
+
+// ---------------------------------------------------------------------------
+// Video input 0 — "Netvideo in 1": a second, distinct ingest resource from
+// network_input, offering pull-based sources (RTSP/HLS/NDI/RTMP) in addition
+// to SRT caller/listener. See the NetvideoSourceSettings note in types.ts.
+// ---------------------------------------------------------------------------
+
+export const mockVideoInputSettings: VideoInputSettingsResponse = {
+  description: "Netvideo in 1",
+  active: true,
+  netvideo_source: {
+    type: "srt_listener",
+    srt_listener: { port: 7501, latency: 120, password: "", rendezvous: false },
+    audio_select: [{ value: "auto", target: "auto" }],
+  },
+  _version: "mock-1",
+  _constraints: {
+    mutable: ["*"],
+    capabilities: { deactivatable: true },
+    netvideo_source: {
+      type: [
+        { value: "rtsp_pull", description: "RTSP (pull)" },
+        { value: "hls", description: "HLS (pull)" },
+        { value: "ndi", description: "NDI" },
+        { value: "srt_caller", description: "SRT caller" },
+        { value: "srt_listener", description: "SRT listener" },
+        { value: "rtmp_receive", description: "RTMP (receive)" },
+        { value: "rtmp_pull", description: "RTMP (pull)" },
+      ],
+      rtmp_receive: { rtmp_url_example: "rtmp://<unit-address>/live" },
+      audio_select: [{ target: "auto", description: "Automatic" }],
+      network_interface: [{ value: "eth0", description: "Ethernet 1" }],
+      advanced: {
+        source_clock_reconstruction: [
+          { value: 0, description: "Disabled" },
+          { value: 1, description: "Enabled" },
+        ],
+      },
+    },
+  },
+};
+
+export const mockVideoInputStatus: VideoInputStatus = {
+  active: true,
+  description: "Netvideo in 1",
+  messages: [],
+  netvideo_source: {
+    srt: { address: "203.0.113.55:7501", bitrate: 5_200_000, latency: 120, packet_loss: { before: 0.01, after: 0 } },
+  },
+  video_in: {
+    available: true,
+    video: {
+      format: {
+        width: 1920,
+        height: 1080,
+        interlaced: false,
+        framerate: 25,
+        display_aspect: "16:9",
+        pixel_aspect: "1:1",
+        forced_aspect: false,
+        top_field_first: false,
+        chroma_subsampling: "4:2:0",
+      },
+      codec: { name: "h264", adaptive_bitrate: false, bitrate: 5_000_000 },
+    },
+    audio: [
+      {
+        description: "Stereo",
+        format: { sample_rate: 48000, bit_depth: 16, channels: 2 },
+        codec: { name: "aac", adaptive_bitrate: false, bitrate: 128_000 },
+      },
+    ],
+  },
+};
+
+export const mockVideoInput: VideoInput = {
+  name: "video_input",
+  type: "video_input",
+  index: 0,
+  description: "Netvideo in 1",
+  active: true,
+  href: `${UNIT_BASE}/video_inputs/0`,
+  _links: [{ rel: "self", method: "GET", href: `${UNIT_BASE}/video_inputs/0` }],
+};
+
+export const mockVideoInputsList: VideoInputsList = {
+  video_inputs: [mockVideoInput],
+  _links: [{ rel: "self", method: "GET", href: `${UNIT_BASE}/video_inputs` }],
 };
 
 // ---------------------------------------------------------------------------
@@ -335,7 +534,9 @@ export const mockEncoderSettings: EncoderSettingsResponse = {
         failover: [],
       },
     ],
-    rtmp: [],
+    rtmp: [
+      { id: "rtmp-1", description: "Backup RTMP relay", active: false, url: "", stream: "" },
+    ],
     srt_on_request: { active: true, local_port: 9000 },
     tcp_on_request: { active: false, local_port: 9100 },
   },
@@ -343,11 +544,42 @@ export const mockEncoderSettings: EncoderSettingsResponse = {
     mpegts: { active: false, path: "recordings/", max_file_size: 4096 },
     flv: { active: false, path: "recordings/", max_file_size: 4096 },
   },
-  access_control: [],
+  access_control: [
+    { active: false, description: "Studio truck", ip: "", key: "", serial: "" },
+  ],
+  muxing: {
+    mode: "dvb_compatible",
+    transport_stream_id: 0,
+    program_number: 1,
+    mp2_audio_stream_type: "mpeg2_layer2",
+    video: { pid: 260 },
+    audio: [{ pid: 250 }],
+    pcr: { repetition_interval: 0.04 },
+    pat: { pid: 0 },
+    pmt: { pid: 1000, repetition_interval: 0.1 },
+    dvb: {
+      nit: { network_name: "Intinor", network_id: 64, repetition_interval: 10 },
+      eit: { repetition_interval: 2 },
+      tdt: { repetition_interval: 30 },
+      sdt: { service_name: "Direkt", service_provider_name: "HD Networks", repetition_interval: 2 },
+    },
+    klv_metadata: { active: false },
+    authentication_metadata: { active: false },
+  },
   _version: "mock-1",
   _constraints: {
     mutable: ["*"],
     capabilities: { deactivatable: true },
+    muxing: {
+      mode: [
+        { value: "dvb_compatible", description: "DVB compatible" },
+        { value: "generic", description: "Generic" },
+      ],
+      mp2_audio_stream_type: [
+        { value: "mpeg2_layer2", description: "MPEG-2 Audio Layer II" },
+        { value: "aac_adts", description: "AAC ADTS" },
+      ],
+    },
     encoding: {
       capabilities: { adaptive_bitrate: true },
       encoding_mode: [
@@ -511,7 +743,143 @@ export const mockEncodingModes: EncodingModesResponse = {
       },
       audio: { codec: "aac", bitrate: 192_000, tracks: 1, samplerate: 48000 },
     },
+    {
+      id: "custom-low-latency-mobile",
+      description: "Low-latency mobile",
+      group: "custom",
+      group_description: "Custom",
+      total_bitrate: 2_192_000,
+      video: {
+        codec: "h264",
+        format: "1280x720p/25",
+        bitrate: 2_000_000,
+        profile: "main",
+        level: "3.1",
+        gop: 25,
+        chroma: "4:2:0",
+        latency_quality_mode: "low_latency",
+        scene_change_detection: true,
+      },
+      audio: { codec: "aac", bitrate: 128_000, tracks: 1, samplerate: 48000 },
+    },
   ],
+};
+
+// ---------------------------------------------------------------------------
+// Global encoding settings (`GET/PUT /encoding/settings`) — built-in-mode
+// audio defaults, default SD aspect ratio, and the editable custom-mode list.
+// ---------------------------------------------------------------------------
+
+export const mockEncodingSettings: EncodingSettingsResponse = {
+  builtin_encoding_modes: { audio: { downmix: "none", tracks: 1 } },
+  video_input: { sd_aspect_ratio: "16:9" },
+  // Only the custom (non-"hd"-group) modes from mockEncodingModes belong here —
+  // built-in modes are fixed by firmware and only ever read via encoding_modes.
+  custom_encoding_modes: mockEncodingModes.encoding_modes.filter((m) => m.group === "custom"),
+  _version: "mock-1",
+  _constraints: {
+    mutable: ["*"],
+    builtin_encoding_modes: {
+      audio: {
+        tracks: { min: 1, max: 8 },
+        downmix: [
+          { value: "none", description: "None" },
+          { value: "stereo", description: "Downmix to stereo" },
+        ],
+      },
+    },
+    video_input: {
+      sd_aspect_ratio: [
+        { value: "16:9", description: "16:9" },
+        { value: "4:3", description: "4:3" },
+      ],
+    },
+    custom_encoding_modes: {
+      audio_codecs: [
+        {
+          value: "aac",
+          description: "AAC",
+          bitrate: { min: 64_000, max: 384_000 },
+          tracks: { min: 1, max: 8 },
+          samplerate: [
+            { value: 48000, description: "48 kHz" },
+            { value: 44100, description: "44.1 kHz" },
+          ],
+          downmix: [
+            { value: "none", description: "None" },
+            { value: "stereo", description: "Downmix to stereo" },
+          ],
+        },
+        {
+          value: "mp2",
+          description: "MPEG-1 Layer II",
+          bitrate: { min: 64_000, max: 384_000 },
+          tracks: { min: 1, max: 4 },
+          samplerate: [{ value: 48000, description: "48 kHz" }],
+        },
+      ],
+      video_codecs: [
+        {
+          value: "h264",
+          description: "H.264",
+          capabilities: { scene_change_detection: true },
+          chroma: [
+            { value: "4:2:0", description: "4:2:0" },
+            { value: "4:2:2", description: "4:2:2" },
+          ],
+          format: [
+            { value: "1920x1080p/25", description: "1080p25" },
+            { value: "1920x1080p/50", description: "1080p50" },
+            { value: "1280x720p/50", description: "720p50" },
+            { value: "1280x720p/25", description: "720p25" },
+          ],
+          gop: { min: 1, max: 300 },
+          bitrate: { min: 500_000, max: 20_000_000 },
+          bitrate_buffer: [
+            { value: 1, description: "1x (low latency)" },
+            { value: 2, description: "2x" },
+            { value: 4, description: "4x (high quality)" },
+          ],
+          level: [
+            { value: "3.1", description: "3.1" },
+            { value: "3.2", description: "3.2" },
+            { value: "4.0", description: "4.0" },
+            { value: "4.1", description: "4.1" },
+          ],
+          profile: [
+            { value: "main", description: "Main" },
+            { value: "high", description: "High" },
+          ],
+          latency_quality_mode: [
+            { value: "low_latency", description: "Low latency" },
+            { value: "balanced", description: "Balanced" },
+            { value: "high_quality", description: "High quality" },
+          ],
+        },
+        {
+          value: "hevc",
+          description: "H.265 / HEVC",
+          capabilities: { scene_change_detection: true },
+          chroma: [{ value: "4:2:0", description: "4:2:0" }],
+          format: [
+            { value: "1920x1080p/25", description: "1080p25" },
+            { value: "1920x1080p/50", description: "1080p50" },
+          ],
+          gop: { min: 1, max: 300 },
+          bitrate: { min: 500_000, max: 20_000_000 },
+          level: [
+            { value: "4.0", description: "4.0" },
+            { value: "4.1", description: "4.1" },
+          ],
+          profile: [{ value: "main", description: "Main" }],
+          latency_quality_mode: [
+            { value: "low_latency", description: "Low latency" },
+            { value: "balanced", description: "Balanced" },
+          ],
+        },
+      ],
+    },
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -544,6 +912,49 @@ export const mockNetworkInterfaces: NetworkInterfacesList = {
         },
       },
     ],
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Test picture (unit-wide fallback source)
+// ---------------------------------------------------------------------------
+
+export const mockTestPictureSettings: TestPictureSettingsResponse = {
+  active: true,
+  background: "color_bars",
+  audio: "tone_1khz",
+  text_overlay: "HD Networks — %h:%m:%s",
+  animation_overlay: "none",
+  _version: "mock-1",
+  _constraints: {
+    mutable: ["*"],
+    background: [
+      { value: "black", description: "Black frame", documentation: "A solid black frame." },
+      { value: "color_bars", description: "Colour bars", documentation: "SMPTE-style colour bars." },
+      {
+        value: "custom_image",
+        description: "Custom image",
+        documentation: "Uses the image uploaded via custom_background.",
+      },
+    ],
+    audio: [
+      { value: "silence", description: "Silence", documentation: "No audio tone." },
+      { value: "tone_1khz", description: "1 kHz tone", documentation: "Continuous 1 kHz sine tone." },
+    ],
+    animation_overlay: [
+      { value: "none", description: "None", documentation: "No animation." },
+      {
+        value: "moving_bar",
+        description: "Moving bar",
+        documentation: "A bar sweeps across the frame, useful for confirming a live (non-frozen) picture.",
+      },
+    ],
+    layout_codes: [
+      { value: "%h", description: "Hour", documentation: "2-digit hour, 24h clock." },
+      { value: "%m", description: "Minute", documentation: "2-digit minute." },
+      { value: "%s", description: "Second", documentation: "2-digit second." },
+    ],
+    default_text_overlay: "%h:%m:%s",
   },
 };
 

@@ -20,6 +20,9 @@ import type {
   NetworkInput,
   NetworkInputsList,
   NetworkInputStatus,
+  VideoInput,
+  VideoInputsList,
+  VideoInputStatus,
   VideoMixer,
   VideoMixersList,
   VideoMixerSettingsResponse,
@@ -31,12 +34,15 @@ import {
   mockEncoderStatus,
   mockNetworkInput,
   mockNetworkInputStatus,
+  mockVideoInput,
+  mockVideoInputStatus,
   mockVideoMixer,
   mockVideoMixerSettings,
 } from "./data";
 import { clamp, jitteredValue } from "./jitter";
 
 export const BIG_INPUT_COUNT = 16;
+export const BIG_VIDEO_INPUT_COUNT = 16;
 export const BIG_ENCODER_COUNT = 17;
 /** Two mixers, so the multi-mixer picker and cross-mixer usage indicators are actually exercisable. */
 export const BIG_MIXER_COUNT = 2;
@@ -44,6 +50,7 @@ export const BIG_MIXER_COUNT = 2;
 // A sparse "only a few pipes are actually patched right now" pattern — most
 // real racks look like this far more often than every slot being live.
 const LIVE_INPUTS = new Set([0, 6, 11]);
+const LIVE_VIDEO_INPUTS = new Set([2, 8]);
 const LIVE_ENCODERS = new Set([0, 4, 9, 15]);
 
 export function bigNetworkInputsList(): NetworkInputsList {
@@ -79,6 +86,46 @@ export function bigNetworkInputStatus(index: number): NetworkInputStatus {
     active: true,
     description: `IP stream in ${index + 1}`,
     network_source: { ...base.network_source, bitrate },
+  };
+}
+
+export function bigVideoInputsList(): VideoInputsList {
+  return { video_inputs: Array.from({ length: BIG_VIDEO_INPUT_COUNT }, (_, i) => bigVideoInput(i)) };
+}
+
+export function bigVideoInput(index: number): VideoInput {
+  return {
+    ...structuredClone(mockVideoInput),
+    index,
+    description: `Netvideo in ${index + 1}`,
+    active: LIVE_VIDEO_INPUTS.has(index),
+    href: mockVideoInput.href.replace(/\/0$/, `/${index}`),
+  };
+}
+
+export function bigVideoInputStatus(index: number): VideoInputStatus {
+  const base = structuredClone(mockVideoInputStatus);
+  const live = LIVE_VIDEO_INPUTS.has(index);
+  if (!live) {
+    return {
+      ...base,
+      active: false,
+      description: `Netvideo in ${index + 1}`,
+      netvideo_source: { ...base.netvideo_source, srt: undefined },
+      video_in: base.video_in ? { ...base.video_in, available: false } : base.video_in,
+    };
+  }
+  const bitrate = Math.round(
+    clamp(jitteredValue(`big-vi-${index}`, 4_000_000, 400_000), 500_000, Infinity),
+  );
+  return {
+    ...base,
+    active: true,
+    description: `Netvideo in ${index + 1}`,
+    netvideo_source: {
+      ...base.netvideo_source,
+      srt: base.netvideo_source.srt ? { ...base.netvideo_source.srt, bitrate } : base.netvideo_source.srt,
+    },
   };
 }
 
@@ -142,6 +189,15 @@ function bigInputSourceOptions(): VideoSourceConstraint[] {
   }));
 }
 
+/** Netvideo inputs are a distinct resource from network inputs but an equally valid mixer/encoder source. */
+function bigVideoInputSourceOptions(): VideoSourceConstraint[] {
+  return Array.from({ length: BIG_VIDEO_INPUT_COUNT }, (_, i) => ({
+    name: `Netvideo in ${i + 1}`,
+    value: bigVideoInput(i).href,
+    description: `Netvideo in ${i + 1}`,
+  }));
+}
+
 /**
  * A mixer's settings/constraints, with `_constraints.program.layers.input.source`
  * expanded to list all BIG_INPUT_COUNT synthetic inputs. The default mock only
@@ -154,7 +210,7 @@ export function bigVideoMixerSettings(index: number): VideoMixerSettingsResponse
   const testPicture = base._constraints!.program!.layers.input!.source.find((s) =>
     s.value?.includes("test_picture"),
   );
-  const inputSources = bigInputSourceOptions();
+  const inputSources = [...bigInputSourceOptions(), ...bigVideoInputSourceOptions()];
   return {
     ...base,
     description: bigVideoMixer(index).description,
@@ -198,6 +254,7 @@ export function bigEncoderSettings(index: number): EncoderSettingsResponse {
         source: [
           ...mixerSources,
           ...bigInputSourceOptions(),
+          ...bigVideoInputSourceOptions(),
           ...(testPicture ? [testPicture] : []),
         ],
       },

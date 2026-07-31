@@ -12,14 +12,22 @@ import type {
   NetworkInputStatus,
   NetworkInterfacesList,
   SystemStatus,
+  VideoInputStatus,
 } from "../types";
 import {
   mockApiRoot,
   mockEncoder,
   mockEncodersList,
   mockEncoderSettings,
+  mockAvailableFirmwares,
   mockEncoderStatus,
   mockEncodingModes,
+  mockEncodingSettings,
+  mockSystemConfigXml,
+  mockTestPictureSettings,
+  mockUserSettingsAdmin,
+  mockUserSettingsOperator,
+  mockUsersList,
   mockNetworkInput,
   mockNetworkInputsList,
   mockNetworkInputSettings,
@@ -27,13 +35,17 @@ import {
   mockNetworkInterfaces,
   mockSystem,
   mockSystemStatus,
+  mockVideoInput,
+  mockVideoInputsList,
+  mockVideoInputSettings,
+  mockVideoInputStatus,
   mockVideoMixer,
   mockVideoMixersList,
   mockVideoMixerSettings,
   mockVideoMixerStatus,
 } from "./data";
 import { clamp, currentTick, jitteredValue, seededFraction } from "./jitter";
-import { currentWithOverride, putOverride } from "./state";
+import { currentWithOverride, getBinaryOverride, putBinaryOverride, putOverride } from "./state";
 import { withMockPermissions } from "./permissions";
 import {
   faultEncoderStatus,
@@ -46,6 +58,7 @@ import {
   BIG_ENCODER_COUNT,
   BIG_INPUT_COUNT,
   BIG_MIXER_COUNT,
+  BIG_VIDEO_INPUT_COUNT,
   bigEncoder,
   bigEncoderSettings,
   bigEncoderStatus,
@@ -53,6 +66,9 @@ import {
   bigNetworkInput,
   bigNetworkInputStatus,
   bigNetworkInputsList,
+  bigVideoInput,
+  bigVideoInputsList,
+  bigVideoInputStatus,
   bigVideoMixer,
   bigVideoMixerSettings,
   bigVideoMixersList,
@@ -60,15 +76,19 @@ import {
 import { defaultUnitId } from "../server/config";
 import type {
   EncoderSettingsResponse,
+  EncodingSettingsResponse,
   NetworkInputSettingsResponse,
+  TestPictureSettingsResponse,
+  VideoInputSettingsResponse,
   VideoMixerLayerSettings,
   VideoMixerSettingsResponse,
 } from "../types";
 
-type SettingsKind = "encoders" | "network_inputs" | "video_mixers";
+type SettingsKind = "encoders" | "network_inputs" | "video_inputs" | "video_mixers";
 type AnySettings =
   | EncoderSettingsResponse
   | NetworkInputSettingsResponse
+  | VideoInputSettingsResponse
   | VideoMixerSettingsResponse;
 
 /** Is this unit id the synthetic "big" fixture rather than the primary mock unit? */
@@ -85,6 +105,7 @@ function baseSettingsFor(kind: SettingsKind, index: number, unitId?: string): An
   const table: Record<SettingsKind, AnySettings> = {
     encoders: mockEncoderSettings,
     network_inputs: mockNetworkInputSettings,
+    video_inputs: mockVideoInputSettings,
     video_mixers: mockVideoMixerSettings,
   };
   return table[kind];
@@ -105,6 +126,28 @@ function putSettings(kind: SettingsKind, index: number, body: unknown, unitId?: 
 
 function currentMixerSettings(index: number, unitId?: string): VideoMixerSettingsResponse {
   return currentSettings("video_mixers", index, unitId) as VideoMixerSettingsResponse;
+}
+
+/** Global (non-indexed) encoding settings — one per unit, not per-pipe. */
+function currentEncodingSettings(unitId?: string): EncodingSettingsResponse {
+  return currentWithOverride(`${unitId ?? defaultUnitId()}/encoding_settings`, mockEncodingSettings);
+}
+
+function putEncodingSettings(body: unknown, unitId?: string): void {
+  putOverride(`${unitId ?? defaultUnitId()}/encoding_settings`, body);
+}
+
+/** Global (non-indexed) test picture settings — one per unit. */
+function currentTestPictureSettings(unitId?: string): TestPictureSettingsResponse {
+  return currentWithOverride(`${unitId ?? defaultUnitId()}/test_picture_settings`, mockTestPictureSettings);
+}
+
+function putTestPictureSettings(body: unknown, unitId?: string): void {
+  putOverride(`${unitId ?? defaultUnitId()}/test_picture_settings`, body);
+}
+
+function customBackgroundKey(unitId?: string): string {
+  return `${unitId ?? defaultUnitId()}/test_picture_custom_background`;
 }
 
 export interface MockResponse {
@@ -165,6 +208,18 @@ function baseNetworkInputStatus(): NetworkInputStatus {
   };
 }
 
+function baseVideoInputStatus(): VideoInputStatus {
+  const base = mockVideoInputStatus;
+  if (!base.netvideo_source.srt) return base;
+  const bitrate = Math.round(
+    clamp(jitteredValue("vi-bitrate", base.netvideo_source.srt.bitrate ?? 0, 350_000), 0, Infinity),
+  );
+  return {
+    ...base,
+    netvideo_source: { ...base.netvideo_source, srt: { ...base.netvideo_source.srt, bitrate } },
+  };
+}
+
 function liveEncoderStatus(): EncoderStatus {
   return faultEncoderStatus(baseEncoderStatus());
 }
@@ -222,6 +277,7 @@ const GET_ROUTES: Record<string, () => unknown> = {
   system: () => mockSystem,
   "system/status": () => liveSystemStatus(),
   "system/messages": () => ({ messages: [] }),
+  "system/available_firmwares": () => mockAvailableFirmwares,
   encoders: () => mockEncodersList,
   "encoders/0": () => ({
     ...mockEncoder,
@@ -269,10 +325,30 @@ const GET_ROUTES: Record<string, () => unknown> = {
   }),
   network_interfaces: () => liveNetworkInterfaces(),
   "storage/status": () => faultStorageStatus(null) ?? { present: false, removable: false },
-  encoding: () => ({ encoding_modes: mockEncodingModes }),
+  encoding: () => ({ encoding_modes: mockEncodingModes, settings: currentEncodingSettings() }),
   "encoding/encoding_modes": () => mockEncodingModes,
+  "encoding/settings": () => withMockPermissions(currentEncodingSettings(), "encoding"),
+  test_picture: () => ({ settings: withMockPermissions(currentTestPictureSettings(), "test_picture") }),
+  "test_picture/settings": () => withMockPermissions(currentTestPictureSettings(), "test_picture"),
+  users: () => mockUsersList,
+  "users/admin/settings": () => mockUserSettingsAdmin,
+  "users/operator/settings": () => mockUserSettingsOperator,
   multiviews: () => ({ multiviews: [] }),
-  video_inputs: () => ({ video_inputs: [] }),
+  video_inputs: () => mockVideoInputsList,
+  "video_inputs/0": () => ({
+    ...mockVideoInput,
+    settings: withMockPermissions(currentSettings("video_inputs", 0), "video_input"),
+    status: baseVideoInputStatus(),
+    thumbnails: {
+      thumbnails: [{ id: "video_in", href: "video_inputs/0/thumbnails/video_in" }],
+    },
+  }),
+  "video_inputs/0/settings": () =>
+    withMockPermissions(currentSettings("video_inputs", 0), "video_input"),
+  "video_inputs/0/status": () => baseVideoInputStatus(),
+  "video_inputs/0/thumbnails": () => ({
+    thumbnails: [{ id: "video_in", href: "video_inputs/0/thumbnails/video_in" }],
+  }),
   video_outputs: () => ({ video_outputs: [] }),
   profiles: () => ({ profiles: [] }),
 };
@@ -290,15 +366,28 @@ function bigGetRoutes(unitId: string): Record<string, () => unknown> {
     system: () => mockSystem,
     "system/status": () => liveSystemStatus(),
     "system/messages": () => ({ messages: [] }),
+    "system/available_firmwares": () => mockAvailableFirmwares,
     encoders: () => bigEncodersList(),
     network_inputs: () => bigNetworkInputsList(),
+    video_inputs: () => bigVideoInputsList(),
     video_mixers: () => bigVideoMixersList(),
     network_interfaces: () => liveNetworkInterfaces(),
     "storage/status": () => faultStorageStatus(null) ?? { present: false, removable: false },
-    encoding: () => ({ encoding_modes: mockEncodingModes }),
+    encoding: () => ({
+      encoding_modes: mockEncodingModes,
+      settings: currentEncodingSettings(unitId),
+    }),
     "encoding/encoding_modes": () => mockEncodingModes,
+    "encoding/settings": () => withMockPermissions(currentEncodingSettings(unitId), "encoding"),
+    test_picture: () => ({
+      settings: withMockPermissions(currentTestPictureSettings(unitId), "test_picture"),
+    }),
+    "test_picture/settings": () =>
+      withMockPermissions(currentTestPictureSettings(unitId), "test_picture"),
+    users: () => mockUsersList,
+    "users/admin/settings": () => mockUserSettingsAdmin,
+    "users/operator/settings": () => mockUserSettingsOperator,
     multiviews: () => ({ multiviews: [] }),
-    video_inputs: () => ({ video_inputs: [] }),
     video_outputs: () => ({ video_outputs: [] }),
     profiles: () => ({ profiles: [] }),
   };
@@ -334,6 +423,23 @@ function bigGetRoutes(unitId: string): Record<string, () => unknown> {
     routes[`network_inputs/${i}/status`] = () => bigNetworkInputStatus(i);
     routes[`network_inputs/${i}/thumbnails`] = () => ({
       thumbnails: [{ id: "program_1", href: `network_inputs/${i}/thumbnails/program_1` }],
+    });
+  }
+
+  for (let i = 0; i < BIG_VIDEO_INPUT_COUNT; i++) {
+    routes[`video_inputs/${i}`] = () => ({
+      ...bigVideoInput(i),
+      settings: withMockPermissions(currentSettings("video_inputs", i, unitId), "video_input"),
+      status: bigVideoInputStatus(i),
+      thumbnails: {
+        thumbnails: [{ id: "video_in", href: `video_inputs/${i}/thumbnails/video_in` }],
+      },
+    });
+    routes[`video_inputs/${i}/settings`] = () =>
+      withMockPermissions(currentSettings("video_inputs", i, unitId), "video_input");
+    routes[`video_inputs/${i}/status`] = () => bigVideoInputStatus(i);
+    routes[`video_inputs/${i}/thumbnails`] = () => ({
+      thumbnails: [{ id: "video_in", href: `video_inputs/${i}/thumbnails/video_in` }],
     });
   }
 
@@ -419,6 +525,20 @@ function buildMixerProgramSvg(
   return { status: 200, body: svg, contentType: "image/svg+xml" };
 }
 
+/** GET /test_picture/custom_background — the uploaded image, or a placeholder if none yet. */
+function buildCustomBackgroundResponse(unitId?: string): MockResponse {
+  const stored = getBinaryOverride(customBackgroundKey(unitId));
+  if (stored) {
+    return { status: 200, body: stored.bytes, contentType: stored.contentType };
+  }
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180">
+  <rect width="320" height="180" fill="#1a2233"/>
+  <rect x="4" y="4" width="312" height="172" fill="none" stroke="#475569" stroke-width="2" stroke-dasharray="6 4" rx="4"/>
+  <text x="160" y="94" fill="#64748b" font-family="monospace" font-size="13" text-anchor="middle">NO CUSTOM BACKGROUND UPLOADED</text>
+</svg>`;
+  return { status: 200, body: svg, contentType: "image/svg+xml" };
+}
+
 function buildThumbnailSvg(
   path: string,
   searchParams: URLSearchParams,
@@ -468,12 +588,19 @@ export function resolveMock(
   ifNoneMatch?: string,
   searchParams: URLSearchParams = new URLSearchParams(),
   unitId?: string,
+  requestContentType?: string,
 ): MockResponse {
   const path = unitPath.replace(/^\/+|\/+$/g, "");
 
   if (method === "GET" || method === "HEAD") {
     if (/^[a-z_]+\/\d+\/thumbnails\/[^/]+$/.test(path)) {
       return buildThumbnailSvg(path, searchParams, unitId);
+    }
+    if (path === "test_picture/custom_background") {
+      return buildCustomBackgroundResponse(unitId);
+    }
+    if (path === "system/config") {
+      return { status: 200, body: mockSystemConfigXml, contentType: "application/xml" };
     }
     const routes = isBigUnit(unitId) ? bigGetRoutes(unitId!) : GET_ROUTES;
     const route = routes[path];
@@ -499,13 +626,29 @@ export function resolveMock(
   // up in later GETs and the program thumbnail; everything else echoes back.
   if (method === "PUT") {
     const settingsPut = path.match(
-      /^(encoders|network_inputs|video_mixers)\/(\d+)\/settings$/,
+      /^(encoders|network_inputs|video_inputs|video_mixers)\/(\d+)\/settings$/,
     );
     if (settingsPut) {
       const kind = settingsPut[1] as SettingsKind;
       const index = Number(settingsPut[2]);
       putSettings(kind, index, requestBody, unitId);
       return { status: 200, body: currentSettings(kind, index, unitId) };
+    }
+    if (path === "encoding/settings") {
+      putEncodingSettings(requestBody, unitId);
+      return { status: 200, body: currentEncodingSettings(unitId) };
+    }
+    if (path === "test_picture/settings") {
+      putTestPictureSettings(requestBody, unitId);
+      return { status: 200, body: currentTestPictureSettings(unitId) };
+    }
+    if (path === "test_picture/custom_background") {
+      // Binary upload — requestBody is an ArrayBuffer here (see proxy-handler.ts's
+      // isBinaryBody branch), not JSON, so it bypasses putSettings/putOverride.
+      if (requestBody instanceof ArrayBuffer) {
+        putBinaryOverride(customBackgroundKey(unitId), requestBody, requestContentType ?? "image/png");
+      }
+      return { status: 200, body: { title: "OK", status: 200, message: "Custom background updated" } };
     }
     return { status: 200, body: requestBody ?? {} };
   }

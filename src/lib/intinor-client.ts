@@ -13,12 +13,15 @@
 
 import type {
   ApiRootInfo,
+  AvailableFirmwaresResponse,
   Encoder,
   EncodersList,
   EncoderSettingsRequest,
   EncoderSettingsResponse,
   EncoderStatus,
   EncodingModesResponse,
+  EncodingSettingsRequest,
+  EncodingSettingsResponse,
   NetworkInput,
   NetworkInputSettings,
   NetworkInputSettingsResponse,
@@ -30,6 +33,15 @@ import type {
   StmError,
   SystemInformation,
   SystemStatus,
+  TestPictureSettingsRequest,
+  TestPictureSettingsResponse,
+  UserList,
+  UserSettingsResponse,
+  VideoInput,
+  VideoInputSettings,
+  VideoInputSettingsResponse,
+  VideoInputsList,
+  VideoInputStatus,
   VideoMixer,
   VideoMixersList,
   VideoMixerSettings,
@@ -108,6 +120,39 @@ export function createIntinorClient(base: string = UNIT_PROXY_BASE) {
   const post = <T>(path: string, body?: unknown): Promise<T> =>
     request<T>(path, { method: "POST", body });
 
+  /** Raw binary PUT (image upload) — bypasses the JSON body/Content-Type of `request`. */
+  async function putBinary(path: string, body: Blob): Promise<void> {
+    const res = await fetch(`${base}/${path.replace(/^\/+/, "")}`, {
+      method: "PUT",
+      headers: { "Content-Type": body.type || "application/octet-stream" },
+      body,
+    });
+    if (!res.ok) {
+      let detail: Partial<StmError> = {};
+      try {
+        detail = (await res.json()) as Partial<StmError>;
+      } catch {
+        // non-JSON error body
+      }
+      throw new IntinorApiError(res.status, detail);
+    }
+  }
+
+  /** Raw text GET (e.g. the XML settings backup) — bypasses `request`'s `res.json()`. */
+  async function getText(path: string): Promise<string> {
+    const res = await fetch(`${base}/${path.replace(/^\/+/, "")}`);
+    if (!res.ok) {
+      let detail: Partial<StmError> = {};
+      try {
+        detail = (await res.json()) as Partial<StmError>;
+      } catch {
+        // non-JSON error body
+      }
+      throw new IntinorApiError(res.status, detail);
+    }
+    return res.text();
+  }
+
   const withInclude = (path: string, include?: Include): string =>
     include?.length ? `${path}${query({ include: include.join(",") })}` : path;
 
@@ -163,6 +208,28 @@ export function createIntinorClient(base: string = UNIT_PROXY_BASE) {
         ppm: opts.ppm,
       }),
 
+    // -- video inputs ("Netvideo in": RTSP/HLS/NDI/RTMP pull, SRT caller/listener) --
+    getVideoInputs: (include?: Include) =>
+      get<VideoInputsList>(withInclude("video_inputs", include)),
+    getVideoInput: (index: number, include?: Include) =>
+      get<VideoInput>(withInclude(`video_inputs/${index}`, include)),
+    getVideoInputSettings: (index: number) =>
+      get<VideoInputSettingsResponse>(`video_inputs/${index}/settings${CONSTRAINTS}`),
+    putVideoInputSettings: (
+      index: number,
+      body: VideoInputSettings & RequestMetadata,
+    ) => put<VideoInputSettingsResponse>(`video_inputs/${index}/settings`, body),
+    getVideoInputStatus: (index: number) =>
+      get<VideoInputStatus>(`video_inputs/${index}/status`),
+    videoInputThumbnailUrl: (index: number, id: string, opts: ThumbnailOptions = {}) =>
+      `${base}/video_inputs/${index}/thumbnails/${id}` +
+      query({
+        width: opts.width,
+        height: opts.height,
+        jpeg_quality: opts.jpegQuality,
+        ppm: opts.ppm,
+      }),
+
     // -- video mixers -------------------------------------------------------
     getVideoMixers: (include?: Include) =>
       get<VideoMixersList>(withInclude("video_mixers", include)),
@@ -187,8 +254,39 @@ export function createIntinorClient(base: string = UNIT_PROXY_BASE) {
 
     // -- encoding modes / interfaces / profiles ----------------------------
     getEncodingModes: () => get<EncodingModesResponse>("encoding/encoding_modes"),
+    getEncodingSettings: () =>
+      get<EncodingSettingsResponse>(`encoding/settings${CONSTRAINTS}`),
+    putEncodingSettings: (body: EncodingSettingsRequest) =>
+      put<EncodingSettingsResponse>("encoding/settings", body),
     getNetworkInterfaces: () => get<NetworkInterfacesList>("network_interfaces"),
     getProfiles: () => get<ProfilesList>("profiles"),
+
+    // -- test picture (unit-wide fallback source) --------------------------
+    getTestPictureSettings: () =>
+      get<TestPictureSettingsResponse>(`test_picture/settings${CONSTRAINTS}`),
+    putTestPictureSettings: (body: TestPictureSettingsRequest) =>
+      put<TestPictureSettingsResponse>("test_picture/settings", body),
+    /** No JSON schema on the unit for this one — it's a raw image PUT/GET. */
+    putCustomBackground: (file: Blob) => putBinary("test_picture/custom_background", file),
+    /**
+     * `cacheBust` should come from caller-owned state (e.g. a counter bumped
+     * after a successful upload), not `Date.now()`/`Math.random()` — this is
+     * called during the initial render too, and a wall-clock value there
+     * differs between the server-rendered HTML and client hydration passes.
+     */
+    customBackgroundUrl: (cacheBust?: number) =>
+      `${base}/test_picture/custom_background` + (cacheBust ? query({ v: cacheBust }) : ""),
+
+    // -- firmware / backup --------------------------------------------------
+    getAvailableFirmwares: () =>
+      get<AvailableFirmwaresResponse>("system/available_firmwares"),
+    /** Raw XML backup — safe (GET), unlike restoring one, which stays permanently blocked. */
+    getSystemConfigBackup: () => getText("system/config"),
+
+    // -- local users (read-only visibility; see the Phase 14 README note) --
+    getUsers: () => get<UserList>("users"),
+    getUserSettings: (username: string) =>
+      get<UserSettingsResponse>(`users/${encodeURIComponent(username)}/settings${CONSTRAINTS}`),
   };
 }
 

@@ -41,14 +41,21 @@ export async function handleUnitProxy(
   }
 
   const hasBody = method === "PUT" || method === "POST";
-  const rawBody = hasBody ? await req.text() : undefined;
+  const reqContentType = req.headers.get("content-type") ?? undefined;
+  // Binary bodies (image upload, e.g. test_picture/custom_background) must not
+  // go through .text() — decoding non-UTF8 bytes as text corrupts them. Only
+  // JSON settings bodies (the overwhelming majority of requests) use .text().
+  const isBinaryBody = hasBody && Boolean(reqContentType) && !/json|text/i.test(reqContentType!);
+  const rawBody = hasBody ? (isBinaryBody ? await req.arrayBuffer() : await req.text()) : undefined;
   const ifNoneMatch = req.headers.get("if-none-match") ?? undefined;
 
   if (isMockMode()) {
     let parsedBody: unknown;
-    if (rawBody) {
+    if (isBinaryBody) {
+      parsedBody = rawBody;
+    } else if (rawBody) {
       try {
-        parsedBody = JSON.parse(rawBody);
+        parsedBody = JSON.parse(rawBody as string);
       } catch {
         parsedBody = rawBody;
       }
@@ -60,6 +67,7 @@ export async function handleUnitProxy(
       ifNoneMatch,
       req.nextUrl.searchParams,
       unitId,
+      reqContentType,
     );
 
     const headers = new Headers({ "X-Intinor-Mock": "1" });
@@ -70,7 +78,7 @@ export async function handleUnitProxy(
     }
     if (mock.contentType) {
       headers.set("Content-Type", mock.contentType);
-      return new Response(mock.body as string, { status: mock.status, headers });
+      return new Response(mock.body as BodyInit, { status: mock.status, headers });
     }
     headers.set("Content-Type", "application/json");
     return new Response(JSON.stringify(mock.body), { status: mock.status, headers });

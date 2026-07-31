@@ -11,6 +11,11 @@ import type {
 } from "@/lib/intinor/types";
 import type { FieldSection } from "@/lib/settings/fields";
 import { optionsFromDescribed } from "@/lib/settings/options";
+import {
+  accessControlSections,
+  basicDestinationSections,
+  recordingSections,
+} from "@/lib/settings/common-sections";
 import { useSettingsEditor } from "@/hooks/useSettingsEditor";
 import { useUnitMeta } from "@/hooks/useUnitMeta";
 import { SettingsForm } from "@/components/settings/SettingsForm";
@@ -178,6 +183,20 @@ function inputSections(s: NetworkInputSettingsResponse): FieldSection[] {
       ],
     });
   }
+
+  // Direct passthrough destinations — the input pushes its raw ingest onward,
+  // bypassing this unit's own encoders. Non-DVB-compliant but useful for
+  // relaying/forwarding a feed.
+  if (s.destinations) {
+    const protocolOptions = optionsFromDescribed(
+      (s._constraints?.destinations as { protocol?: { value?: string; description?: string }[] })
+        ?.protocol,
+    );
+    sections.push(...basicDestinationSections(s.destinations.basic, protocolOptions));
+  }
+
+  sections.push(...recordingSections(s.recording));
+  sections.push(...accessControlSections(s.access_control));
 
   return sections;
 }
