@@ -3,12 +3,14 @@
 import { usePolledResource } from "@/hooks/usePolledResource";
 import { useIntinorClient } from "@/hooks/useIntinorClient";
 import { useThumbnailTick, withThumbnailTick } from "@/hooks/useThumbnailTick";
+import { useOpenPipeSettings } from "@/lib/navigation/selection";
 import type { VideoInput } from "@/lib/intinor/types";
 import { formatBitrate, formatVideoFormat } from "@/lib/format";
 
 /** Compact row for the dense list view — same data as VideoInputCard, laid out for scale. */
 export function VideoInputRow({ index }: { index: number }) {
   const client = useIntinorClient();
+  const openSettings = useOpenPipeSettings("video_input", index);
   const { data } = usePolledResource<VideoInput>(
     `video_inputs/${index}?include=settings,status,thumbnails`,
     5000,
@@ -27,7 +29,11 @@ export function VideoInputRow({ index }: { index: number }) {
     : undefined;
 
   return (
-    <div className="grid grid-cols-[80px_1fr_1fr_auto] items-center gap-3 p-2.5">
+    <div
+      onClick={openSettings}
+      title="Click to open settings"
+      className="grid cursor-pointer grid-cols-[80px_1fr_1fr_auto] items-center gap-3 p-2.5 hover:bg-panel-hover"
+    >
       <div className="flex h-11 w-20 items-center justify-center overflow-hidden rounded bg-slate-950">
         {thumbUrl ? (
           // Proxied API image — plain <img> is correct here.
@@ -43,18 +49,18 @@ export function VideoInputRow({ index }: { index: number }) {
           <span
             className={"h-1.5 w-1.5 shrink-0 rounded-full " + (active ? "bg-emerald-400" : "bg-slate-600")}
           />
-          <span className="truncate text-sm text-slate-200">{data?.description}</span>
+          <span className="truncate text-sm text-body">{data?.description}</span>
         </div>
       </div>
 
-      <div className="min-w-0 text-xs text-slate-400">
+      <div className="min-w-0 text-xs text-muted">
         <div className="truncate">{sourceLine ?? "—"}</div>
         {status?.video_in?.video?.format && (
-          <div className="truncate text-slate-500">{formatVideoFormat(status.video_in.video.format)}</div>
+          <div className="truncate text-faint">{formatVideoFormat(status.video_in.video.format)}</div>
         )}
       </div>
 
-      <div className="text-right text-xs text-slate-300">{formatBitrate(bitrate)}</div>
+      <div className="text-right text-xs text-body">{formatBitrate(bitrate)}</div>
     </div>
   );
 }

@@ -196,39 +196,39 @@ export default function RouterPage() {
 
   if (error) {
     return (
-      <div className="mx-auto max-w-6xl rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+      <div className="mx-auto max-w-6xl rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-danger">
         {error}
       </div>
     );
   }
   if (!sources || !encoderInfos) {
-    return <p className="text-sm text-slate-500">Loading router panel…</p>;
+    return <p className="text-sm text-faint">Loading router panel…</p>;
   }
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-slate-100">Router panel</h1>
-        <p className="text-sm text-slate-500">
+        <h1 className="text-xl font-semibold text-fg">Router panel</h1>
+        <p className="text-sm text-faint">
           Drag a source onto an encoder to reassign it — a visual alternative to the encoder
           settings page&apos;s source dropdown. Same underlying write (
-          <code className="rounded bg-slate-800 px-1">video_source.source</code>), same
+          <code className="rounded bg-panel-hover px-1">video_source.source</code>), same
           confirm-before-save flow.
         </p>
       </div>
 
       {saveBlocked && (
-        <div className="rounded border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-xs text-sky-300">
+        <div className="rounded border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-xs text-accent">
           Live unit, read-only mode — dragging is disabled by the proxy.
         </div>
       )}
 
       <div>
-        <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-slate-400">
+        <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-muted">
           Encoders ({encoderInfos.length})
         </h2>
         {encoderInfos.length === 0 ? (
-          <p className="text-sm text-slate-500">This unit has no encoders.</p>
+          <p className="text-sm text-faint">This unit has no encoders.</p>
         ) : (
           <div className="flex flex-wrap gap-3">
             {encoderInfos.map((e) => (
@@ -246,9 +246,9 @@ export default function RouterPage() {
       </div>
 
       <div>
-        <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-slate-400">Sources</h2>
+        <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-muted">Sources</h2>
         {sources.length === 0 ? (
-          <p className="text-sm text-slate-500">No sources available.</p>
+          <p className="text-sm text-faint">No sources available.</p>
         ) : (
           <div className="flex flex-wrap gap-3">
             {sources.map((s) => (
@@ -269,7 +269,7 @@ export default function RouterPage() {
       </div>
 
       {saveError && stage === "error" && (
-        <p className="text-xs text-red-300">{saveError}</p>
+        <p className="text-xs text-danger">{saveError}</p>
       )}
 
       {(stage === "confirming" || stage === "saving") && pending && (

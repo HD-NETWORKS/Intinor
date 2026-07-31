@@ -47,19 +47,19 @@ export default function Overview() {
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-slate-100">Unit overview</h1>
-        <p className="text-sm text-slate-500">Live status — read-only. Updates every 5 seconds.</p>
+        <h1 className="text-xl font-semibold text-fg">Unit overview</h1>
+        <p className="text-sm text-faint">Live status — read-only. Updates every 5 seconds.</p>
       </div>
 
       <SystemPanel />
 
       <div>
         <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">
+          <h2 className="text-sm font-medium uppercase tracking-wide text-muted">
             Signal chain
           </h2>
           <div className="flex items-center gap-3">
-            <span className="text-xs text-slate-500">
+            <span className="text-xs text-faint">
               {inputCount} input · {videoInputCount} Netvideo · {mixerCount} mixer ·{" "}
               {encoderCount} encoder — fixed by hardware/license
             </span>
@@ -71,8 +71,8 @@ export default function Overview() {
                   className={
                     "rounded border px-2 py-0.5 text-xs capitalize " +
                     (effectiveView === v
-                      ? "border-sky-500/60 bg-sky-500/10 text-sky-300"
-                      : "border-slate-700 text-slate-400 hover:bg-slate-800")
+                      ? "border-sky-500/60 bg-sky-500/10 text-accent"
+                      : "border-border-strong text-muted hover:bg-panel-hover")
                   }
                 >
                   {v}
@@ -83,7 +83,7 @@ export default function Overview() {
         </div>
 
         {listError && !anyListData ? (
-          <div className="rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          <div className="rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-danger">
             {listError}
           </div>
         ) : effectiveView === "cards" ? (
@@ -137,7 +137,7 @@ export default function Overview() {
           </div>
         )}
 
-        <p className="mt-3 text-xs text-slate-500">
+        <p className="mt-3 text-xs text-faint">
           Pipe counts come straight from the unit&apos;s API — this dashboard manages whatever
           the hardware/license provides and cannot add encoders, mixers, or inputs.
         </p>

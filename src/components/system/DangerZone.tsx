@@ -61,9 +61,9 @@ const SEVERITY_STYLE: Record<ActionDef["severity"], string> = {
 };
 
 const SEVERITY_BADGE: Record<ActionDef["severity"], string> = {
-  medium: "bg-amber-500/15 text-amber-300",
-  high: "bg-orange-500/15 text-orange-300",
-  critical: "bg-red-500/15 text-red-300",
+  medium: "bg-amber-500/15 text-warning",
+  high: "bg-orange-500/15 text-warning",
+  critical: "bg-red-500/15 text-danger",
 };
 
 export function DangerZone() {
@@ -79,19 +79,19 @@ export function DangerZone() {
   return (
     <section className="space-y-3">
       <div>
-        <h2 className="text-sm font-medium uppercase tracking-wide text-red-400">Danger zone</h2>
-        <p className="mt-1 text-xs text-slate-500">
+        <h2 className="text-sm font-medium uppercase tracking-wide text-danger">Danger zone</h2>
+        <p className="mt-1 text-xs text-faint">
           Whole-unit maintenance actions — separate from every other control in this dashboard.
           Each one requires typing its name to confirm, and none of it is reachable unless{" "}
-          <code className="rounded bg-slate-800 px-1">INTINOR_ALLOW_DESTRUCTIVE_ACTIONS=1</code> is
+          <code className="rounded bg-panel-hover px-1">INTINOR_ALLOW_DESTRUCTIVE_ACTIONS=1</code> is
           set on the server, independently of routine write access.
         </p>
       </div>
 
       {meta && !meta.destructiveActionsAllowed && (
-        <div className="rounded border border-slate-700 bg-slate-900/40 px-3 py-2 text-xs text-slate-400">
+        <div className="rounded border border-border-strong bg-panel px-3 py-2 text-xs text-muted">
           Disabled by server config — these buttons are shown but will be refused until{" "}
-          <code className="rounded bg-slate-800 px-1">INTINOR_ALLOW_DESTRUCTIVE_ACTIONS=1</code> is
+          <code className="rounded bg-panel-hover px-1">INTINOR_ALLOW_DESTRUCTIVE_ACTIONS=1</code> is
           set.
         </div>
       )}
@@ -178,18 +178,18 @@ function ActionCard({ def }: { def: ActionDef }) {
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <div className="flex items-center gap-2">
-            <h3 className="font-medium text-slate-100">{def.label}</h3>
+            <h3 className="font-medium text-fg">{def.label}</h3>
             <span className={`rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide ${SEVERITY_BADGE[def.severity]}`}>
               {def.severity}
             </span>
           </div>
-          <p className="mt-1 max-w-xl text-sm text-slate-400">{def.description}</p>
+          <p className="mt-1 max-w-xl text-sm text-muted">{def.description}</p>
         </div>
 
         {!revealed && (
           <button
             onClick={() => setRevealed(true)}
-            className="shrink-0 rounded border border-slate-700 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800"
+            className="shrink-0 rounded border border-border-strong px-3 py-1.5 text-sm text-body hover:bg-panel-hover"
           >
             {def.label}…
           </button>
@@ -197,14 +197,14 @@ function ActionCard({ def }: { def: ActionDef }) {
       </div>
 
       {revealed && (
-        <div className="mt-3 space-y-2 border-t border-slate-800 pt-3">
+        <div className="mt-3 space-y-2 border-t border-border-default pt-3">
           {isFirmwareUpgrade && (
             <div className="space-y-1">
-              <label className="text-xs text-slate-400">Version</label>
+              <label className="text-xs text-muted">Version</label>
               <select
                 value={selected}
                 onChange={(e) => setSelected(e.target.value)}
-                className="w-full rounded border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-slate-200"
+                className="w-full rounded border border-border-strong bg-page px-2 py-1.5 text-sm text-body"
               >
                 <option value="">Recommended default (unit&apos;s own choice)</option>
                 {firmwares.map((f) => (
@@ -216,8 +216,8 @@ function ActionCard({ def }: { def: ActionDef }) {
               </select>
             </div>
           )}
-          <p className="text-xs text-red-300">
-            Type <code className="rounded bg-slate-800 px-1">{expected}</code> to confirm
+          <p className="text-xs text-danger">
+            Type <code className="rounded bg-panel-hover px-1">{expected}</code> to confirm
             {unitId ? ` on ${unitId}` : ""}.
           </p>
           <div className="flex gap-2">
@@ -226,7 +226,7 @@ function ActionCard({ def }: { def: ActionDef }) {
               onChange={(e) => setTyped(e.target.value)}
               placeholder={expected}
               autoFocus
-              className="w-48 rounded border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-slate-200"
+              className="w-48 rounded border border-border-strong bg-page px-2 py-1.5 text-sm text-body"
             />
             <button
               onClick={run}
@@ -241,7 +241,7 @@ function ActionCard({ def }: { def: ActionDef }) {
                 setTyped("");
               }}
               disabled={busy}
-              className="rounded border border-slate-700 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-50"
+              className="rounded border border-border-strong px-3 py-1.5 text-sm text-body hover:bg-panel-hover disabled:opacity-50"
             >
               Cancel
             </button>
@@ -250,7 +250,7 @@ function ActionCard({ def }: { def: ActionDef }) {
       )}
 
       {result && (
-        <p className={`mt-2 text-xs ${result.ok ? "text-emerald-300" : "text-red-300"}`}>
+        <p className={`mt-2 text-xs ${result.ok ? "text-success" : "text-danger"}`}>
           {result.ok ? "✓" : "✗"} {result.message}
         </p>
       )}

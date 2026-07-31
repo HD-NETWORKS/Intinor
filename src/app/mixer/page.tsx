@@ -35,6 +35,7 @@ import { LayoutProfiles } from "@/components/mixer/LayoutProfiles";
 import { MixerPreview } from "@/components/mixer/MixerPreview";
 import { MixerOutputSettings } from "@/components/mixer/MixerOutputSettings";
 import { PipePicker } from "@/components/settings/PipePicker";
+import { useSelectionHandoff } from "@/lib/navigation/selection";
 import type { UnitMeta } from "@/hooks/useUnitMeta";
 
 type ApplyState = "idle" | "confirming" | "applying" | "done" | "error";
@@ -46,6 +47,7 @@ export default function MixerBuilderPage() {
   const [networkInputs, setNetworkInputs] = useState<NetworkInputsList | null>(null);
   const [meta, setMeta] = useState<UnitMeta | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { consumePending } = useSelectionHandoff();
 
   useEffect(() => {
     let cancelled = false;
@@ -60,7 +62,9 @@ export default function MixerBuilderPage() {
         setMixerList(mixers);
         setNetworkInputs(inputs);
         setMeta(metaRes);
-        setSelectedMixer(mixers.video_mixers[0]?.index ?? null);
+        const pending = consumePending("video_mixer");
+        const hasPending = pending != null && mixers.video_mixers.some((m) => m.index === pending);
+        setSelectedMixer(hasPending ? pending : (mixers.video_mixers[0]?.index ?? null));
       } catch (err) {
         if (cancelled) return;
         setError(
@@ -75,13 +79,14 @@ export default function MixerBuilderPage() {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- consumePending is stable and must not re-run this on every render
   }, [client]);
 
   if (error) {
     return (
       <div className="mx-auto max-w-5xl">
-        <h1 className="text-xl font-semibold text-slate-100">Video mixer</h1>
-        <div className="mt-4 rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+        <h1 className="text-xl font-semibold text-fg">Video mixer</h1>
+        <div className="mt-4 rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-danger">
           {error}
         </div>
       </div>
@@ -91,8 +96,8 @@ export default function MixerBuilderPage() {
   if (!mixerList || !networkInputs) {
     return (
       <div className="mx-auto max-w-5xl">
-        <h1 className="text-xl font-semibold text-slate-100">Video mixer</h1>
-        <p className="mt-4 text-sm text-slate-500">Loading mixers…</p>
+        <h1 className="text-xl font-semibold text-fg">Video mixer</h1>
+        <p className="mt-4 text-sm text-faint">Loading mixers…</p>
       </div>
     );
   }
@@ -100,8 +105,8 @@ export default function MixerBuilderPage() {
   if (mixerList.video_mixers.length === 0 || selectedMixer == null) {
     return (
       <div className="mx-auto max-w-5xl">
-        <h1 className="text-xl font-semibold text-slate-100">Video mixer</h1>
-        <p className="mt-4 text-sm text-slate-500">This unit has no video mixers.</p>
+        <h1 className="text-xl font-semibold text-fg">Video mixer</h1>
+        <p className="mt-4 text-sm text-faint">This unit has no video mixers.</p>
       </div>
     );
   }
@@ -109,8 +114,8 @@ export default function MixerBuilderPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-5">
       <div>
-        <h1 className="text-xl font-semibold text-slate-100">Video mixer builder</h1>
-        <p className="text-sm text-slate-500">
+        <h1 className="text-xl font-semibold text-fg">Video mixer builder</h1>
+        <p className="text-sm text-faint">
           Drag boxes to position layers, drag the corner to resize. Pick a preset,
           assign sources, save a named profile, then apply.
         </p>
@@ -346,14 +351,14 @@ function MixerEditor({
 
   if (error) {
     return (
-      <div className="rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+      <div className="rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-danger">
         {error}
       </div>
     );
   }
 
   if (!settings) {
-    return <p className="text-sm text-slate-500">Loading mixer #{mixerIndex}…</p>;
+    return <p className="text-sm text-faint">Loading mixer #{mixerIndex}…</p>;
   }
 
   return (
@@ -365,7 +370,7 @@ function MixerEditor({
             key={p.id}
             onClick={() => applyPreset(p.id)}
             title={p.description}
-            className="rounded border border-slate-700 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800"
+            className="rounded border border-border-strong px-3 py-1.5 text-sm text-body hover:bg-panel-hover"
           >
             {p.name}
           </button>
@@ -385,8 +390,8 @@ function MixerEditor({
       <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
         <div className="space-y-4">
           <div>
-            <div className="mb-1 text-xs uppercase tracking-wide text-slate-500">
-              Editing canvas {dirty && <span className="text-amber-400">· unsaved edits</span>}
+            <div className="mb-1 text-xs uppercase tracking-wide text-faint">
+              Editing canvas {dirty && <span className="text-warning">· unsaved edits</span>}
             </div>
             <MixerCanvas
               layers={layers}
@@ -400,7 +405,7 @@ function MixerEditor({
           </div>
 
           <div>
-            <div className="mb-1 text-xs uppercase tracking-wide text-slate-500">
+            <div className="mb-1 text-xs uppercase tracking-wide text-faint">
               Live program output
             </div>
             <MixerPreview index={mixerIndex} refreshKey={previewKey} />
@@ -439,29 +444,29 @@ function MixerEditor({
           />
 
           {/* Apply */}
-          <div className="space-y-2 rounded-lg border border-slate-800 bg-slate-900/50 p-3">
-            <div className="text-sm font-medium text-slate-300">Apply to mixer</div>
+          <div className="space-y-2 rounded-lg border border-border-default bg-panel p-3">
+            <div className="text-sm font-medium text-body">Apply to mixer</div>
 
             {meta?.mock && (
-              <p className="text-xs text-amber-300/90">
+              <p className="text-xs text-warning">
                 Mock mode — applying writes to the in-memory mock and updates the
                 preview. The real unit is never touched.
               </p>
             )}
             {liveReadOnly && (
-              <p className="text-xs text-sky-300/90">
+              <p className="text-xs text-accent">
                 Live unit, read-only. Applying is blocked by the proxy until
                 writes are explicitly enabled after review.
               </p>
             )}
             {liveWrite && (
-              <p className="text-xs text-red-300/90">
+              <p className="text-xs text-danger">
                 Live unit with writes enabled — applying changes the real program
                 composition on {unitId}.
               </p>
             )}
             {layers.length > enabledLayers.length && (
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-faint">
                 {layers.length - enabledLayers.length} disabled layer
                 {layers.length - enabledLayers.length === 1 ? "" : "s"} kept configured but won&apos;t
                 be sent.
@@ -470,14 +475,14 @@ function MixerEditor({
 
             {applyState === "confirming" ? (
               <div className="space-y-2">
-                <p className="text-xs text-slate-300">
-                  Type <code className="rounded bg-slate-800 px-1">APPLY</code> to
+                <p className="text-xs text-body">
+                  Type <code className="rounded bg-panel-hover px-1">APPLY</code> to
                   change the live program on {unitId}.
                 </p>
                 <input
                   value={confirmText}
                   onChange={(e) => setConfirmText(e.target.value)}
-                  className="w-full rounded border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-200"
+                  className="w-full rounded border border-border-strong bg-page px-2 py-1 text-sm text-body"
                   placeholder="APPLY"
                 />
                 <div className="flex gap-2">
@@ -493,7 +498,7 @@ function MixerEditor({
                       setApplyState("idle");
                       setConfirmText("");
                     }}
-                    className="rounded border border-slate-700 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800"
+                    className="rounded border border-border-strong px-3 py-1.5 text-sm text-body hover:bg-panel-hover"
                   >
                     Cancel
                   </button>
@@ -514,10 +519,10 @@ function MixerEditor({
             )}
 
             {applyState === "done" && (
-              <p className="text-xs text-emerald-400">Applied. Preview updated.</p>
+              <p className="text-xs text-success">Applied. Preview updated.</p>
             )}
             {applyState === "error" && applyError && (
-              <p className="text-xs text-red-300">{applyError}</p>
+              <p className="text-xs text-danger">{applyError}</p>
             )}
           </div>
         </div>
@@ -543,10 +548,10 @@ function SlotBanner({
 }) {
   if (total === 0 && disabledCount === 0) return null;
   return (
-    <div className="rounded border border-slate-700 bg-slate-900/50 px-4 py-2 text-sm text-slate-300">
+    <div className="rounded border border-border-strong bg-panel px-4 py-2 text-sm text-body">
       {total > 0 && (
         <>
-          <strong className="text-slate-100">
+          <strong className="text-fg">
             {liveFeeds} of {total} slot{total === 1 ? "" : "s"}
           </strong>{" "}
           {liveFeeds === 1 ? "has" : "have"} a live source.
@@ -555,11 +560,11 @@ function SlotBanner({
         </>
       )}
       {disabledCount > 0 && (
-        <span className="text-slate-400">
+        <span className="text-muted">
           {disabledCount} layer{disabledCount === 1 ? "" : "s"} disabled, not counted above.{" "}
         </span>
       )}
-      <span className="text-slate-500">
+      <span className="text-faint">
         This unit currently exposes {feedCount} live feed{feedCount === 1 ? "" : "s"}
         — extra quad cells fill with the test picture until more inputs (a second
         unit or licence upgrade) come online.

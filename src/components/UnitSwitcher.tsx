@@ -12,7 +12,7 @@ export function UnitSwitcher() {
     <select
       value={unitId ?? ""}
       onChange={(e) => setUnitId(e.target.value)}
-      className="rounded border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-300"
+      className="rounded border border-border-strong bg-page px-2 py-1 text-sm text-body"
       aria-label="Select unit"
     >
       {units.map((u) => (

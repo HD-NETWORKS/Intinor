@@ -10,7 +10,7 @@ export function SystemPanel() {
 
   if (error && !data) {
     return (
-      <div className="rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+      <div className="rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-danger">
         {error}
       </div>
     );
@@ -26,7 +26,7 @@ export function SystemPanel() {
   return (
     <div className="space-y-3">
       {updateAvailable && (
-        <div className="rounded border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-300">
+        <div className="rounded border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-sm text-warning">
           Firmware update available — running <strong>{running}</strong>, recommended{" "}
           <strong>{recommended}</strong>.
         </div>

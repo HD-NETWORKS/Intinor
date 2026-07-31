@@ -9,7 +9,7 @@ export function NetworkInterfacesPanel() {
 
   if (error && !data) {
     return (
-      <div className="rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+      <div className="rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-danger">
         {error}
       </div>
     );
@@ -17,8 +17,8 @@ export function NetworkInterfacesPanel() {
   if (!data) return null;
 
   return (
-    <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
-      <h2 className="mb-3 font-medium text-slate-200">Network interfaces</h2>
+    <div className="rounded-lg border border-border-default bg-panel p-4">
+      <h2 className="mb-3 font-medium text-body">Network interfaces</h2>
       <div className="grid gap-3 sm:grid-cols-2">
         {data.network_interfaces.map((iface, i) => {
           const status = data.status?.status[i];
@@ -29,28 +29,28 @@ export function NetworkInterfacesPanel() {
           return (
             <div
               key={iface.index}
-              className="rounded border border-slate-800 bg-slate-950/50 p-3 text-sm"
+              className="rounded border border-border-default bg-panel-strong p-3 text-sm"
             >
               <div className="flex items-center gap-2">
                 <span
                   className={"h-2 w-2 rounded-full " + (linked ? "bg-emerald-400" : "bg-slate-600")}
                 />
-                <span className="font-medium text-slate-200">{iface.name}</span>
-                <span className="text-xs text-slate-500">{iface.type}</span>
+                <span className="font-medium text-body">{iface.name}</span>
+                <span className="text-xs text-faint">{iface.type}</span>
                 {status?.primary_interface && (
-                  <span className="rounded bg-sky-500/15 px-1.5 py-0.5 text-[10px] text-sky-300">
+                  <span className="rounded bg-sky-500/15 px-1.5 py-0.5 text-[10px] text-accent">
                     primary
                   </span>
                 )}
               </div>
-              <div className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 text-xs text-slate-400">
+              <div className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 text-xs text-muted">
                 <div>RX: {formatBitrate(status?.rx_bitrate)}</div>
                 <div>TX: {formatBitrate(status?.tx_bitrate)}</div>
                 <div>IP: {status?.ip?.address ?? status?.ethernet?.address ?? "—"}</div>
                 <div>{status?.internet_access ? "Internet OK" : "No internet"}</div>
               </div>
               {status?.cellular_modem && !status.cellular_modem.connected && (
-                <div className="mt-1 text-xs text-slate-500">
+                <div className="mt-1 text-xs text-faint">
                   {status.cellular_modem.status_description}
                 </div>
               )}

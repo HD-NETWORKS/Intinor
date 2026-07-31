@@ -29,16 +29,16 @@ export function SettingsField<T>({
   const controlClass =
     "w-full rounded border px-2 py-1 text-sm " +
     (editable
-      ? "border-slate-700 bg-slate-950 text-slate-200"
-      : "cursor-not-allowed border-slate-800 bg-slate-900/60 text-slate-500");
+      ? "border-border-strong bg-page text-body"
+      : "cursor-not-allowed border-border-default bg-panel text-faint");
 
   return (
     <label className="flex flex-col gap-1">
-      <span className="flex items-center gap-1.5 text-xs text-slate-400">
+      <span className="flex items-center gap-1.5 text-xs text-muted">
         {spec.label}
         {!editable && (
           <span
-            className="rounded bg-slate-800 px-1 text-[10px] text-slate-400"
+            className="rounded bg-panel-hover px-1 text-[10px] text-muted"
             title="Read-only for your account — the unit did not grant this field in _constraints.mutable"
           >
             🔒 read-only
@@ -89,7 +89,7 @@ export function SettingsField<T>({
             onClick={() => setPasswordVisible((v) => !v)}
             tabIndex={-1}
             title={passwordVisible ? "Hide" : "Show"}
-            className="absolute inset-y-0 right-0 flex w-8 items-center justify-center text-slate-500 hover:text-slate-300"
+            className="absolute inset-y-0 right-0 flex w-8 items-center justify-center text-faint hover:text-body"
           >
             {passwordVisible ? "🙈" : "👁"}
           </button>
@@ -116,7 +116,7 @@ export function SettingsField<T>({
         />
       )}
 
-      {spec.help && <span className="text-[11px] text-slate-500">{spec.help}</span>}
+      {spec.help && <span className="text-[11px] text-faint">{spec.help}</span>}
     </label>
   );
 }

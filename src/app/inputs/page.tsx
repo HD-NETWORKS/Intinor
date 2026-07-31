@@ -18,6 +18,7 @@ import {
 } from "@/lib/settings/common-sections";
 import { useSettingsEditor } from "@/hooks/useSettingsEditor";
 import { useUnitMeta } from "@/hooks/useUnitMeta";
+import { useSelectionHandoff } from "@/lib/navigation/selection";
 import { SettingsForm } from "@/components/settings/SettingsForm";
 import { PipePicker } from "@/components/settings/PipePicker";
 
@@ -230,7 +231,7 @@ function InputSettingsEditor({ index }: { index: number }) {
   return (
     <div className="space-y-3">
       {usedBy.length > 0 && (
-        <div className="rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+        <div className="rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-warning">
           {usedBy.length > 1 ? (
             <>⚠ Used by {usedBy.length} consumers: {usedBy.join(", ")}</>
           ) : (
@@ -253,6 +254,7 @@ export default function InputsPage() {
   const [list, setList] = useState<NetworkInputsList | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { consumePending } = useSelectionHandoff();
 
   useEffect(() => {
     let cancelled = false;
@@ -261,7 +263,9 @@ export default function InputsPage() {
         const l = await client.getNetworkInputs();
         if (cancelled) return;
         setList(l);
-        setSelected(l.network_inputs[0]?.index ?? null);
+        const pending = consumePending("network_input");
+        const hasPending = pending != null && l.network_inputs.some((i) => i.index === pending);
+        setSelected(hasPending ? pending : (l.network_inputs[0]?.index ?? null));
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "Failed to load network inputs");
@@ -271,20 +275,21 @@ export default function InputsPage() {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- consumePending is stable and must not re-run this on every render
   }, [client]);
 
   if (error) {
     return (
-      <div className="mx-auto max-w-4xl rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+      <div className="mx-auto max-w-4xl rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-danger">
         {error}
       </div>
     );
   }
   if (!list || selected == null) {
-    return <p className="text-sm text-slate-500">Loading network inputs…</p>;
+    return <p className="text-sm text-faint">Loading network inputs…</p>;
   }
   if (list.network_inputs.length === 0) {
-    return <p className="text-sm text-slate-500">This unit has no network inputs.</p>;
+    return <p className="text-sm text-faint">This unit has no network inputs.</p>;
   }
 
   return (

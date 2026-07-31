@@ -2,6 +2,7 @@
 
 import { usePolledResource } from "@/hooks/usePolledResource";
 import { useIntinorClient } from "@/hooks/useIntinorClient";
+import { useOpenPipeSettings } from "@/lib/navigation/selection";
 import type { Encoder } from "@/lib/intinor/types";
 import { formatBitrate, formatVideoFormat } from "@/lib/format";
 import { StatusCardShell } from "../StatusCardShell";
@@ -9,6 +10,7 @@ import { Thumbnail } from "../Thumbnail";
 
 export function EncoderCard({ index }: { index: number }) {
   const client = useIntinorClient();
+  const openSettings = useOpenPipeSettings("encoder", index);
   const { data, error, loading } = usePolledResource<Encoder>(
     `encoders/${index}?include=settings,status,thumbnails`,
     5000,
@@ -26,6 +28,7 @@ export function EncoderCard({ index }: { index: number }) {
       loading={loading && !data}
       error={error && !data ? error : null}
       messages={status?.messages}
+      onClick={openSettings}
       stats={[
         { label: "Bitrate", value: formatBitrate(status?.encoding.total_bitrate) },
         { label: "Format", value: formatVideoFormat(video?.format) },

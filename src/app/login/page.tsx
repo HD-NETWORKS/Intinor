@@ -41,21 +41,21 @@ function LoginForm() {
     <div className="flex min-h-full flex-1 items-center justify-center p-6">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-sm space-y-4 rounded-lg border border-slate-800 bg-slate-900/60 p-6"
+        className="w-full max-w-sm space-y-4 rounded-lg border border-border-default bg-panel p-6"
       >
         <div>
-          <h1 className="text-lg font-semibold text-slate-100">HD Networks</h1>
-          <p className="text-sm text-slate-400">Sign in to the Intinor dashboard.</p>
+          <h1 className="text-lg font-semibold text-fg">HD Networks</h1>
+          <p className="text-sm text-muted">Sign in to the Intinor dashboard.</p>
         </div>
 
         {error && (
-          <div className="rounded border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+          <div className="rounded border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-danger">
             {error}
           </div>
         )}
 
         <div className="space-y-1">
-          <label htmlFor="username" className="text-xs text-slate-400">
+          <label htmlFor="username" className="text-xs text-muted">
             Username
           </label>
           <input
@@ -63,12 +63,12 @@ function LoginForm() {
             autoFocus
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200"
+            className="w-full rounded border border-border-strong bg-page px-3 py-2 text-sm text-body"
           />
         </div>
 
         <div className="space-y-1">
-          <label htmlFor="password" className="text-xs text-slate-400">
+          <label htmlFor="password" className="text-xs text-muted">
             Password
           </label>
           <input
@@ -76,7 +76,7 @@ function LoginForm() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200"
+            className="w-full rounded border border-border-strong bg-page px-3 py-2 text-sm text-body"
           />
         </div>
 

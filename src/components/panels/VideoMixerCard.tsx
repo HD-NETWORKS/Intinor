@@ -2,6 +2,7 @@
 
 import { usePolledResource } from "@/hooks/usePolledResource";
 import { useIntinorClient } from "@/hooks/useIntinorClient";
+import { useOpenPipeSettings } from "@/lib/navigation/selection";
 import type { VideoMixer } from "@/lib/intinor/types";
 import { formatVideoFormat } from "@/lib/format";
 import { StatusCardShell } from "../StatusCardShell";
@@ -9,6 +10,7 @@ import { Thumbnail } from "../Thumbnail";
 
 export function VideoMixerCard({ index }: { index: number }) {
   const client = useIntinorClient();
+  const openSettings = useOpenPipeSettings("video_mixer", index);
   const { data, error, loading } = usePolledResource<VideoMixer>(
     `video_mixers/${index}?include=settings,status,thumbnails`,
     5000,
@@ -27,6 +29,7 @@ export function VideoMixerCard({ index }: { index: number }) {
       loading={loading && !data}
       error={error && !data ? error : null}
       messages={status?.messages}
+      onClick={openSettings}
       stats={[
         { label: "Layers", value: layerCount != null ? String(layerCount) : undefined },
         { label: "Format", value: formatVideoFormat(video?.format) },

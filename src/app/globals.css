@@ -1,19 +1,115 @@
 @import "tailwindcss";
 
-/* Control-room dark theme (always dark — this is a broadcast dashboard). */
+/*
+ * Theme tokens. Dark is the original "control room" look (unchanged values);
+ * light is a new, additive theme. `html[data-theme]` is set by an inline
+ * script in layout.tsx before first paint (no flash) and kept in sync by
+ * ThemeProvider (src/lib/theme/context.tsx). Falls back to
+ * prefers-color-scheme when no explicit preference is stored.
+ */
 :root {
-  --background: #0b0f17;
-  --foreground: #e2e8f0;
+  --page: #f8fafc;
+  --panel: #ffffff;
+  --panel-hover: #f1f5f9;
+  --panel-strong: #ffffff;
+  --border-default: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --fg: #0f172a;
+  --body-text: #1e293b;
+  --muted: #475569;
+  --faint: #64748b;
+  --subtle: #64748b;
+  --accent-text: #0369a1;
+  --danger-text: #b91c1c;
+  --warning-text: #b45309;
+  --success-text: #047857;
+  --chart-grid: #e2e8f0;
+  --chart-axis-text: #64748b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --page: #0b0f17;
+    --panel: rgb(15 23 42 / 50%);
+    --panel-hover: #1e293b;
+    --panel-strong: rgb(2 6 23 / 40%);
+    --border-default: #1e293b;
+    --border-strong: #334155;
+    --fg: #f1f5f9;
+    --body-text: #e2e8f0;
+    --muted: #94a3b8;
+    --faint: #64748b;
+    --subtle: #475569;
+    --accent-text: #7dd3fc;
+    --danger-text: #fca5a5;
+    --warning-text: #fcd34d;
+    --success-text: #6ee7b7;
+    --chart-grid: #2c2c2a;
+    --chart-axis-text: #898781;
+  }
+}
+
+:root[data-theme="light"] {
+  --page: #f8fafc;
+  --panel: #ffffff;
+  --panel-hover: #f1f5f9;
+  --panel-strong: #ffffff;
+  --border-default: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --fg: #0f172a;
+  --body-text: #1e293b;
+  --muted: #475569;
+  --faint: #64748b;
+  --subtle: #64748b;
+  --accent-text: #0369a1;
+  --danger-text: #b91c1c;
+  --warning-text: #b45309;
+  --success-text: #047857;
+  --chart-grid: #e2e8f0;
+  --chart-axis-text: #64748b;
+}
+
+:root[data-theme="dark"] {
+  --page: #0b0f17;
+  --panel: rgb(15 23 42 / 50%);
+  --panel-hover: #1e293b;
+  --panel-strong: rgb(2 6 23 / 40%);
+  --border-default: #1e293b;
+  --border-strong: #334155;
+  --fg: #f1f5f9;
+  --body-text: #e2e8f0;
+  --muted: #94a3b8;
+  --faint: #64748b;
+  --subtle: #475569;
+  --accent-text: #7dd3fc;
+  --danger-text: #fca5a5;
+  --warning-text: #fcd34d;
+  --success-text: #6ee7b7;
+  --chart-grid: #2c2c2a;
+  --chart-axis-text: #898781;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-page: var(--page);
+  --color-panel: var(--panel);
+  --color-panel-hover: var(--panel-hover);
+  --color-panel-strong: var(--panel-strong);
+  --color-border-default: var(--border-default);
+  --color-border-strong: var(--border-strong);
+  --color-fg: var(--fg);
+  --color-body: var(--body-text);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-subtle: var(--subtle);
+  --color-accent: var(--accent-text);
+  --color-danger: var(--danger-text);
+  --color-warning: var(--warning-text);
+  --color-success: var(--success-text);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--page);
+  color: var(--fg);
   font-family:
     ui-sans-serif,
     system-ui,

@@ -12,6 +12,7 @@ import type { FieldSection } from "@/lib/settings/fields";
 import { optionsFromDescribed } from "@/lib/settings/options";
 import { useSettingsEditor } from "@/hooks/useSettingsEditor";
 import { useUnitMeta } from "@/hooks/useUnitMeta";
+import { useSelectionHandoff } from "@/lib/navigation/selection";
 import { SettingsForm } from "@/components/settings/SettingsForm";
 import { PipePicker } from "@/components/settings/PipePicker";
 
@@ -207,6 +208,7 @@ export default function NetvideoInputsPage() {
   const [list, setList] = useState<VideoInputsList | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { consumePending } = useSelectionHandoff();
 
   useEffect(() => {
     let cancelled = false;
@@ -215,7 +217,9 @@ export default function NetvideoInputsPage() {
         const l = await client.getVideoInputs();
         if (cancelled) return;
         setList(l);
-        setSelected(l.video_inputs[0]?.index ?? null);
+        const pending = consumePending("video_input");
+        const hasPending = pending != null && l.video_inputs.some((i) => i.index === pending);
+        setSelected(hasPending ? pending : (l.video_inputs[0]?.index ?? null));
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "Failed to load Netvideo inputs");
@@ -225,20 +229,21 @@ export default function NetvideoInputsPage() {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- consumePending is stable and must not re-run this on every render
   }, [client]);
 
   if (error) {
     return (
-      <div className="mx-auto max-w-4xl rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+      <div className="mx-auto max-w-4xl rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-danger">
         {error}
       </div>
     );
   }
   if (!list || selected == null) {
-    return <p className="text-sm text-slate-500">Loading Netvideo inputs…</p>;
+    return <p className="text-sm text-faint">Loading Netvideo inputs…</p>;
   }
   if (list.video_inputs.length === 0) {
-    return <p className="text-sm text-slate-500">This unit has no Netvideo inputs.</p>;
+    return <p className="text-sm text-faint">This unit has no Netvideo inputs.</p>;
   }
 
   return (

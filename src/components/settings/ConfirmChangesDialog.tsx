@@ -33,10 +33,10 @@ export function ConfirmChangesDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-lg space-y-4 rounded-lg border border-slate-700 bg-slate-900 p-5 shadow-xl">
+      <div className="w-full max-w-lg space-y-4 rounded-lg border border-border-strong bg-panel p-5 shadow-xl">
         <div>
-          <h2 className="text-base font-semibold text-slate-100">Confirm changes</h2>
-          <p className="text-sm text-slate-400">
+          <h2 className="text-base font-semibold text-fg">Confirm changes</h2>
+          <p className="text-sm text-muted">
             {writeMode === "mock"
               ? "Mock mode — this writes to the in-memory mock, not the real unit."
               : `These fields will be changed on ${unitId ?? "the unit"}.`}
@@ -45,24 +45,24 @@ export function ConfirmChangesDialog({
 
         <ul className="max-h-64 space-y-2 overflow-y-auto">
           {changes.map((c) => (
-            <li key={c.path} className="rounded border border-slate-800 bg-slate-950/60 p-2">
-              <div className="text-sm text-slate-200">{c.label}</div>
+            <li key={c.path} className="rounded border border-border-default bg-panel-strong p-2">
+              <div className="text-sm text-body">{c.label}</div>
               <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs">
-                <span className="rounded bg-slate-800 px-1.5 py-0.5 text-slate-400 line-through">
+                <span className="rounded bg-panel-hover px-1.5 py-0.5 text-muted line-through">
                   {c.from}
                 </span>
-                <span className="text-slate-500">→</span>
-                <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-emerald-300">
+                <span className="text-faint">→</span>
+                <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-success">
                   {c.to}
                 </span>
               </div>
-              <div className="mt-0.5 font-mono text-[10px] text-slate-600">{c.path}</div>
+              <div className="mt-0.5 font-mono text-[10px] text-subtle">{c.path}</div>
             </li>
           ))}
         </ul>
 
         {conflicts.length > 0 && (
-          <div className="rounded border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-300">
+          <div className="rounded border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-warning">
             <strong>Changed on the unit since you loaded this form:</strong>
             <ul className="mt-1 space-y-0.5">
               {conflicts.map((c) => (
@@ -77,15 +77,15 @@ export function ConfirmChangesDialog({
 
         {needsTypeToConfirm && (
           <div className="space-y-1">
-            <p className="text-xs text-red-300">
-              Live unit with writes enabled — type <code className="rounded bg-slate-800 px-1">SAVE</code> to
+            <p className="text-xs text-danger">
+              Live unit with writes enabled — type <code className="rounded bg-panel-hover px-1">SAVE</code> to
               apply.
             </p>
             <input
               value={typed}
               onChange={(e) => setTyped(e.target.value)}
               placeholder="SAVE"
-              className="w-full rounded border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-200"
+              className="w-full rounded border border-border-strong bg-page px-2 py-1 text-sm text-body"
             />
           </div>
         )}
@@ -94,7 +94,7 @@ export function ConfirmChangesDialog({
           <button
             onClick={onCancel}
             disabled={saving}
-            className="rounded border border-slate-700 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-50"
+            className="rounded border border-border-strong px-3 py-1.5 text-sm text-body hover:bg-panel-hover disabled:opacity-50"
           >
             Cancel
           </button>

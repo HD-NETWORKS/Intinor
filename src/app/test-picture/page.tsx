@@ -84,10 +84,10 @@ function CustomBackgroundUpload() {
   const saveBlocked = writeMode === "live-readonly";
 
   return (
-    <section className="space-y-3 rounded-lg border border-slate-800 bg-slate-900/50 p-4">
+    <section className="space-y-3 rounded-lg border border-border-default bg-panel p-4">
       <div>
-        <h2 className="font-medium text-slate-200">Custom background</h2>
-        <p className="text-xs text-slate-500">
+        <h2 className="font-medium text-body">Custom background</h2>
+        <p className="text-xs text-faint">
           Uploaded via <code>PUT test_picture/custom_background</code> — a raw image, not part of
           the settings object above. Select &quot;Custom image&quot; as the background to use it.
         </p>
@@ -108,7 +108,7 @@ function CustomBackgroundUpload() {
           accept="image/png,image/jpeg"
           disabled={saveBlocked}
           onChange={(e) => setPending(e.target.files?.[0] ?? null)}
-          className="text-sm text-slate-300"
+          className="text-sm text-body"
         />
         <button
           onClick={() => void upload()}
@@ -118,12 +118,12 @@ function CustomBackgroundUpload() {
           {uploading ? "Uploading…" : "Upload"}
         </button>
         {saveBlocked && (
-          <span className="text-xs text-sky-300">
+          <span className="text-xs text-accent">
             Live unit, read-only mode — uploads are disabled by the proxy.
           </span>
         )}
       </div>
-      {error && <p className="text-xs text-red-300">{error}</p>}
+      {error && <p className="text-xs text-danger">{error}</p>}
     </section>
   );
 }

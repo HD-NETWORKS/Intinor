@@ -20,6 +20,7 @@ import {
 } from "@/lib/settings/common-sections";
 import { useSettingsEditor } from "@/hooks/useSettingsEditor";
 import { useUnitMeta } from "@/hooks/useUnitMeta";
+import { useSelectionHandoff } from "@/lib/navigation/selection";
 import { SettingsForm } from "@/components/settings/SettingsForm";
 import { PipePicker } from "@/components/settings/PipePicker";
 
@@ -254,6 +255,7 @@ export default function EncodersPage() {
   const [list, setList] = useState<EncodersList | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { consumePending } = useSelectionHandoff();
 
   useEffect(() => {
     let cancelled = false;
@@ -262,7 +264,9 @@ export default function EncodersPage() {
         const l = await client.getEncoders();
         if (cancelled) return;
         setList(l);
-        setSelected(l.encoders[0]?.index ?? null);
+        const pending = consumePending("encoder");
+        const hasPending = pending != null && l.encoders.some((i) => i.index === pending);
+        setSelected(hasPending ? pending : (l.encoders[0]?.index ?? null));
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "Failed to load encoders");
@@ -272,20 +276,21 @@ export default function EncodersPage() {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- consumePending is stable and must not re-run this on every render
   }, [client]);
 
   if (error) {
     return (
-      <div className="mx-auto max-w-4xl rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+      <div className="mx-auto max-w-4xl rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-danger">
         {error}
       </div>
     );
   }
   if (!list || selected == null) {
-    return <p className="text-sm text-slate-500">Loading encoders…</p>;
+    return <p className="text-sm text-faint">Loading encoders…</p>;
   }
   if (list.encoders.length === 0) {
-    return <p className="text-sm text-slate-500">This unit has no encoders.</p>;
+    return <p className="text-sm text-faint">This unit has no encoders.</p>;
   }
 
   return (

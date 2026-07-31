@@ -20,7 +20,7 @@ export function PipePicker({
   if (items.length <= 1) return null;
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="text-xs uppercase tracking-wide text-slate-500">{label}</span>
+      <span className="text-xs uppercase tracking-wide text-faint">{label}</span>
       {items.map((item) => (
         <button
           key={item.index}
@@ -28,8 +28,8 @@ export function PipePicker({
           className={
             "rounded border px-3 py-1 text-sm " +
             (item.index === selected
-              ? "border-sky-500/60 bg-sky-500/10 text-sky-300"
-              : "border-slate-700 text-slate-300 hover:bg-slate-800")
+              ? "border-sky-500/60 bg-sky-500/10 text-accent"
+              : "border-border-strong text-body hover:bg-panel-hover")
           }
         >
           {item.description}
