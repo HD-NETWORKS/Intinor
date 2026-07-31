@@ -43,6 +43,45 @@ function netvideoSections(s: VideoInputSettingsResponse): FieldSection[] {
     },
   ];
 
+  if (src.srt_listener) {
+    sections.push({
+      title: "SRT listener",
+      description: "The unit waits for an incoming connection on this port.",
+      fields: [
+        {
+          path: "netvideo_source.srt_listener.port",
+          label: "Listen port",
+          kind: "number",
+          min: 1,
+          max: 65535,
+        },
+        {
+          path: "netvideo_source.srt_listener.latency",
+          label: "Latency",
+          kind: "number",
+          unit: "ms",
+          min: 20,
+        },
+        {
+          path: "netvideo_source.srt_listener.password",
+          label: "Passphrase",
+          kind: "password",
+          help: "Leave unchanged to keep the current passphrase.",
+        },
+        ...(ifaceOptions.length > 0
+          ? [
+              {
+                path: "netvideo_source.srt_listener.adapter",
+                label: "Interface",
+                kind: "select" as const,
+                options: ifaceOptions,
+              },
+            ]
+          : []),
+      ],
+    });
+  }
+
   if (src.rtsp_pull) {
     sections.push({
       title: "RTSP (pull)",
@@ -105,45 +144,6 @@ function netvideoSections(s: VideoInputSettingsResponse): FieldSection[] {
           ? [
               {
                 path: "netvideo_source.srt_caller.adapter",
-                label: "Interface",
-                kind: "select" as const,
-                options: ifaceOptions,
-              },
-            ]
-          : []),
-      ],
-    });
-  }
-
-  if (src.srt_listener) {
-    sections.push({
-      title: "SRT listener",
-      description: "The unit waits for an incoming connection on this port.",
-      fields: [
-        {
-          path: "netvideo_source.srt_listener.port",
-          label: "Listen port",
-          kind: "number",
-          min: 1,
-          max: 65535,
-        },
-        {
-          path: "netvideo_source.srt_listener.latency",
-          label: "Latency",
-          kind: "number",
-          unit: "ms",
-          min: 20,
-        },
-        {
-          path: "netvideo_source.srt_listener.password",
-          label: "Passphrase",
-          kind: "password",
-          help: "Leave unchanged to keep the current passphrase.",
-        },
-        ...(ifaceOptions.length > 0
-          ? [
-              {
-                path: "netvideo_source.srt_listener.adapter",
                 label: "Interface",
                 kind: "select" as const,
                 options: ifaceOptions,

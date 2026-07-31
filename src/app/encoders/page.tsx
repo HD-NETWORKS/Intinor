@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useIntinorClient } from "@/hooks/useIntinorClient";
 import { useSourceUsage, usageLabelsExcluding } from "@/hooks/useSourceUsage";
 import type {
+  DestinationsSettingsBasic,
+  DestinationsSettingsRtmp,
   EncodersList,
   EncoderSettingsRequest,
   EncoderSettingsResponse,
@@ -13,12 +15,13 @@ import type { FieldSection, SelectOption } from "@/lib/settings/fields";
 import { optionsFromDescribed, optionsFromEncodingModes } from "@/lib/settings/options";
 import {
   accessControlSections,
+  arrayHeaderSection,
   basicDestinationSections,
   onRequestDestinationSections,
   recordingSections,
   rtmpDestinationSections,
 } from "@/lib/settings/common-sections";
-import { useSettingsEditor } from "@/hooks/useSettingsEditor";
+import { useSettingsEditor, type ArrayHelpers } from "@/hooks/useSettingsEditor";
 import { useUnitMeta } from "@/hooks/useUnitMeta";
 import { useSelectionHandoff } from "@/lib/navigation/selection";
 import { SettingsForm } from "@/components/settings/SettingsForm";
@@ -147,8 +150,42 @@ function withUsageHints(options: SelectOption[], usage: Map<string, string[]>): 
   });
 }
 
+/** Client-generated placeholder id for a brand-new destination — the unit may reassign it on save. */
+function newId(prefix: string): string {
+  return `${prefix}-${typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID().slice(0, 8) : Math.random().toString(36).slice(2, 10)}`;
+}
+
+function newBasicDestination(protocolOptions: SelectOption[]): DestinationsSettingsBasic {
+  const protocol = protocolOptions[0]?.value ?? "srt";
+  return {
+    id: newId("dest"),
+    protocol,
+    address: "",
+    port: 9000,
+    active: false,
+    description: "New destination",
+    ...(protocol === "srt"
+      ? { srt: { latency: 250, password: "", stream_id: "", key_length: 0 } }
+      : {}),
+  };
+}
+
+function newRtmpDestination(): DestinationsSettingsRtmp {
+  return {
+    id: newId("rtmp"),
+    description: "New RTMP destination",
+    active: false,
+    url: "",
+    stream: "",
+  };
+}
+
 /** Form layout built from the encoder's own `_constraints`. */
-function encoderSections(s: EncoderSettingsResponse, sourceUsage: Map<string, string[]>): FieldSection[] {
+function encoderSections(
+  s: EncoderSettingsResponse,
+  sourceUsage: Map<string, string[]>,
+  helpers: ArrayHelpers,
+): FieldSection[] {
   const c = s._constraints;
 
   const sections: FieldSection[] = [
@@ -200,14 +237,35 @@ function encoderSections(s: EncoderSettingsResponse, sourceUsage: Map<string, st
     },
   ];
 
-  // One section per push destination — indices come from the settings object,
-  // so removing a destination on the unit removes its section here.
+  // One section per push destination, plus an "+ Add" header and per-item
+  // "Remove" buttons — sections are recomputed from the live draft, so
+  // adding/removing here shows up immediately (see useSettingsEditor).
   const protocolOptions = optionsFromDescribed(
     c?.destinations?.protocol as { value?: string; description?: string }[] | undefined,
   );
-  sections.push(...basicDestinationSections(s.destinations?.basic, protocolOptions));
+  const basicCount = s.destinations?.basic?.length ?? 0;
+  sections.push(
+    arrayHeaderSection(`Push destinations (${basicCount})`, () =>
+      helpers.addArrayItem("destinations.basic", newBasicDestination(protocolOptions)),
+    ),
+  );
+  sections.push(
+    ...basicDestinationSections(s.destinations?.basic, protocolOptions, "destinations", (i) =>
+      helpers.removeArrayItem("destinations.basic", i),
+    ),
+  );
   sections.push(...onRequestDestinationSections(s.destinations));
-  sections.push(...rtmpDestinationSections(s.destinations?.rtmp));
+  const rtmpCount = s.destinations?.rtmp?.length ?? 0;
+  sections.push(
+    arrayHeaderSection(`RTMP destinations (${rtmpCount})`, () =>
+      helpers.addArrayItem("destinations.rtmp", newRtmpDestination()),
+    ),
+  );
+  sections.push(
+    ...rtmpDestinationSections(s.destinations?.rtmp, "destinations", (i) =>
+      helpers.removeArrayItem("destinations.rtmp", i),
+    ),
+  );
   sections.push(...recordingSections(s.recording));
   sections.push(...accessControlSections(s.access_control));
   sections.push(...muxingSection(s));
@@ -236,7 +294,7 @@ function EncoderSettingsEditor({ index }: { index: number }) {
   const editor = useSettingsEditor<EncoderSettingsResponse>({
     load,
     save,
-    sectionsOf: (s) => encoderSections(s, sourceUsage),
+    sectionsOf: (s, helpers) => encoderSections(s, sourceUsage, helpers),
     mutableOf: (s) => s._constraints?.mutable,
   });
 

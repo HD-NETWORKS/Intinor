@@ -6,6 +6,8 @@
  * human label for every change it reports.
  */
 
+import type { ReactNode } from "react";
+
 export type FieldKind = "text" | "number" | "select" | "checkbox" | "password";
 
 export interface SelectOption {
@@ -34,6 +36,8 @@ export interface FieldSection {
   title: string;
   description?: string;
   fields: FieldSpec[];
+  /** Rendered in the section header, right-aligned — e.g. an "Add"/"Remove" button for a resizable array. */
+  headerExtra?: ReactNode;
 }
 
 /** Human-readable rendering of a value for the confirmation diff. */

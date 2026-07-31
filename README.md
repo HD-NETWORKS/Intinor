@@ -935,6 +935,56 @@ persists; light mode renders correctly end-to-end (nav, header, cards, a
 full settings form, the router panel) with video-preview boxes correctly
 staying dark in both themes.
 
+## Phase 17 — resizable settings arrays (destination add/remove) and a layout fix
+
+- **Netvideo input settings: SRT listener moved** to right after "Input",
+  before RTSP (pull) — matching how the equivalent Network input page was
+  already ordered.
+- **Encoders can add and remove push destinations**, both the primary
+  (`destinations.basic[]`) and RTMP (`destinations.rtmp[]`) kind. This
+  needed more than a page-level change — `useSettingsEditor` previously
+  derived its form layout (`sections`, and the `specs` list diffing/saving
+  are built from) once from the *initial load*, which works fine for
+  fixed-shape resources but can't reflect an array a user just grew or
+  shrank in the draft. Three changes, all backward-compatible for every
+  existing page:
+  - `sectionsOf` is now called with the *live draft* (falling back to the
+    initial load only before the first render) instead of solely the
+    pristine original, and receives a second `ArrayHelpers` argument
+    (`addArrayItem`/`removeArrayItem`) a section-builder can wire buttons
+    to. Existing single-argument `sectionsOf` functions didn't need any
+    changes — only `encoderSections` (the one resource that needed it)
+    took the new parameter.
+  - `diffSettings` now detects when an array's length itself differs
+    between original and draft — an added item has no "before" value to
+    diff, a removed one has no "after" — and collapses that into one
+    structural change covering the whole array, instead of the
+    (necessarily incomplete) per-field diff. Getting this right for
+    *removing the last remaining item* took a second pass: once an array is
+    emptied, the draft-derived form no longer has any fields under it at
+    all, so nothing was left to notice the resize. Fixed by also folding in
+    the field paths implied by the *original* shape when building the diff
+    input, purely for this detection — not for rendering.
+  - `FieldSection` gained an optional `headerExtra` (rendered top-right of
+    a section's title) — used for a small "Remove" button per destination
+    and a fields-less "+ Add" header section above each list
+    (`arrayHeaderSection` in `common-sections.tsx`, which is now `.tsx`
+    since it renders these buttons directly).
+  - New destinations get a client-generated placeholder id and sensible
+    defaults (protocol from `_constraints`, an SRT sub-object when that's
+    the default protocol); the unit is free to reassign the id on save.
+
+### Verified
+
+`npm run build`, `npm run lint`, `npm test` all pass. Browser-verified in
+mock mode: Netvideo settings render SRT listener before RTSP; clicking
+"+ Add" on an encoder's push/RTMP destinations immediately shows a new
+section with the "unsaved changes" counter incrementing; removing a
+destination (including emptying an array to zero) is correctly reflected
+in the confirm-changes dialog as a "N item(s) → M item(s)" structural
+change; saving both an add and a removal-to-zero in the same edit persists
+correctly after reload — no console errors.
+
 ## Getting started
 
 ```bash
