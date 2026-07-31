@@ -517,14 +517,65 @@ to the mock state store and survives a reload.
 
 ### Still open from the same audit (not in this phase)
 
-- **Netvideo inputs** — a second, distinct set of inputs on the real unit
-  (separate from "IP stream in") with no resource type, mock data, or page
-  yet.
 - **Custom encoding modes CRUD**, **custom test picture upload**, **router
   panel** (drag-and-drop patch bay UX), **richer firmware upgrade flow**,
   **settings backup save**, and **local user/RBAC provisioning on the unit
   itself** — all still just the fixed dropdown / single-button versions
   described in the Phase 5-7 sections above.
+
+## Phase 9 — Netvideo inputs (`video_input`), a whole second ingest resource
+
+The biggest gap from the Phase 8 audit: the real D01796 has two distinct
+sets of inputs — "IP stream in" (`network_input`, already modeled) and
+"Netvideo in" (`video_input`), a second resource type offering pull-based
+ingest (RTSP/HLS/NDI/RTMP) in addition to SRT caller/listener. Unlike
+Muxing in Phase 8, this one is fully documented in
+`docs/02-intinor-api-definitions-full.md` (`video_input`,
+`video_input_settings`, `netvideo_source_settings(_constraints)`,
+`video_input_status`) — no guessing required.
+
+- **Types** (`lib/intinor/types.ts`): `NetvideoSourceSettings` (one active
+  ingest kind at a time, selected by `type`: `rtsp_pull` / `hls` / `ndi` /
+  `srt_caller` / `srt_listener` / `rtmp_receive` / `rtmp_pull`), its
+  constraints and status shapes, `VideoInputSettings(Response)`,
+  `VideoInputStatus`, `VideoInput`, `VideoInputsList`.
+- **Client** (`lib/intinor-client.ts`): `getVideoInputs` / `getVideoInput` /
+  `getVideoInputSettings` / `putVideoInputSettings` / `getVideoInputStatus` /
+  `videoInputThumbnailUrl` — same shape as the existing network-input methods.
+- **New page** `/netvideo` (`app/netvideo/page.tsx`): a `PipePicker` plus a
+  settings form that only renders the sub-section matching whichever
+  ingest kind is actually present in the loaded settings (mirrors how
+  `inputs/page.tsx` conditionally renders `network_sources.*`).
+- **Mock**: `mockVideoInputSettings`/`Status`/`Input`/`InputsList` (one
+  Netvideo input on the primary unit, SRT listener by default) in
+  `mock/data.ts`; real GET/PUT routes replacing the old `video_inputs: []`
+  stub in `mock/resolve.ts`; `BIG_VIDEO_INPUT_COUNT = 16` and
+  `bigVideoInput(Status)/bigVideoInputsList` in `mock/bigUnit.ts`, wired into
+  `bigGetRoutes()` the same way as the other big-unit resources.
+- **Sources**: Netvideo inputs are a legitimate mixer/encoder source like
+  any other pipe. `bigVideoInputSourceOptions()` folds all 16 into both
+  `bigEncoderSettings()`'s and `bigVideoMixerSettings()`'s
+  `_constraints.video_source.source` / `program.layers.input.source` lists,
+  alongside network inputs and mixers.
+- **UI**: new "Netvideo inputs" nav entry; `VideoInputCard`/`VideoInputRow`
+  mirror the network-input card/row for the overview page's card grid and
+  dense list view; signal-chain count line now reads
+  `N input · M Netvideo · ...`.
+- **Permissions**: `"video_input"` added to the mock role system
+  (`mock/permissions.ts`) with its own operator grant.
+
+### Verified
+
+`npm run build` and `npm run lint` pass. Browser-verified: on the primary
+mock unit, `/netvideo` shows "Netvideo in 1" (SRT listener, port 7501) as a
+distinct settings page from `/inputs`, and the overview card grid shows both
+side by side. On the big-unit fixture (`INTINOR_UNITS` with a second entry),
+the overview lists "16 input · 16 Netvideo · 2 mixer · 17 encoder", the dense
+list view shows a separate "Netvideo inputs (16)" table, all 16 are
+selectable/editable on `/netvideo`, and the encoder source dropdown lists
+all 35 options (2 mixers + 16 network inputs + 16 Netvideo inputs + test
+picture) — confirming Netvideo inputs fan out through the existing
+cross-resource usage-indicator machinery with no changes needed there.
 
 ## Getting started
 

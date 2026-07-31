@@ -12,6 +12,7 @@ import type {
   NetworkInputStatus,
   NetworkInterfacesList,
   SystemStatus,
+  VideoInputStatus,
 } from "../types";
 import {
   mockApiRoot,
@@ -27,6 +28,10 @@ import {
   mockNetworkInterfaces,
   mockSystem,
   mockSystemStatus,
+  mockVideoInput,
+  mockVideoInputsList,
+  mockVideoInputSettings,
+  mockVideoInputStatus,
   mockVideoMixer,
   mockVideoMixersList,
   mockVideoMixerSettings,
@@ -46,6 +51,7 @@ import {
   BIG_ENCODER_COUNT,
   BIG_INPUT_COUNT,
   BIG_MIXER_COUNT,
+  BIG_VIDEO_INPUT_COUNT,
   bigEncoder,
   bigEncoderSettings,
   bigEncoderStatus,
@@ -53,6 +59,9 @@ import {
   bigNetworkInput,
   bigNetworkInputStatus,
   bigNetworkInputsList,
+  bigVideoInput,
+  bigVideoInputsList,
+  bigVideoInputStatus,
   bigVideoMixer,
   bigVideoMixerSettings,
   bigVideoMixersList,
@@ -61,14 +70,16 @@ import { defaultUnitId } from "../server/config";
 import type {
   EncoderSettingsResponse,
   NetworkInputSettingsResponse,
+  VideoInputSettingsResponse,
   VideoMixerLayerSettings,
   VideoMixerSettingsResponse,
 } from "../types";
 
-type SettingsKind = "encoders" | "network_inputs" | "video_mixers";
+type SettingsKind = "encoders" | "network_inputs" | "video_inputs" | "video_mixers";
 type AnySettings =
   | EncoderSettingsResponse
   | NetworkInputSettingsResponse
+  | VideoInputSettingsResponse
   | VideoMixerSettingsResponse;
 
 /** Is this unit id the synthetic "big" fixture rather than the primary mock unit? */
@@ -85,6 +96,7 @@ function baseSettingsFor(kind: SettingsKind, index: number, unitId?: string): An
   const table: Record<SettingsKind, AnySettings> = {
     encoders: mockEncoderSettings,
     network_inputs: mockNetworkInputSettings,
+    video_inputs: mockVideoInputSettings,
     video_mixers: mockVideoMixerSettings,
   };
   return table[kind];
@@ -162,6 +174,18 @@ function baseNetworkInputStatus(): NetworkInputStatus {
         ? Math.max(0, clamp(jitteredValue("ni-loss", base.network_source.packet_loss, 0.03), 0, 2))
         : base.network_source.packet_loss,
     },
+  };
+}
+
+function baseVideoInputStatus(): VideoInputStatus {
+  const base = mockVideoInputStatus;
+  if (!base.netvideo_source.srt) return base;
+  const bitrate = Math.round(
+    clamp(jitteredValue("vi-bitrate", base.netvideo_source.srt.bitrate ?? 0, 350_000), 0, Infinity),
+  );
+  return {
+    ...base,
+    netvideo_source: { ...base.netvideo_source, srt: { ...base.netvideo_source.srt, bitrate } },
   };
 }
 
@@ -272,7 +296,21 @@ const GET_ROUTES: Record<string, () => unknown> = {
   encoding: () => ({ encoding_modes: mockEncodingModes }),
   "encoding/encoding_modes": () => mockEncodingModes,
   multiviews: () => ({ multiviews: [] }),
-  video_inputs: () => ({ video_inputs: [] }),
+  video_inputs: () => mockVideoInputsList,
+  "video_inputs/0": () => ({
+    ...mockVideoInput,
+    settings: withMockPermissions(currentSettings("video_inputs", 0), "video_input"),
+    status: baseVideoInputStatus(),
+    thumbnails: {
+      thumbnails: [{ id: "video_in", href: "video_inputs/0/thumbnails/video_in" }],
+    },
+  }),
+  "video_inputs/0/settings": () =>
+    withMockPermissions(currentSettings("video_inputs", 0), "video_input"),
+  "video_inputs/0/status": () => baseVideoInputStatus(),
+  "video_inputs/0/thumbnails": () => ({
+    thumbnails: [{ id: "video_in", href: "video_inputs/0/thumbnails/video_in" }],
+  }),
   video_outputs: () => ({ video_outputs: [] }),
   profiles: () => ({ profiles: [] }),
 };
@@ -292,13 +330,13 @@ function bigGetRoutes(unitId: string): Record<string, () => unknown> {
     "system/messages": () => ({ messages: [] }),
     encoders: () => bigEncodersList(),
     network_inputs: () => bigNetworkInputsList(),
+    video_inputs: () => bigVideoInputsList(),
     video_mixers: () => bigVideoMixersList(),
     network_interfaces: () => liveNetworkInterfaces(),
     "storage/status": () => faultStorageStatus(null) ?? { present: false, removable: false },
     encoding: () => ({ encoding_modes: mockEncodingModes }),
     "encoding/encoding_modes": () => mockEncodingModes,
     multiviews: () => ({ multiviews: [] }),
-    video_inputs: () => ({ video_inputs: [] }),
     video_outputs: () => ({ video_outputs: [] }),
     profiles: () => ({ profiles: [] }),
   };
@@ -334,6 +372,23 @@ function bigGetRoutes(unitId: string): Record<string, () => unknown> {
     routes[`network_inputs/${i}/status`] = () => bigNetworkInputStatus(i);
     routes[`network_inputs/${i}/thumbnails`] = () => ({
       thumbnails: [{ id: "program_1", href: `network_inputs/${i}/thumbnails/program_1` }],
+    });
+  }
+
+  for (let i = 0; i < BIG_VIDEO_INPUT_COUNT; i++) {
+    routes[`video_inputs/${i}`] = () => ({
+      ...bigVideoInput(i),
+      settings: withMockPermissions(currentSettings("video_inputs", i, unitId), "video_input"),
+      status: bigVideoInputStatus(i),
+      thumbnails: {
+        thumbnails: [{ id: "video_in", href: `video_inputs/${i}/thumbnails/video_in` }],
+      },
+    });
+    routes[`video_inputs/${i}/settings`] = () =>
+      withMockPermissions(currentSettings("video_inputs", i, unitId), "video_input");
+    routes[`video_inputs/${i}/status`] = () => bigVideoInputStatus(i);
+    routes[`video_inputs/${i}/thumbnails`] = () => ({
+      thumbnails: [{ id: "video_in", href: `video_inputs/${i}/thumbnails/video_in` }],
     });
   }
 
@@ -499,7 +554,7 @@ export function resolveMock(
   // up in later GETs and the program thumbnail; everything else echoes back.
   if (method === "PUT") {
     const settingsPut = path.match(
-      /^(encoders|network_inputs|video_mixers)\/(\d+)\/settings$/,
+      /^(encoders|network_inputs|video_inputs|video_mixers)\/(\d+)\/settings$/,
     );
     if (settingsPut) {
       const kind = settingsPut[1] as SettingsKind;

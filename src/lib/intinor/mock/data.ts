@@ -18,6 +18,10 @@ import type {
   NetworkInterfacesList,
   SystemInformation,
   SystemStatus,
+  VideoInput,
+  VideoInputSettingsResponse,
+  VideoInputsList,
+  VideoInputStatus,
   VideoMixer,
   VideoMixersList,
   VideoMixerSettingsResponse,
@@ -188,6 +192,95 @@ export const mockNetworkInput: NetworkInput = {
 export const mockNetworkInputsList: NetworkInputsList = {
   network_inputs: [mockNetworkInput],
   _links: [{ rel: "self", method: "GET", href: `${UNIT_BASE}/network_inputs` }],
+};
+
+// ---------------------------------------------------------------------------
+// Video input 0 — "Netvideo in 1": a second, distinct ingest resource from
+// network_input, offering pull-based sources (RTSP/HLS/NDI/RTMP) in addition
+// to SRT caller/listener. See the NetvideoSourceSettings note in types.ts.
+// ---------------------------------------------------------------------------
+
+export const mockVideoInputSettings: VideoInputSettingsResponse = {
+  description: "Netvideo in 1",
+  active: true,
+  netvideo_source: {
+    type: "srt_listener",
+    srt_listener: { port: 7501, latency: 120, password: "", rendezvous: false },
+    audio_select: [{ value: "auto", target: "auto" }],
+  },
+  _version: "mock-1",
+  _constraints: {
+    mutable: ["*"],
+    capabilities: { deactivatable: true },
+    netvideo_source: {
+      type: [
+        { value: "rtsp_pull", description: "RTSP (pull)" },
+        { value: "hls", description: "HLS (pull)" },
+        { value: "ndi", description: "NDI" },
+        { value: "srt_caller", description: "SRT caller" },
+        { value: "srt_listener", description: "SRT listener" },
+        { value: "rtmp_receive", description: "RTMP (receive)" },
+        { value: "rtmp_pull", description: "RTMP (pull)" },
+      ],
+      rtmp_receive: { rtmp_url_example: "rtmp://<unit-address>/live" },
+      audio_select: [{ target: "auto", description: "Automatic" }],
+      network_interface: [{ value: "eth0", description: "Ethernet 1" }],
+      advanced: {
+        source_clock_reconstruction: [
+          { value: 0, description: "Disabled" },
+          { value: 1, description: "Enabled" },
+        ],
+      },
+    },
+  },
+};
+
+export const mockVideoInputStatus: VideoInputStatus = {
+  active: true,
+  description: "Netvideo in 1",
+  messages: [],
+  netvideo_source: {
+    srt: { address: "203.0.113.55:7501", bitrate: 5_200_000, latency: 120, packet_loss: { before: 0.01, after: 0 } },
+  },
+  video_in: {
+    available: true,
+    video: {
+      format: {
+        width: 1920,
+        height: 1080,
+        interlaced: false,
+        framerate: 25,
+        display_aspect: "16:9",
+        pixel_aspect: "1:1",
+        forced_aspect: false,
+        top_field_first: false,
+        chroma_subsampling: "4:2:0",
+      },
+      codec: { name: "h264", adaptive_bitrate: false, bitrate: 5_000_000 },
+    },
+    audio: [
+      {
+        description: "Stereo",
+        format: { sample_rate: 48000, bit_depth: 16, channels: 2 },
+        codec: { name: "aac", adaptive_bitrate: false, bitrate: 128_000 },
+      },
+    ],
+  },
+};
+
+export const mockVideoInput: VideoInput = {
+  name: "video_input",
+  type: "video_input",
+  index: 0,
+  description: "Netvideo in 1",
+  active: true,
+  href: `${UNIT_BASE}/video_inputs/0`,
+  _links: [{ rel: "self", method: "GET", href: `${UNIT_BASE}/video_inputs/0` }],
+};
+
+export const mockVideoInputsList: VideoInputsList = {
+  video_inputs: [mockVideoInput],
+  _links: [{ rel: "self", method: "GET", href: `${UNIT_BASE}/video_inputs` }],
 };
 
 // ---------------------------------------------------------------------------

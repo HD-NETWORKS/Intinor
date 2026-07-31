@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const ITEMS = [
   { href: "/", label: "Overview" },
   { href: "/inputs", label: "Network inputs" },
+  { href: "/netvideo", label: "Netvideo inputs" },
   { href: "/mixer", label: "Video mixer" },
   { href: "/encoders", label: "Encoders" },
   { href: "/system", label: "System" },

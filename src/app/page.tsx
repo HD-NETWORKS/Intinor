@@ -2,13 +2,20 @@
 
 import { useState } from "react";
 import { usePolledResource } from "@/hooks/usePolledResource";
-import type { EncodersList, NetworkInputsList, VideoMixersList } from "@/lib/intinor/types";
+import type {
+  EncodersList,
+  NetworkInputsList,
+  VideoInputsList,
+  VideoMixersList,
+} from "@/lib/intinor/types";
 import { SystemPanel } from "@/components/panels/SystemPanel";
 import { NetworkInterfacesPanel } from "@/components/panels/NetworkInterfacesPanel";
 import { NetworkInputCard } from "@/components/panels/NetworkInputCard";
+import { VideoInputCard } from "@/components/panels/VideoInputCard";
 import { VideoMixerCard } from "@/components/panels/VideoMixerCard";
 import { EncoderCard } from "@/components/panels/EncoderCard";
 import { NetworkInputRow } from "@/components/panels/NetworkInputRow";
+import { VideoInputRow } from "@/components/panels/VideoInputRow";
 import { EncoderRow } from "@/components/panels/EncoderRow";
 import { PipeTable } from "@/components/panels/PipeTable";
 import { HistoryPanel } from "@/components/history/HistoryPanel";
@@ -18,21 +25,24 @@ const AUTO_LIST_THRESHOLD = 8;
 
 export default function Overview() {
   const inputs = usePolledResource<NetworkInputsList>("network_inputs", 5000);
+  const videoInputs = usePolledResource<VideoInputsList>("video_inputs", 5000);
   const mixers = usePolledResource<VideoMixersList>("video_mixers", 5000);
   const encoders = usePolledResource<EncodersList>("encoders", 5000);
 
   const inputCount = inputs.data?.network_inputs.length ?? 0;
+  const videoInputCount = videoInputs.data?.video_inputs.length ?? 0;
   const mixerCount = mixers.data?.video_mixers.length ?? 0;
   const encoderCount = encoders.data?.encoders.length ?? 0;
 
   // Cards read well for a handful of pipes; a dense rack unit defaults to the
   // list — but an explicit click always wins over the auto-pick.
   const [viewOverride, setViewOverride] = useState<"cards" | "list" | null>(null);
-  const autoView = inputCount + encoderCount > AUTO_LIST_THRESHOLD ? "list" : "cards";
+  const autoView =
+    inputCount + videoInputCount + encoderCount > AUTO_LIST_THRESHOLD ? "list" : "cards";
   const effectiveView = viewOverride ?? autoView;
 
-  const listError = inputs.error ?? mixers.error ?? encoders.error;
-  const anyListData = inputs.data ?? mixers.data ?? encoders.data;
+  const listError = inputs.error ?? videoInputs.error ?? mixers.error ?? encoders.error;
+  const anyListData = inputs.data ?? videoInputs.data ?? mixers.data ?? encoders.data;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -50,8 +60,8 @@ export default function Overview() {
           </h2>
           <div className="flex items-center gap-3">
             <span className="text-xs text-slate-500">
-              {inputCount} input · {mixerCount} mixer · {encoderCount} encoder — fixed by
-              hardware/license
+              {inputCount} input · {videoInputCount} Netvideo · {mixerCount} mixer ·{" "}
+              {encoderCount} encoder — fixed by hardware/license
             </span>
             <div className="flex gap-1">
               {(["cards", "list"] as const).map((v) => (
@@ -81,6 +91,9 @@ export default function Overview() {
             {inputs.data?.network_inputs.map((i) => (
               <NetworkInputCard key={`ni-${i.index}`} index={i.index} />
             ))}
+            {videoInputs.data?.video_inputs.map((v) => (
+              <VideoInputCard key={`vi-${v.index}`} index={v.index} />
+            ))}
             {mixers.data?.video_mixers.map((m) => (
               <VideoMixerCard key={`vm-${m.index}`} index={m.index} />
             ))}
@@ -103,6 +116,14 @@ export default function Overview() {
                 items={inputs.data.network_inputs}
                 emptyMessage="This unit has no network inputs."
                 renderRow={(it) => <NetworkInputRow index={it.index} />}
+              />
+            )}
+            {videoInputs.data && videoInputs.data.video_inputs.length > 0 && (
+              <PipeTable
+                title={`Netvideo inputs (${videoInputCount})`}
+                items={videoInputs.data.video_inputs}
+                emptyMessage="This unit has no Netvideo inputs."
+                renderRow={(it) => <VideoInputRow index={it.index} />}
               />
             )}
             {encoders.data && (

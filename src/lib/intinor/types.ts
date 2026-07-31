@@ -734,6 +734,107 @@ export interface NetworkInputsList {
 }
 
 // ---------------------------------------------------------------------------
+// Video input ("Netvideo in" on the stock console) — a second, distinct
+// ingest resource alongside network_input ("IP stream in"): pull-based
+// sources (RTSP/HLS/NDI/RTMP) in addition to the SRT/RTMP push-or-listen
+// shapes network_input offers. Only one `netvideo_source.*` sub-object is
+// active at a time, selected by `netvideo_source.type`.
+// ---------------------------------------------------------------------------
+
+export interface NetvideoSourceSettings {
+  /** Selects which sibling object below is active. */
+  type: string;
+  rtsp_pull?: { url: string };
+  hls?: { url?: string };
+  ndi?: { audio_gain?: number; source?: string };
+  srt_caller?: {
+    address: string;
+    port: number;
+    latency?: number;
+    stream_id?: string;
+    password?: string;
+    adapter?: string;
+    rendezvous?: boolean;
+  };
+  srt_listener?: {
+    address?: string;
+    port: number;
+    latency?: number;
+    password?: string;
+    adapter?: string;
+    rendezvous?: boolean;
+  };
+  rtmp_receive?: { stream: string };
+  rtmp_pull?: { url: string; stream: string };
+  audio_select?: Array<{ value: string; target: string }>;
+}
+
+export interface NetvideoSourceSettingsConstraints {
+  type: Array<{ value: string; description: string }>;
+  advanced?: { source_clock_reconstruction?: DescriptionIntegerValue[] };
+  rtmp_receive?: { rtmp_url_example: string };
+  audio_select?: Array<{ target: string; description: string }>;
+  network_interface?: DescriptionValue[];
+  [key: string]: unknown;
+}
+
+export interface NetvideoSourceStatusHlsProgram {
+  bitrate?: number;
+  audio?: Array<{ channels?: number; description?: string; language?: string }>;
+  video?: { width?: number; height?: number; framerate?: number };
+}
+
+export interface NetvideoSourceStatus {
+  rtmp_receive?: { address?: string; bitrate?: number };
+  hls?: { detected_programs: NetvideoSourceStatusHlsProgram[]; selected_program?: number };
+  srt?: {
+    latency?: number;
+    bitrate?: number;
+    address?: string;
+    packet_loss?: { before?: number; after?: number };
+  };
+}
+
+export interface VideoInStatus {
+  audio: AudioStatus[];
+  video?: VideoStatus;
+  available: boolean;
+}
+
+export interface VideoInputSettings extends CommonPipeSettings {
+  netvideo_source: NetvideoSourceSettings;
+}
+
+export interface VideoInputSettingsConstraints
+  extends CommonPipeSettingsConstraints {
+  netvideo_source: NetvideoSourceSettingsConstraints;
+  mutable: MutableList;
+  [key: string]: unknown;
+}
+
+export type VideoInputSettingsRequest = VideoInputSettings & RequestMetadata;
+
+export type VideoInputSettingsResponse = VideoInputSettings &
+  ResponseMetadata & { _constraints?: VideoInputSettingsConstraints };
+
+export interface VideoInputStatus extends CommonPipeStatus {
+  netvideo_source: NetvideoSourceStatus;
+  video_in?: VideoInStatus;
+}
+
+export interface VideoInput extends CommonPipeInfo {
+  _constraints?: CommonPipeConstraints;
+  status?: VideoInputStatus;
+  settings?: VideoInputSettingsResponse;
+  thumbnails?: PipeThumbnails;
+}
+
+export interface VideoInputsList {
+  video_inputs: VideoInput[];
+  _links?: Link[];
+}
+
+// ---------------------------------------------------------------------------
 // Video mixer (custom layered compositing — quad grid etc.)
 // ---------------------------------------------------------------------------
 

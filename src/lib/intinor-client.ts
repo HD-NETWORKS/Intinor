@@ -30,6 +30,11 @@ import type {
   StmError,
   SystemInformation,
   SystemStatus,
+  VideoInput,
+  VideoInputSettings,
+  VideoInputSettingsResponse,
+  VideoInputsList,
+  VideoInputStatus,
   VideoMixer,
   VideoMixersList,
   VideoMixerSettings,
@@ -156,6 +161,28 @@ export function createIntinorClient(base: string = UNIT_PROXY_BASE) {
       post<StmError>(`network_inputs/${index}/actions/restart`),
     networkInputThumbnailUrl: (index: number, id: string, opts: ThumbnailOptions = {}) =>
       `${base}/network_inputs/${index}/thumbnails/${id}` +
+      query({
+        width: opts.width,
+        height: opts.height,
+        jpeg_quality: opts.jpegQuality,
+        ppm: opts.ppm,
+      }),
+
+    // -- video inputs ("Netvideo in": RTSP/HLS/NDI/RTMP pull, SRT caller/listener) --
+    getVideoInputs: (include?: Include) =>
+      get<VideoInputsList>(withInclude("video_inputs", include)),
+    getVideoInput: (index: number, include?: Include) =>
+      get<VideoInput>(withInclude(`video_inputs/${index}`, include)),
+    getVideoInputSettings: (index: number) =>
+      get<VideoInputSettingsResponse>(`video_inputs/${index}/settings${CONSTRAINTS}`),
+    putVideoInputSettings: (
+      index: number,
+      body: VideoInputSettings & RequestMetadata,
+    ) => put<VideoInputSettingsResponse>(`video_inputs/${index}/settings`, body),
+    getVideoInputStatus: (index: number) =>
+      get<VideoInputStatus>(`video_inputs/${index}/status`),
+    videoInputThumbnailUrl: (index: number, id: string, opts: ThumbnailOptions = {}) =>
+      `${base}/video_inputs/${index}/thumbnails/${id}` +
       query({
         width: opts.width,
         height: opts.height,
