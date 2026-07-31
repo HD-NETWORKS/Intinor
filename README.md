@@ -1063,6 +1063,21 @@ requested explicitly with `?include=status`. Both `NetworkInterfacesPanel`
 and `UnitSwitcher`'s IP lookup now fetch `network_interfaces?include=status`
 instead of the bare path.
 
+### Follow-up: network interfaces moved to the top, primary IP always copyable
+
+Once the data was flowing, the Network interfaces panel still sat below the
+signal chain — reachable only after scrolling — and the IP addresses were
+plain text with no easy way to grab one. Two changes:
+
+- `NetworkInterfacesPanel` now renders first on the Overview page, above
+  `SystemPanel`, so it's visible without scrolling.
+- The panel leads with a highlighted "Primary IP" banner (large monospace
+  text + a Copy button) reading the same primary-interface address the
+  header badge uses, and every per-interface IP in the detail cards below
+  it also gets its own Copy button (`navigator.clipboard.writeText`, with a
+  brief "Copied!" confirmation; silently no-ops if the Clipboard API is
+  unavailable — the address is still visible to select by hand).
+
 ## Getting started
 
 ```bash
