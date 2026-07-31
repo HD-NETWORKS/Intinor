@@ -775,6 +775,45 @@ confirming saves and survives a reload. Re-verified on the big-unit fixture
 source tiles, 17 encoder destinations, all with live thumbnails) with zero
 console errors.
 
+## Phase 14 — Local users, read-only
+
+The last open item from the launch audit: the unit's own local user system
+(roles, per-category permissions for media bank/recording/test picture/
+encoding settings, per-video-resource permissions for every input/encoder)
+is entirely separate from this dashboard's own single-shared-account login
+(Phase 5). Asked the user directly whether to build nothing, read-only
+visibility, or full CRUD here — **read-only visibility** was the call:
+security-sensitive, rarely-touched account/permission management is exactly
+the kind of thing that should stay on the vendor's own console as the
+source of truth, but a glanceable view of "who has access to what" from
+the same dashboard is low-risk and genuinely useful.
+
+Fully documented in both bundled reference docs — `GET /users`,
+`GET/PUT /users/{username}/settings` — and it turned out `User`/
+`UserSettings`/`UserList` were already scaffolded in `types.ts` back in
+Phase 0 (matching this schema exactly) even though no page ever used them.
+Added only what was missing: `UserSettingsConstraints` (role and
+per-resource permission options, each with a human description) and
+`UserSettingsResponse`.
+
+- **New page** `/users`: one card per local user — role badge, and a
+  permissions table (resource → access level) with labels resolved from
+  that user's own `_constraints.permissions` descriptions rather than
+  hardcoded strings. No edit, create, or delete controls anywhere — the
+  client only has `getUsers()`/`getUserSettings()`, no write methods at
+  all, so there's no write path to accidentally expose later.
+- Passwords are typed as always write-only/never rendered, matching how
+  every other settings page treats password fields.
+- Mock: two example accounts (`admin`, `operator`) with realistic
+  permission sets, so the page has something to show.
+
+### Verified
+
+`npm run build`, `npm run lint`, `npm test` all pass. Browser-verified:
+both mock accounts render with correct role badges; the permissions table
+shows human-readable resource/access labels (e.g. "IP stream in 1 — Video
+user") rather than raw API strings; no console errors.
+
 ## Getting started
 
 ```bash

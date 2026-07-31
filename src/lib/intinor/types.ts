@@ -1293,6 +1293,30 @@ export interface TestPicture {
 }
 
 // ---------------------------------------------------------------------------
+// Local users — read-only constraints/response wrapper (see `User`/
+// `UserSettings`/`UserList` above for the base shapes, already scaffolded in
+// Phase 0). This dashboard only ever GETs these: `POST /users` (create) and
+// `PUT/DELETE` exist on the real API, but the unit's own accounts, roles,
+// and permissions stay managed on its stock IDM console — a separate,
+// dashboard-only login (Phase 5) gates this app instead. See the Phase 14
+// README section for the reasoning.
+// ---------------------------------------------------------------------------
+
+export interface UserSettingsConstraints {
+  mutable: MutableList;
+  role: DescriptionDocumentationValue[];
+  permissions: Array<{
+    resource: string;
+    role: DescriptionDocumentationValue[];
+    description: string;
+  }>;
+  username?: string;
+}
+
+export type UserSettingsResponse = UserSettings &
+  ResponseMetadata & { _constraints?: UserSettingsConstraints };
+
+// ---------------------------------------------------------------------------
 // API root
 // ---------------------------------------------------------------------------
 

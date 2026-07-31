@@ -35,6 +35,8 @@ import type {
   SystemStatus,
   TestPictureSettingsRequest,
   TestPictureSettingsResponse,
+  UserList,
+  UserSettingsResponse,
   VideoInput,
   VideoInputSettings,
   VideoInputSettingsResponse,
@@ -280,6 +282,11 @@ export function createIntinorClient(base: string = UNIT_PROXY_BASE) {
       get<AvailableFirmwaresResponse>("system/available_firmwares"),
     /** Raw XML backup — safe (GET), unlike restoring one, which stays permanently blocked. */
     getSystemConfigBackup: () => getText("system/config"),
+
+    // -- local users (read-only visibility; see the Phase 14 README note) --
+    getUsers: () => get<UserList>("users"),
+    getUserSettings: (username: string) =>
+      get<UserSettingsResponse>(`users/${encodeURIComponent(username)}/settings${CONSTRAINTS}`),
   };
 }
 

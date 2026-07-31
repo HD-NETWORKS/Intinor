@@ -7,6 +7,7 @@
 
 import type {
   AvailableFirmwaresResponse,
+  DescriptionDocumentationValue,
   Encoder,
   EncodersList,
   EncoderSettingsResponse,
@@ -21,6 +22,9 @@ import type {
   NetworkInterfacesList,
   SystemInformation,
   SystemStatus,
+  UserList,
+  UserSettingsConstraints,
+  UserSettingsResponse,
   VideoInput,
   VideoInputSettingsResponse,
   VideoInputsList,
@@ -100,6 +104,75 @@ export const mockSystem: SystemInformation = {
   oem: "intinor",
   messages: [],
   _links: [{ rel: "self", method: "GET", href: `${UNIT_BASE}/system` }],
+};
+
+// ---------------------------------------------------------------------------
+// Local users — read-only visibility only (see Phase 14 README note); two
+// example accounts so the page has something to show.
+// ---------------------------------------------------------------------------
+
+const USER_ROLE_OPTIONS: DescriptionDocumentationValue[] = [
+  { value: "administrator", description: "Administrator", documentation: "Full access to every resource." },
+  { value: "user", description: "User", documentation: "Can operate but not reconfigure system-level settings." },
+];
+
+const CATEGORY_ROLE_OPTIONS: DescriptionDocumentationValue[] = [
+  { value: "observer", description: "Observer", documentation: "Can view but not change." },
+  { value: "user", description: "User", documentation: "Can view and change." },
+];
+
+const VIDEO_ROLE_OPTIONS: DescriptionDocumentationValue[] = [
+  { value: "none", description: "No access", documentation: "Cannot view or use this resource." },
+  { value: "video_observer", description: "Video observer", documentation: "Can view thumbnails/status only." },
+  { value: "video_user", description: "Video user", documentation: "Can view and change settings." },
+  { value: "video_administrator", description: "Video administrator", documentation: "Full control, including access control lists." },
+];
+
+const USER_PERMISSION_CONSTRAINTS: UserSettingsConstraints["permissions"] = [
+  { resource: "media_bank", role: CATEGORY_ROLE_OPTIONS, description: "Media bank" },
+  { resource: "recording", role: CATEGORY_ROLE_OPTIONS, description: "Recording" },
+  { resource: "test_picture", role: CATEGORY_ROLE_OPTIONS, description: "Test picture" },
+  { resource: "encoding_settings", role: CATEGORY_ROLE_OPTIONS, description: "Encoding settings" },
+  { resource: "network_inputs/0", role: VIDEO_ROLE_OPTIONS, description: "IP stream in 1" },
+  { resource: "encoders/0", role: VIDEO_ROLE_OPTIONS, description: "Encoder 1" },
+];
+
+export const mockUserSettingsAdmin: UserSettingsResponse = {
+  username: "admin",
+  role: "administrator",
+  permissions: [],
+  _version: "mock-1",
+  _constraints: {
+    mutable: ["*"],
+    role: USER_ROLE_OPTIONS,
+    permissions: USER_PERMISSION_CONSTRAINTS,
+  },
+};
+
+export const mockUserSettingsOperator: UserSettingsResponse = {
+  username: "operator",
+  role: "user",
+  permissions: [
+    { resource: "media_bank", role: "observer" },
+    { resource: "recording", role: "user" },
+    { resource: "test_picture", role: "observer" },
+    { resource: "encoding_settings", role: "observer" },
+    { resource: "network_inputs/0", role: "video_user" },
+    { resource: "encoders/0", role: "video_user" },
+  ],
+  _version: "mock-1",
+  _constraints: {
+    mutable: ["*"],
+    role: USER_ROLE_OPTIONS,
+    permissions: USER_PERMISSION_CONSTRAINTS,
+  },
+};
+
+export const mockUsersList: UserList = {
+  users: [
+    { username: "admin", href: `${UNIT_BASE}/users/admin` },
+    { username: "operator", href: `${UNIT_BASE}/users/operator` },
+  ],
 };
 
 // ---------------------------------------------------------------------------
