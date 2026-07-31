@@ -32,7 +32,7 @@ export function PipePicker({
               : "border-slate-700 text-slate-300 hover:bg-slate-800")
           }
         >
-          #{item.index} {item.description}
+          {item.description}
         </button>
       ))}
     </div>

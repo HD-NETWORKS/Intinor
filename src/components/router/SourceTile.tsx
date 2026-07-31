@@ -2,6 +2,7 @@
 
 import { usePolledResource } from "@/hooks/usePolledResource";
 import { useIntinorClient } from "@/hooks/useIntinorClient";
+import { useThumbnailTick, withThumbnailTick } from "@/hooks/useThumbnailTick";
 import type { CommonPipeInfo, PipeThumbnails } from "@/lib/intinor/types";
 
 export type SourceKind = "network_input" | "video_input" | "video_mixer" | "test_picture";
@@ -46,9 +47,10 @@ export function SourceTile({
   const client = useIntinorClient();
   const path = kind !== "test_picture" ? `${KIND_PATH[kind]}/${index}?include=status,thumbnails` : "";
   const { data } = usePolledResource<TileData>(path, 8000, kind !== "test_picture");
+  const tick = useThumbnailTick();
 
   const thumbId = data?.thumbnails?.thumbnails[0]?.id;
-  const thumbUrl =
+  const rawThumbUrl =
     thumbId && index != null
       ? kind === "network_input"
         ? client.networkInputThumbnailUrl(index, thumbId, { width: 160, height: 90 })
@@ -58,6 +60,7 @@ export function SourceTile({
             ? client.videoMixerThumbnailUrl(index, thumbId, { width: 160, height: 90 })
             : null
       : null;
+  const thumbUrl = rawThumbUrl ? withThumbnailTick(rawThumbUrl, tick) : null;
 
   return (
     <div

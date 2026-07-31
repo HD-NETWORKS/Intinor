@@ -46,38 +46,6 @@ function inputSections(s: NetworkInputSettingsResponse): FieldSection[] {
     },
   ];
 
-  if (src.srt_caller) {
-    sections.push({
-      title: "SRT caller",
-      description: "The unit dials out to a remote SRT server.",
-      fields: [
-        { path: "network_sources.srt_caller.active", label: "Active", kind: "checkbox" },
-        { path: "network_sources.srt_caller.address", label: "Remote address", kind: "text" },
-        {
-          path: "network_sources.srt_caller.port",
-          label: "Port",
-          kind: "number",
-          min: 1,
-          max: 65535,
-        },
-        {
-          path: "network_sources.srt_caller.latency",
-          label: "Latency",
-          kind: "number",
-          unit: "ms",
-          min: 20,
-        },
-        { path: "network_sources.srt_caller.stream_id", label: "Stream ID", kind: "text" },
-        {
-          path: "network_sources.srt_caller.password",
-          label: "Passphrase",
-          kind: "password",
-          help: "Leave unchanged to keep the current passphrase.",
-        },
-      ],
-    });
-  }
-
   if (src.udp_unicast) {
     sections.push({
       title: "SRT listener / unicast",
@@ -108,6 +76,38 @@ function inputSections(s: NetworkInputSettingsResponse): FieldSection[] {
           path: "network_sources.udp_unicast.srt.password",
           label: "SRT passphrase",
           kind: "password",
+        },
+      ],
+    });
+  }
+
+  if (src.srt_caller) {
+    sections.push({
+      title: "SRT caller",
+      description: "The unit dials out to a remote SRT server.",
+      fields: [
+        { path: "network_sources.srt_caller.active", label: "Active", kind: "checkbox" },
+        { path: "network_sources.srt_caller.address", label: "Remote address", kind: "text" },
+        {
+          path: "network_sources.srt_caller.port",
+          label: "Port",
+          kind: "number",
+          min: 1,
+          max: 65535,
+        },
+        {
+          path: "network_sources.srt_caller.latency",
+          label: "Latency",
+          kind: "number",
+          unit: "ms",
+          min: 20,
+        },
+        { path: "network_sources.srt_caller.stream_id", label: "Stream ID", kind: "text" },
+        {
+          path: "network_sources.srt_caller.password",
+          label: "Passphrase",
+          kind: "password",
+          help: "Leave unchanged to keep the current passphrase.",
         },
       ],
     });
@@ -239,7 +239,7 @@ function InputSettingsEditor({ index }: { index: number }) {
         </div>
       )}
       <SettingsForm
-        title={`Network input #${index} settings`}
+        title={`Network input ${index + 1} settings`}
         description="SRT caller/listener, RTMP, multicast and buffering for this ingest."
         editor={editor}
         meta={meta}

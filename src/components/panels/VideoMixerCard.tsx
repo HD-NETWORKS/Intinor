@@ -22,7 +22,6 @@ export function VideoMixerCard({ index }: { index: number }) {
   return (
     <StatusCardShell
       title="Video mixer"
-      index={index}
       description={data?.description}
       active={status?.active}
       loading={loading && !data}

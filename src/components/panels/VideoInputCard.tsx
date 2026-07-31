@@ -21,7 +21,6 @@ export function VideoInputCard({ index }: { index: number }) {
   return (
     <StatusCardShell
       title="Netvideo input"
-      index={index}
       description={data?.description}
       active={status?.active}
       loading={loading && !data}

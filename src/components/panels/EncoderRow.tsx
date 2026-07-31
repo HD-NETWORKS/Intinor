@@ -2,6 +2,7 @@
 
 import { usePolledResource } from "@/hooks/usePolledResource";
 import { useIntinorClient } from "@/hooks/useIntinorClient";
+import { useThumbnailTick, withThumbnailTick } from "@/hooks/useThumbnailTick";
 import type { Encoder } from "@/lib/intinor/types";
 import { formatBitrate, formatVideoFormat } from "@/lib/format";
 
@@ -12,12 +13,13 @@ export function EncoderRow({ index }: { index: number }) {
     `encoders/${index}?include=settings,status,thumbnails`,
     5000,
   );
+  const tick = useThumbnailTick();
 
   const status = data?.status;
   const video = status?.encoding.video;
   const thumbId = data?.thumbnails?.thumbnails[0]?.id;
   const thumbUrl = thumbId
-    ? client.encoderThumbnailUrl(index, thumbId, { width: 128, height: 72 })
+    ? withThumbnailTick(client.encoderThumbnailUrl(index, thumbId, { width: 128, height: 72 }), tick)
     : null;
   const active = status?.active ?? false;
   const destCount = status?.destinations.basic?.length ?? 0;
@@ -39,9 +41,7 @@ export function EncoderRow({ index }: { index: number }) {
           <span
             className={"h-1.5 w-1.5 shrink-0 rounded-full " + (active ? "bg-emerald-400" : "bg-slate-600")}
           />
-          <span className="truncate text-sm text-slate-200">
-            #{index} {data?.description}
-          </span>
+          <span className="truncate text-sm text-slate-200">{data?.description}</span>
         </div>
       </div>
 
