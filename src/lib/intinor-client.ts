@@ -13,6 +13,7 @@
 
 import type {
   ApiRootInfo,
+  AvailableFirmwaresResponse,
   Encoder,
   EncodersList,
   EncoderSettingsRequest,
@@ -133,6 +134,21 @@ export function createIntinorClient(base: string = UNIT_PROXY_BASE) {
       }
       throw new IntinorApiError(res.status, detail);
     }
+  }
+
+  /** Raw text GET (e.g. the XML settings backup) — bypasses `request`'s `res.json()`. */
+  async function getText(path: string): Promise<string> {
+    const res = await fetch(`${base}/${path.replace(/^\/+/, "")}`);
+    if (!res.ok) {
+      let detail: Partial<StmError> = {};
+      try {
+        detail = (await res.json()) as Partial<StmError>;
+      } catch {
+        // non-JSON error body
+      }
+      throw new IntinorApiError(res.status, detail);
+    }
+    return res.text();
   }
 
   const withInclude = (path: string, include?: Include): string =>
@@ -258,6 +274,12 @@ export function createIntinorClient(base: string = UNIT_PROXY_BASE) {
      */
     customBackgroundUrl: (cacheBust?: number) =>
       `${base}/test_picture/custom_background` + (cacheBust ? query({ v: cacheBust }) : ""),
+
+    // -- firmware / backup --------------------------------------------------
+    getAvailableFirmwares: () =>
+      get<AvailableFirmwaresResponse>("system/available_firmwares"),
+    /** Raw XML backup — safe (GET), unlike restoring one, which stays permanently blocked. */
+    getSystemConfigBackup: () => getText("system/config"),
   };
 }
 

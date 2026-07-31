@@ -6,6 +6,7 @@
  */
 
 import type {
+  AvailableFirmwaresResponse,
   Encoder,
   EncodersList,
   EncoderSettingsResponse,
@@ -68,6 +69,24 @@ export const mockSystemStatus: SystemStatus = {
     audio_outputs: 1,
   },
 };
+
+export const mockAvailableFirmwares: AvailableFirmwaresResponse = {
+  available_firmwares: [
+    { version: "S5.1.2-1", release: "stable", source: "upgrade_server", datetime: "2025-11-04T09:12:00Z" },
+    { version: "S5.2.0-1", release: "stable", source: "upgrade_server", datetime: "2026-02-18T10:00:00Z" },
+    { version: "S5.3.0-rc1", release: "beta", source: "upgrade_server", datetime: "2026-06-01T08:30:00Z" },
+  ],
+};
+
+/** A minimal, plausible XML settings backup — enough to exercise "download" without a real unit. */
+export const mockSystemConfigXml = `<?xml version="1.0" encoding="UTF-8"?>
+<direkt_config unit="${process.env.INTINOR_UNIT_ID || "D01393"}" generated="mock">
+  <system firmware="S5.1.2-1" />
+  <encoders count="1" />
+  <network_inputs count="1" />
+  <video_mixers count="1" />
+</direkt_config>
+`;
 
 export const mockSystem: SystemInformation = {
   product_type: "direkt_router",

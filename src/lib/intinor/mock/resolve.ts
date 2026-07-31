@@ -19,9 +19,11 @@ import {
   mockEncoder,
   mockEncodersList,
   mockEncoderSettings,
+  mockAvailableFirmwares,
   mockEncoderStatus,
   mockEncodingModes,
   mockEncodingSettings,
+  mockSystemConfigXml,
   mockTestPictureSettings,
   mockNetworkInput,
   mockNetworkInputsList,
@@ -272,6 +274,7 @@ const GET_ROUTES: Record<string, () => unknown> = {
   system: () => mockSystem,
   "system/status": () => liveSystemStatus(),
   "system/messages": () => ({ messages: [] }),
+  "system/available_firmwares": () => mockAvailableFirmwares,
   encoders: () => mockEncodersList,
   "encoders/0": () => ({
     ...mockEncoder,
@@ -357,6 +360,7 @@ function bigGetRoutes(unitId: string): Record<string, () => unknown> {
     system: () => mockSystem,
     "system/status": () => liveSystemStatus(),
     "system/messages": () => ({ messages: [] }),
+    "system/available_firmwares": () => mockAvailableFirmwares,
     encoders: () => bigEncodersList(),
     network_inputs: () => bigNetworkInputsList(),
     video_inputs: () => bigVideoInputsList(),
@@ -585,6 +589,9 @@ export function resolveMock(
     }
     if (path === "test_picture/custom_background") {
       return buildCustomBackgroundResponse(unitId);
+    }
+    if (path === "system/config") {
+      return { status: 200, body: mockSystemConfigXml, contentType: "application/xml" };
     }
     const routes = isBigUnit(unitId) ? bigGetRoutes(unitId!) : GET_ROUTES;
     const route = routes[path];

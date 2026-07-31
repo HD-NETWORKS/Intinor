@@ -1042,6 +1042,27 @@ export interface FirmwareStatus {
   version: string;
 }
 
+/** One row of `GET /system/available_firmwares` (upgrade server + USB media candidates). */
+export interface AvailableFirmware {
+  version: string;
+  release?: string;
+  source: string;
+  datetime?: string;
+}
+
+/**
+ * Wrapper shape inferred from this API's otherwise-universal
+ * `{ <plural_key>: T[] } & common_response_metadata` list convention — the
+ * unit's swagger dump doesn't name a distinct response schema for this
+ * endpoint (only the `available_firmware` element type), unlike the Muxing
+ * settings note elsewhere in this file, so this is a low-risk inference
+ * rather than a guess: worst case it's read via `.available_firmwares` and
+ * gets an empty list back until confirmed against a real unit.
+ */
+export interface AvailableFirmwaresResponse extends ResponseMetadata {
+  available_firmwares: AvailableFirmware[];
+}
+
 export interface SystemStatus {
   upgrade_media_present?: boolean;
   profile?: { href: string; name: string };

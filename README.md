@@ -687,6 +687,51 @@ correctly (`img.complete`/`naturalWidth`/`naturalHeight` confirmed against
 the uploaded file's real dimensions); no hydration warnings or console
 errors on load, edit, or upload.
 
+## Phase 12 — Richer firmware upgrade + settings backup download
+
+Both fully documented in `docs/01-intinor-api-reference.md`:
+`GET /system/available_firmwares` (upgrade-server + USB-media candidates),
+`POST /system/actions/upgrade_firmware?version=&source=` (previously fired
+with no params — just "install whatever the unit already flagged"), and
+`GET /system/config` / `PUT /system/config` (XML backup — GET is a safe
+read; PUT restores and reboots, and was already permanently blocked at the
+proxy since Phase 5, correctly so).
+
+- **Types**: `AvailableFirmware`, `AvailableFirmwaresResponse` — the latter's
+  wrapper shape (`{ available_firmwares: [...] } & common_response_metadata`)
+  isn't a named schema in the unit's swagger dump, but every other list
+  endpoint in this API follows that exact convention, so it's a low-risk
+  inference, not a guess — flagged as such in the type's own doc comment.
+- **`FirmwarePanel`** (new, on `/system`): read-only running/default/recovery
+  firmware versions and dates from `system/status.firmware` (already fully
+  typed from earlier phases — no new fields needed there), plus an
+  "update available" banner when running ≠ default. Explicitly notes that
+  validating firmware integrity or swapping to the recovery slot — both
+  visible in the user's screenshots — have no corresponding endpoint in
+  either bundled reference doc, so unlike Muxing (Phase 8) this dashboard
+  does **not** fabricate actions for them.
+- **`BackupPanel`** (new, on `/system`): a "Download backup" button —
+  `GET /system/config`, triggers a browser download of the XML. No danger-
+  zone gating; it's a plain read. Restoring one stays exactly as blocked as
+  before.
+- **Danger Zone → Upgrade firmware**: revealing the confirm box now also
+  shows a version/channel picker sourced from `getAvailableFirmwares()`,
+  defaulting to "the unit's own recommended choice" (no params sent, same
+  as before this phase) or a specific candidate. `performSystemAction`
+  (`server/system-actions.ts`) gained an optional `{version, source}` param,
+  appended as `?version=&source=` only for this one action — still behind
+  both existing gates (env flag + typed `UPGRADE_FIRMWARE` confirmation).
+
+### Verified
+
+`npm run build`, `npm run lint`, `npm test` all pass. Browser-verified with
+`INTINOR_ALLOW_DESTRUCTIVE_ACTIONS=1`: the firmware picker lists all three
+mock candidates; downloading the backup produces a real file with the
+expected XML content; selecting a specific firmware version and confirming
+sends `POST system/actions/upgrade_firmware?version=S5.2.0-1&source=upgrade_server`
+(confirmed via the actual dev server request log) rather than the bare
+unparameterized action.
+
 ## Getting started
 
 ```bash

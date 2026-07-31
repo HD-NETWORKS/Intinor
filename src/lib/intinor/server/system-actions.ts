@@ -44,6 +44,8 @@ export async function performSystemAction(
   unitId: string,
   action: string,
   confirm: string,
+  /** Only meaningful for `upgrade_firmware` — `?version=&source=` per docs/01-intinor-api-reference.md. */
+  params?: { version?: string; source?: string },
 ): Promise<SystemActionResult> {
   if (!isSystemAction(action)) {
     return {
@@ -81,15 +83,23 @@ export async function performSystemAction(
     };
   }
 
+  const search =
+    action === "upgrade_firmware" && (params?.version || params?.source)
+      ? "?" +
+        new URLSearchParams({
+          ...(params?.version ? { version: params.version } : {}),
+          ...(params?.source ? { source: params.source } : {}),
+        }).toString()
+      : "";
   const path = `system/actions/${action}`;
 
   if (isMockMode()) {
-    const mock = resolveMock("POST", path);
+    const mock = resolveMock("POST", `${path}${search}`);
     return { status: mock.status, body: mock.body };
   }
 
   try {
-    const res = await unitFetch(unitId, path, { method: "POST" });
+    const res = await unitFetch(unitId, path, { method: "POST", search });
     const body = await res.json().catch(() => ({}));
     return { status: res.status, body };
   } catch (err) {
