@@ -514,7 +514,7 @@ export default function EncodingModesPage() {
         );
       })}
 
-      <div className="sticky bottom-0 -mx-6 border-t border-border-default bg-panel-strong px-6 py-3 backdrop-blur">
+      <div className="sticky bottom-0 -mx-4 border-t border-border-default bg-panel-strong px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="text-sm">
             {saveBlocked ? (

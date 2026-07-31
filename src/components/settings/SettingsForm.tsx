@@ -128,7 +128,7 @@ export function SettingsForm<T extends object>({
         className={
           compact
             ? "border-t border-border-default pt-3"
-            : "sticky bottom-0 -mx-6 border-t border-border-default bg-panel-strong px-6 py-3 backdrop-blur"
+            : "sticky bottom-0 -mx-4 border-t border-border-default bg-panel-strong px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6"
         }
       >
         <div className="flex flex-wrap items-center justify-between gap-3">

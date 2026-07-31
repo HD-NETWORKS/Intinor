@@ -1078,6 +1078,39 @@ plain text with no easy way to grab one. Two changes:
   brief "Copied!" confirmation; silently no-ops if the Clipboard API is
   unavailable — the address is still visible to select by hand).
 
+## Phase 20 — mobile-responsive shell
+
+The dashboard was desktop-only in practice: a fixed 192px sidebar plus a
+single-row header (logo, title, theme toggle, unit switcher, IP badge,
+logout) had no way to fit a phone-width viewport, and the settings pages'
+sticky save bar used a `-mx-6` bleed sized for the desktop `p-6` page
+padding.
+
+- `Nav` is now a static sidebar on `md+` screens (unchanged) and an
+  off-canvas drawer below that — hidden by default, toggled by a hamburger
+  button in the header, with a dimmed backdrop, closes on backdrop click or
+  on navigating to a new page.
+- The header wraps instead of overflowing (`flex-wrap`), the "Intinor
+  Direkt dashboard" subtitle hides below `sm` to save space, and page
+  padding is `p-4` on mobile / `p-6` from `sm` up.
+- Fixed the settings pages' sticky save bar (`SettingsForm`,
+  `/encoding-modes`): its edge-to-edge `-mx-6` bleed was sized for the old
+  fixed `p-6`, so at the new `p-4` mobile padding it overshot the viewport
+  by 8px a side, causing horizontal page scroll. Now `-mx-4`/`px-4` on
+  mobile, `sm:-mx-6`/`sm:px-6` from `sm` up, matching the page padding at
+  every breakpoint.
+
+### Verified
+
+`npm run build`, `npm run lint`, `npm test` all pass. Browser-verified
+with Playwright at a 375×812 (iPhone-sized) viewport in mock mode: swept
+all ten routes and confirmed zero horizontal overflow on each (this is
+how the save-bar bug above was actually found — the Encoders settings
+page was the one page still overflowing before the fix). Confirmed the
+hamburger opens/closes the drawer, that clicking a nav link inside it
+navigates and auto-closes it, and that the mixer canvas (the most
+layout-heavy page) still renders correctly at phone width.
+
 ## Getting started
 
 ```bash
