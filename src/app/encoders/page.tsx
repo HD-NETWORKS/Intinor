@@ -7,13 +7,136 @@ import type {
   EncodersList,
   EncoderSettingsRequest,
   EncoderSettingsResponse,
+  MuxingSettingsConstraints,
 } from "@/lib/intinor/types";
 import type { FieldSection, SelectOption } from "@/lib/settings/fields";
 import { optionsFromDescribed, optionsFromEncodingModes } from "@/lib/settings/options";
+import {
+  accessControlSections,
+  basicDestinationSections,
+  onRequestDestinationSections,
+  recordingSections,
+  rtmpDestinationSections,
+} from "@/lib/settings/common-sections";
 import { useSettingsEditor } from "@/hooks/useSettingsEditor";
 import { useUnitMeta } from "@/hooks/useUnitMeta";
 import { SettingsForm } from "@/components/settings/SettingsForm";
 import { PipePicker } from "@/components/settings/PipePicker";
+
+/**
+ * DVB muxing / PSI-SI tables for this encoder's transport stream — see the
+ * MuxingSettings note in lib/intinor/types.ts. Only rendered when the
+ * settings response actually includes a `muxing` object, so units/firmware
+ * that don't expose this stays unaffected.
+ */
+function muxingSection(s: EncoderSettingsResponse): FieldSection[] {
+  if (!s.muxing) return [];
+  const c = (s._constraints?.muxing ?? {}) as MuxingSettingsConstraints;
+
+  return [
+    {
+      title: "Muxing",
+      description: "Transport stream packaging: PIDs, PSI/SI table timing, and DVB metadata.",
+      fields: [
+        {
+          path: "muxing.mode",
+          label: "Mode",
+          kind: "select",
+          options: optionsFromDescribed(c.mode),
+        },
+        { path: "muxing.transport_stream_id", label: "Transport stream ID", kind: "number" },
+        {
+          path: "muxing.program_number",
+          label: "Program number",
+          kind: "number",
+          help: "PMT program number or SDT service ID.",
+        },
+        {
+          path: "muxing.mp2_audio_stream_type",
+          label: "MP2 audio stream type",
+          kind: "select",
+          options: optionsFromDescribed(c.mp2_audio_stream_type),
+          help: "Signals MPEG audio stream type.",
+        },
+        {
+          path: "muxing.video.pid",
+          label: "Video packet ID (PID)",
+          kind: "number",
+          help: "Identifies the video elementary stream.",
+        },
+        { path: "muxing.video.component_tag", label: "Video component tag", kind: "text" },
+        {
+          path: "muxing.pcr.repetition_interval",
+          label: "PCR repetition interval",
+          kind: "number",
+          unit: "s",
+          step: 0.01,
+        },
+        {
+          path: "muxing.pmt.pid",
+          label: "PMT packet ID (PID)",
+          kind: "number",
+        },
+        {
+          path: "muxing.pmt.repetition_interval",
+          label: "PMT repetition interval",
+          kind: "number",
+          unit: "s",
+          step: 0.01,
+        },
+      ],
+    },
+    {
+      title: "Muxing — DVB tables",
+      description: "Network Information, Event Information, Time & Date, and Service Description tables.",
+      fields: [
+        { path: "muxing.dvb.nit.network_name", label: "Network name (NIT)", kind: "text" },
+        { path: "muxing.dvb.nit.network_id", label: "Network ID (NIT)", kind: "number" },
+        {
+          path: "muxing.dvb.nit.repetition_interval",
+          label: "NIT repetition interval",
+          kind: "number",
+          unit: "s",
+        },
+        {
+          path: "muxing.dvb.eit.repetition_interval",
+          label: "EIT repetition interval",
+          kind: "number",
+          unit: "s",
+        },
+        {
+          path: "muxing.dvb.tdt.repetition_interval",
+          label: "TDT repetition interval",
+          kind: "number",
+          unit: "s",
+        },
+        { path: "muxing.dvb.sdt.service_name", label: "Service name (SDT)", kind: "text" },
+        {
+          path: "muxing.dvb.sdt.service_provider_name",
+          label: "Service provider name (SDT)",
+          kind: "text",
+        },
+        {
+          path: "muxing.dvb.sdt.repetition_interval",
+          label: "SDT repetition interval",
+          kind: "number",
+          unit: "s",
+        },
+      ],
+    },
+    {
+      title: "Muxing — metadata",
+      fields: [
+        { path: "muxing.klv_metadata.active", label: "KLV metadata", kind: "checkbox" },
+        {
+          path: "muxing.authentication_metadata.active",
+          label: "Authentication metadata",
+          kind: "checkbox",
+        },
+      ],
+    },
+  ];
+}
 
 /** Append "— used by X, Y" to options whose value is already in use elsewhere — a heads-up, not a block. */
 function withUsageHints(options: SelectOption[], usage: Map<string, string[]>): SelectOption[] {
@@ -81,46 +204,12 @@ function encoderSections(s: EncoderSettingsResponse, sourceUsage: Map<string, st
   const protocolOptions = optionsFromDescribed(
     c?.destinations?.protocol as { value?: string; description?: string }[] | undefined,
   );
-  (s.destinations?.basic ?? []).forEach((dest, i) => {
-    sections.push({
-      title: `Destination ${i + 1}${dest.description ? ` — ${dest.description}` : ""}`,
-      description: "Where this encoder pushes its output.",
-      fields: [
-        { path: `destinations.basic[${i}].active`, label: "Active", kind: "checkbox" },
-        { path: `destinations.basic[${i}].description`, label: "Description", kind: "text" },
-        {
-          path: `destinations.basic[${i}].protocol`,
-          label: "Protocol",
-          kind: "select",
-          options: protocolOptions,
-        },
-        { path: `destinations.basic[${i}].address`, label: "Address", kind: "text" },
-        { path: `destinations.basic[${i}].port`, label: "Port", kind: "number", min: 1, max: 65535 },
-        ...(dest.srt
-          ? [
-              {
-                path: `destinations.basic[${i}].srt.latency`,
-                label: "SRT latency",
-                kind: "number" as const,
-                unit: "ms",
-                min: 20,
-              },
-              {
-                path: `destinations.basic[${i}].srt.stream_id`,
-                label: "SRT stream ID",
-                kind: "text" as const,
-              },
-              {
-                path: `destinations.basic[${i}].srt.password`,
-                label: "SRT passphrase",
-                kind: "password" as const,
-                help: "Leave unchanged to keep the current passphrase.",
-              },
-            ]
-          : []),
-      ],
-    });
-  });
+  sections.push(...basicDestinationSections(s.destinations?.basic, protocolOptions));
+  sections.push(...onRequestDestinationSections(s.destinations));
+  sections.push(...rtmpDestinationSections(s.destinations?.rtmp));
+  sections.push(...recordingSections(s.recording));
+  sections.push(...accessControlSections(s.access_control));
+  sections.push(...muxingSection(s));
 
   return sections;
 }

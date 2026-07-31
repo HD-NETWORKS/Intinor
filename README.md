@@ -458,6 +458,74 @@ encoder source picker shows mixer options fanning out to multiple encoders
 in the same way; the network input settings page shows "Used by Mixer #0"
 for input #0.
 
+## Phase 8 — real-unit ground-truth audit: recording, access control, extra destinations, muxing
+
+The user walked the actual D01796 stock console screen-by-screen and shared
+screenshots of every settings tab, to check our data model against ground
+truth before launch. Several fields already existed in `types.ts` (matching
+`docs/02-intinor-api-definitions-full.md`) but had no settings-page UI at
+all — a pure wiring gap, not a missing capability. This phase closes the
+cheapest, highest-confidence gaps from that audit:
+
+- **Recording** (`recording.mpegts` / `recording.flv` — active, path, max
+  file size) — now rendered on both the encoder and network input settings
+  pages.
+- **Access control** (`access_control[]` — per-rule IP/key/serial allow-list)
+  — one section per configured rule, same on both pages.
+- **Network input direct-passthrough destinations** (`destinations.basic[]`
+  on `NetworkInputSettings`) — the input can push its raw ingest onward,
+  bypassing this unit's own encoders (non-DVB-compliant, but a real, typed
+  capability that had no UI).
+- **Encoder's other destination shapes** — `destinations.srt_on_request` /
+  `tcp_on_request` (unit listens, remote pulls) and `destinations.rtmp[]`
+  were already in the mock data and the type system; only `destinations.basic[]`
+  had a settings section. All three now render.
+
+The builders above (`recordingSections`, `accessControlSections`,
+`basicDestinationSections`, `onRequestDestinationSections`,
+`rtmpDestinationSections`) moved into `lib/settings/common-sections.ts` since
+the encoder and input pages needed the identical shape — `encoders/page.tsx`'s
+inline `destinations.basic[]` loop was extracted rather than duplicated.
+
+### Muxing (new)
+
+The real unit's encoder settings have a "Muxing" tab — transport stream ID,
+program number, video/audio PIDs, PCR/PMT timing, and the DVB PSI/SI tables
+(NIT/EIT/TDT/SDT) — entirely absent from both bundled API reference docs
+(`docs/01-intinor-api-reference.md`, `docs/02-...-full.md`), which predate
+this UI on the real unit. `MuxingSettings`/`MuxingSettingsConstraints`
+(`lib/intinor/types.ts`) and the "Muxing" section on the encoder page are
+built from the screenshots, not a confirmed schema.
+
+**This section's field names are unverified against the live API.** Every
+field still goes through the same `_constraints.mutable` gate as everything
+else, so a wrong field name fails safe: the constraint key just won't be
+present on a real unit's response, and the section either won't render or
+won't be editable — it will not send a malformed PUT. Once the real unit's
+`GET /encoders/{index}/settings` response (with muxing populated) is
+available, `muxing.*` paths and the constraint shape should be reconciled
+against it.
+
+### Verified
+
+`npm run build` and `npm run lint` pass. Browser-verified against mock mode:
+Destination/SRT-on-request/TCP-on-request/RTMP/Recording/Access rule/Muxing
+sections all render with the expected fields and values; editing a muxing
+text field and a muxing checkbox produces a correct confirm-diff (`Intinor →
+HD Networks Direkt`, `off → on`) against the right dot-paths; saving commits
+to the mock state store and survives a reload.
+
+### Still open from the same audit (not in this phase)
+
+- **Netvideo inputs** — a second, distinct set of inputs on the real unit
+  (separate from "IP stream in") with no resource type, mock data, or page
+  yet.
+- **Custom encoding modes CRUD**, **custom test picture upload**, **router
+  panel** (drag-and-drop patch bay UX), **richer firmware upgrade flow**,
+  **settings backup save**, and **local user/RBAC provisioning on the unit
+  itself** — all still just the fixed dropdown / single-button versions
+  described in the Phase 5-7 sections above.
+
 ## Getting started
 
 ```bash

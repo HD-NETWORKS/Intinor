@@ -509,6 +509,52 @@ export interface AccessControlSettings {
 }
 
 // ---------------------------------------------------------------------------
+// Muxing (transport stream / PSI-SI) — per-encoder MPEG-TS packaging.
+// Not present in docs/02-intinor-api-definitions-full.md (that dump predates
+// this UI on the real unit); field names below are inferred from the stock
+// console's "Muxing" tab and unverified against the live API. Since every
+// field is gated by `_constraints.mutable` like the rest of the form, a wrong
+// field name just means the section won't render (or won't be editable) on a
+// real unit rather than sending a bad PUT — safe to ship ahead of confirmation.
+// ---------------------------------------------------------------------------
+
+export interface MuxingAudioStreamSettings {
+  pid?: number;
+  component_tag?: string;
+}
+
+export interface MuxingSettings {
+  mode: string;
+  transport_stream_id: number;
+  program_number: number;
+  mp2_audio_stream_type: string;
+  video: { pid: number; component_tag?: string };
+  audio: MuxingAudioStreamSettings[];
+  pcr: { repetition_interval: number };
+  pat: { pid: number };
+  pmt: { pid: number; repetition_interval: number };
+  dvb: {
+    nit: { network_name: string; network_id: number; repetition_interval: number };
+    eit: { repetition_interval: number };
+    tdt: { repetition_interval: number };
+    sdt: {
+      service_name: string;
+      service_provider_name: string;
+      repetition_interval: number;
+    };
+  };
+  klv_metadata: { active: boolean };
+  authentication_metadata: { active: boolean };
+}
+
+export interface MuxingSettingsConstraints {
+  mode?: DescriptionValue[];
+  mp2_audio_stream_type?: DescriptionValue[];
+  transport_stream_id?: IntegerMinMax;
+  [key: string]: unknown;
+}
+
+// ---------------------------------------------------------------------------
 // Encoder
 // ---------------------------------------------------------------------------
 
@@ -518,6 +564,8 @@ export interface EncoderSettings extends CommonPipeSettings {
   video_source: VideoSourceSettings;
   access_control?: AccessControlSettings[];
   destinations: DestinationsSettings;
+  /** Not on every unit/firmware — see MuxingSettings note above. */
+  muxing?: MuxingSettings;
 }
 
 export interface EncoderSettingsConstraints
@@ -526,6 +574,7 @@ export interface EncoderSettingsConstraints
   destinations: DestinationsSettingsConstraints;
   mutable: MutableList;
   video_source: VideoSourceSettingsConstraints;
+  muxing?: MuxingSettingsConstraints;
   [key: string]: unknown;
 }
 

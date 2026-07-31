@@ -108,11 +108,23 @@ export const mockNetworkInputSettings: NetworkInputSettingsResponse = {
     advanced: { tcp_receive_buffer: 2.0, decoder_buffer: 0.5 },
     encryption: false,
   },
-  access_control: [],
+  destinations: { basic: [] },
+  recording: {
+    mpegts: { active: false, path: "recordings/", max_file_size: 4096 },
+  },
+  access_control: [
+    { active: false, description: "Field crew laptop", ip: "", key: "", serial: "" },
+  ],
   _version: "mock-1",
   _constraints: {
     mutable: ["*"],
     capabilities: { deactivatable: true },
+    destinations: {
+      protocol: [
+        { value: "srt", type: "srt", description: "SRT" },
+        { value: "udp", type: "udp", description: "UDP" },
+      ],
+    },
   },
 };
 
@@ -335,7 +347,9 @@ export const mockEncoderSettings: EncoderSettingsResponse = {
         failover: [],
       },
     ],
-    rtmp: [],
+    rtmp: [
+      { id: "rtmp-1", description: "Backup RTMP relay", active: false, url: "", stream: "" },
+    ],
     srt_on_request: { active: true, local_port: 9000 },
     tcp_on_request: { active: false, local_port: 9100 },
   },
@@ -343,11 +357,42 @@ export const mockEncoderSettings: EncoderSettingsResponse = {
     mpegts: { active: false, path: "recordings/", max_file_size: 4096 },
     flv: { active: false, path: "recordings/", max_file_size: 4096 },
   },
-  access_control: [],
+  access_control: [
+    { active: false, description: "Studio truck", ip: "", key: "", serial: "" },
+  ],
+  muxing: {
+    mode: "dvb_compatible",
+    transport_stream_id: 0,
+    program_number: 1,
+    mp2_audio_stream_type: "mpeg2_layer2",
+    video: { pid: 260 },
+    audio: [{ pid: 250 }],
+    pcr: { repetition_interval: 0.04 },
+    pat: { pid: 0 },
+    pmt: { pid: 1000, repetition_interval: 0.1 },
+    dvb: {
+      nit: { network_name: "Intinor", network_id: 64, repetition_interval: 10 },
+      eit: { repetition_interval: 2 },
+      tdt: { repetition_interval: 30 },
+      sdt: { service_name: "Direkt", service_provider_name: "HD Networks", repetition_interval: 2 },
+    },
+    klv_metadata: { active: false },
+    authentication_metadata: { active: false },
+  },
   _version: "mock-1",
   _constraints: {
     mutable: ["*"],
     capabilities: { deactivatable: true },
+    muxing: {
+      mode: [
+        { value: "dvb_compatible", description: "DVB compatible" },
+        { value: "generic", description: "Generic" },
+      ],
+      mp2_audio_stream_type: [
+        { value: "mpeg2_layer2", description: "MPEG-2 Audio Layer II" },
+        { value: "aac_adts", description: "AAC ADTS" },
+      ],
+    },
     encoding: {
       capabilities: { adaptive_bitrate: true },
       encoding_mode: [
