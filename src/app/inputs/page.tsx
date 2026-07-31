@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useIntinorClient } from "@/hooks/useIntinorClient";
 import { useSourceUsage } from "@/hooks/useSourceUsage";
 import type {
+  NetworkInput,
   NetworkInputsList,
   NetworkInputSettings,
   NetworkInputSettingsResponse,
@@ -19,7 +20,9 @@ import {
 import { useSettingsEditor } from "@/hooks/useSettingsEditor";
 import { useUnitMeta } from "@/hooks/useUnitMeta";
 import { useSelectionHandoff } from "@/lib/navigation/selection";
+import { usePolledResource } from "@/hooks/usePolledResource";
 import { SettingsForm } from "@/components/settings/SettingsForm";
+import { StreamPreviewSection } from "@/components/settings/StreamPreviewSection";
 import { PipePicker } from "@/components/settings/PipePicker";
 
 /** `_constraints` for this resource is loosely typed; narrow just what we read. */
@@ -214,6 +217,11 @@ function InputSettingsEditor({ index }: { index: number }) {
     );
     return match ? match[1].map((e) => e.label) : [];
   }, [usage, index]);
+  const { data: preview } = usePolledResource<NetworkInput>(
+    `network_inputs/${index}?include=thumbnails`,
+    8000,
+  );
+  const thumbId = preview?.thumbnails?.thumbnails[0]?.id;
   const load = useCallback(() => client.getNetworkInputSettings(index), [client, index]);
   const save = useCallback(
     (body: NetworkInputSettingsResponse) =>
@@ -239,6 +247,12 @@ function InputSettingsEditor({ index }: { index: number }) {
           )}
         </div>
       )}
+      <StreamPreviewSection
+        thumbId={thumbId}
+        urlBuilder={(id, opts) => client.networkInputThumbnailUrl(index, id, { ...opts, width: 640 })}
+        alt={`Network input ${index + 1} preview`}
+        downloadFilename={`network-input-${index + 1}-snapshot.jpg`}
+      />
       <SettingsForm
         title={`Network input ${index + 1} settings`}
         description="SRT caller/listener, RTMP, multicast and buffering for this ingest."

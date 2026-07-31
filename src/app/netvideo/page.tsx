@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useIntinorClient } from "@/hooks/useIntinorClient";
 import type {
   RequestMetadata,
+  VideoInput,
   VideoInputsList,
   VideoInputSettings,
   VideoInputSettingsResponse,
@@ -13,7 +14,9 @@ import { optionsFromDescribed } from "@/lib/settings/options";
 import { useSettingsEditor } from "@/hooks/useSettingsEditor";
 import { useUnitMeta } from "@/hooks/useUnitMeta";
 import { useSelectionHandoff } from "@/lib/navigation/selection";
+import { usePolledResource } from "@/hooks/usePolledResource";
 import { SettingsForm } from "@/components/settings/SettingsForm";
+import { StreamPreviewSection } from "@/components/settings/StreamPreviewSection";
 import { PipePicker } from "@/components/settings/PipePicker";
 
 /** `_constraints.netvideo_source` is loosely typed beyond `type`; narrow just what we read. */
@@ -179,6 +182,11 @@ function netvideoSections(s: VideoInputSettingsResponse): FieldSection[] {
 function VideoInputSettingsEditor({ index }: { index: number }) {
   const meta = useUnitMeta();
   const client = useIntinorClient();
+  const { data: preview } = usePolledResource<VideoInput>(
+    `video_inputs/${index}?include=thumbnails`,
+    8000,
+  );
+  const thumbId = preview?.thumbnails?.thumbnails[0]?.id;
   const load = useCallback(() => client.getVideoInputSettings(index), [client, index]);
   const save = useCallback(
     (body: VideoInputSettingsResponse) =>
@@ -194,12 +202,20 @@ function VideoInputSettingsEditor({ index }: { index: number }) {
   });
 
   return (
-    <SettingsForm
-      title={`Netvideo in ${index + 1} settings`}
-      description="RTSP/HLS/NDI/RTMP pull, RTMP receive, and SRT caller/listener for this ingest."
-      editor={editor}
-      meta={meta}
-    />
+    <div className="space-y-3">
+      <StreamPreviewSection
+        thumbId={thumbId}
+        urlBuilder={(id, opts) => client.videoInputThumbnailUrl(index, id, { ...opts, width: 640 })}
+        alt={`Netvideo in ${index + 1} preview`}
+        downloadFilename={`netvideo-in-${index + 1}-snapshot.jpg`}
+      />
+      <SettingsForm
+        title={`Netvideo in ${index + 1} settings`}
+        description="RTSP/HLS/NDI/RTMP pull, RTMP receive, and SRT caller/listener for this ingest."
+        editor={editor}
+        meta={meta}
+      />
+    </div>
   );
 }
 

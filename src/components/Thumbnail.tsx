@@ -12,10 +12,13 @@ export function Thumbnail({
   urlBuilder,
   alt,
   intervalMs = 10_000,
+  downloadFilename,
 }: {
   urlBuilder: (opts: { ppm: boolean }) => string;
   alt: string;
   intervalMs?: number;
+  /** When set, shows a "Download snapshot" link that saves the current frame under this filename. */
+  downloadFilename?: string;
 }) {
   const [ppm, setPpm] = useState(false);
   const tick = useThumbnailTick(intervalMs);
@@ -28,18 +31,30 @@ export function Thumbnail({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={src} alt={alt} className="aspect-video w-full object-cover" />
       </div>
-      <label
-        className="flex items-center gap-1.5 text-xs text-muted"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <input
-          type="checkbox"
-          checked={ppm}
-          onChange={(e) => setPpm(e.target.checked)}
-          className="accent-sky-500"
-        />
-        Audio level overlay (PPM)
-      </label>
+      <div className="flex items-center justify-between gap-2">
+        <label
+          className="flex items-center gap-1.5 text-xs text-muted"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <input
+            type="checkbox"
+            checked={ppm}
+            onChange={(e) => setPpm(e.target.checked)}
+            className="accent-sky-500"
+          />
+          Audio level overlay (PPM)
+        </label>
+        {downloadFilename && (
+          <a
+            href={src}
+            download={downloadFilename}
+            onClick={(e) => e.stopPropagation()}
+            className="rounded border border-sky-500/60 bg-sky-500/10 px-2 py-1 text-xs text-accent hover:bg-sky-500/20"
+          >
+            Download snapshot
+          </a>
+        )}
+      </div>
     </div>
   );
 }

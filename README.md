@@ -985,6 +985,33 @@ in the confirm-changes dialog as a "N item(s) → M item(s)" structural
 change; saving both an add and a removal-to-zero in the same edit persists
 correctly after reload — no console errors.
 
+## Phase 18 — live preview + snapshot download on input/encoder settings, HD Networks branding
+
+- **Header now shows the real HD Networks logo** (`public/logo.png`,
+  transparent background, reads correctly in both themes) instead of a
+  plain-text title.
+- **Network input, Netvideo input, and Encoder settings pages** each show a
+  "Preview" panel above the settings form: a live thumbnail (same
+  10s-refresh mechanism used everywhere else) plus a "Download snapshot"
+  link that saves the current frame as a JPEG. Reuses the existing
+  `Thumbnail` component (now with an optional `downloadFilename` prop —
+  a plain same-origin `<a download>`, no extra plumbing needed since the
+  thumbnail is already proxied through our own domain) wrapped in a new
+  `StreamPreviewSection`, which renders nothing until the pipe actually has
+  a thumbnail id (avoids a broken-image flash on first load). Each settings
+  page runs one extra lightweight polled fetch (`?include=thumbnails`)
+  purely to get that id — the existing `getXSettings()` calls don't
+  request it, so this doesn't change what those return or how saving works.
+
+### Verified
+
+`npm run build`, `npm run lint`, `npm test` all pass. Browser-verified in
+mock mode: all three settings pages render a Preview panel with a working
+"Download snapshot" link (confirmed the link's `href` resolves to a real
+same-origin image response, not a broken/dead link) above their forms; the
+logo renders with a transparent background in both light and dark themes.
+No console errors.
+
 ## Getting started
 
 ```bash

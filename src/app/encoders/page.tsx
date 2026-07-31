@@ -6,6 +6,7 @@ import { useSourceUsage, usageLabelsExcluding } from "@/hooks/useSourceUsage";
 import type {
   DestinationsSettingsBasic,
   DestinationsSettingsRtmp,
+  Encoder,
   EncodersList,
   EncoderSettingsRequest,
   EncoderSettingsResponse,
@@ -24,7 +25,9 @@ import {
 import { useSettingsEditor, type ArrayHelpers } from "@/hooks/useSettingsEditor";
 import { useUnitMeta } from "@/hooks/useUnitMeta";
 import { useSelectionHandoff } from "@/lib/navigation/selection";
+import { usePolledResource } from "@/hooks/usePolledResource";
 import { SettingsForm } from "@/components/settings/SettingsForm";
+import { StreamPreviewSection } from "@/components/settings/StreamPreviewSection";
 import { PipePicker } from "@/components/settings/PipePicker";
 
 /**
@@ -281,6 +284,11 @@ function EncoderSettingsEditor({ index }: { index: number }) {
     () => usageLabelsExcluding(usage, { kind: "encoder", index }),
     [usage, index],
   );
+  const { data: preview } = usePolledResource<Encoder>(
+    `encoders/${index}?include=thumbnails`,
+    8000,
+  );
+  const thumbId = preview?.thumbnails?.thumbnails[0]?.id;
   const load = useCallback(() => client.getEncoderSettings(index), [client, index]);
   const save = useCallback(
     async (body: EncoderSettingsResponse) => {
@@ -299,12 +307,20 @@ function EncoderSettingsEditor({ index }: { index: number }) {
   });
 
   return (
-    <SettingsForm
-      title={`Encoder ${index + 1} settings`}
-      description="Video source, encoding mode, and push destinations."
-      editor={editor}
-      meta={meta}
-    />
+    <div className="space-y-3">
+      <StreamPreviewSection
+        thumbId={thumbId}
+        urlBuilder={(id, opts) => client.encoderThumbnailUrl(index, id, { ...opts, width: 640 })}
+        alt={`Encoder ${index + 1} preview`}
+        downloadFilename={`encoder-${index + 1}-snapshot.jpg`}
+      />
+      <SettingsForm
+        title={`Encoder ${index + 1} settings`}
+        description="Video source, encoding mode, and push destinations."
+        editor={editor}
+        meta={meta}
+      />
+    </div>
   );
 }
 
