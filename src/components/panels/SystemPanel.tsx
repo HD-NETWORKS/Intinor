@@ -31,7 +31,7 @@ export function SystemPanel() {
           <strong>{recommended}</strong>.
         </div>
       )}
-      <div className="grid gap-4 sm:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-3">
         <StatTile label="CPU" value={formatPercent(data.cpu?.usage)} />
         <StatTile
           label="Memory"
@@ -42,10 +42,6 @@ export function SystemPanel() {
           }
         />
         <StatTile label="Firmware" value={running} />
-        <StatTile
-          label="Battery"
-          value={data.battery?.charge != null ? `${data.battery.charge}%` : "—"}
-        />
       </div>
     </div>
   );

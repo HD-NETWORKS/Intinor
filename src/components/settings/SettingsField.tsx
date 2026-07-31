@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { FieldSpec } from "@/lib/settings/fields";
 import { isMutable } from "@/lib/settings/mutable";
 import { getAtPath } from "@/lib/settings/paths";
@@ -23,6 +24,7 @@ export function SettingsField<T>({
 }) {
   const editable = isMutable(spec.path, mutable);
   const raw = getAtPath(draft, spec.path);
+  const [passwordVisible, setPasswordVisible] = useState(false);
 
   const controlClass =
     "w-full rounded border px-2 py-1 text-sm " +
@@ -73,9 +75,28 @@ export function SettingsField<T>({
             </option>
           ))}
         </select>
+      ) : spec.kind === "password" ? (
+        <div className="relative">
+          <input
+            type={passwordVisible ? "text" : "password"}
+            value={raw == null ? "" : String(raw)}
+            disabled={!editable}
+            onChange={(e) => onChange(spec.path, e.target.value)}
+            className={controlClass + " pr-8"}
+          />
+          <button
+            type="button"
+            onClick={() => setPasswordVisible((v) => !v)}
+            tabIndex={-1}
+            title={passwordVisible ? "Hide" : "Show"}
+            className="absolute inset-y-0 right-0 flex w-8 items-center justify-center text-slate-500 hover:text-slate-300"
+          >
+            {passwordVisible ? "🙈" : "👁"}
+          </button>
+        </div>
       ) : (
         <input
-          type={spec.kind === "number" ? "number" : spec.kind === "password" ? "password" : "text"}
+          type={spec.kind === "number" ? "number" : "text"}
           value={raw == null ? "" : String(raw)}
           disabled={!editable}
           min={spec.min}

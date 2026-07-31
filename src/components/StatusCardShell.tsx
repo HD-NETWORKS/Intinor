@@ -10,7 +10,6 @@ interface StatusMessage {
 
 export function StatusCardShell({
   title,
-  index,
   description,
   active,
   loading,
@@ -20,7 +19,6 @@ export function StatusCardShell({
   children,
 }: {
   title: string;
-  index: number;
   description?: string;
   active?: boolean;
   loading?: boolean;
@@ -40,9 +38,7 @@ export function StatusCardShell({
             }
             title={active == null ? "Unknown" : active ? "Active" : "Inactive"}
           />
-          <h2 className="font-medium text-slate-200">
-            {title} <span className="text-slate-500">#{index}</span>
-          </h2>
+          <h2 className="font-medium text-slate-200">{title}</h2>
         </div>
         {loading && <span className="text-xs text-slate-500">Loading…</span>}
       </div>

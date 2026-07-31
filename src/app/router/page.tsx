@@ -224,6 +224,28 @@ export default function RouterPage() {
       )}
 
       <div>
+        <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-slate-400">
+          Encoders ({encoderInfos.length})
+        </h2>
+        {encoderInfos.length === 0 ? (
+          <p className="text-sm text-slate-500">This unit has no encoders.</p>
+        ) : (
+          <div className="flex flex-wrap gap-3">
+            {encoderInfos.map((e) => (
+              <EncoderDestTile
+                key={e.index}
+                index={e.index}
+                sourceLabel={labelFor(e.source)}
+                dropDisabled={saveBlocked || !isMutable("video_source.source", e.mutable)}
+                isDragActive={draggingHref != null}
+                onDrop={(href) => void beginDrop(e.index, href)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div>
         <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-slate-400">Sources</h2>
         {sources.length === 0 ? (
           <p className="text-sm text-slate-500">No sources available.</p>
@@ -240,28 +262,6 @@ export default function RouterPage() {
                 onDragStart={() => setDraggingHref(s.href)}
                 onDragEnd={() => setDraggingHref(null)}
                 usedBy={usage.get(s.href)?.map((e) => e.label)}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div>
-        <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-slate-400">
-          Encoders ({encoderInfos.length})
-        </h2>
-        {encoderInfos.length === 0 ? (
-          <p className="text-sm text-slate-500">This unit has no encoders.</p>
-        ) : (
-          <div className="flex flex-wrap gap-3">
-            {encoderInfos.map((e) => (
-              <EncoderDestTile
-                key={e.index}
-                index={e.index}
-                sourceLabel={labelFor(e.source)}
-                dropDisabled={saveBlocked || !isMutable("video_source.source", e.mutable)}
-                isDragActive={draggingHref != null}
-                onDrop={(href) => void beginDrop(e.index, href)}
               />
             ))}
           </div>

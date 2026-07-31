@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useThumbnailTick, withThumbnailTick } from "@/hooks/useThumbnailTick";
 
 /**
  * Live thumbnail preview with a PPM (audio peak-meter) overlay toggle.
@@ -17,15 +18,8 @@ export function Thumbnail({
   intervalMs?: number;
 }) {
   const [ppm, setPpm] = useState(false);
-  const [tick, setTick] = useState(0);
-
-  useEffect(() => {
-    const id = setInterval(() => setTick((t) => t + 1), intervalMs);
-    return () => clearInterval(id);
-  }, [intervalMs]);
-
-  const base = urlBuilder({ ppm });
-  const src = `${base}${base.includes("?") ? "&" : "?"}_r=${tick}`;
+  const tick = useThumbnailTick(intervalMs);
+  const src = withThumbnailTick(urlBuilder({ ppm }), tick);
 
   return (
     <div className="space-y-1.5">

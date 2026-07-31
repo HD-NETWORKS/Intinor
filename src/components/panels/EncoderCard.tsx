@@ -21,7 +21,6 @@ export function EncoderCard({ index }: { index: number }) {
   return (
     <StatusCardShell
       title="Encoder"
-      index={index}
       description={data?.description}
       active={status?.active}
       loading={loading && !data}

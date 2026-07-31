@@ -21,7 +21,6 @@ export function NetworkInputCard({ index }: { index: number }) {
   return (
     <StatusCardShell
       title="Network input"
-      index={index}
       description={data?.description}
       active={status?.active}
       loading={loading && !data}

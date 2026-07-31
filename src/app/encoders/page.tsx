@@ -241,7 +241,7 @@ function EncoderSettingsEditor({ index }: { index: number }) {
 
   return (
     <SettingsForm
-      title={`Encoder #${index} settings`}
+      title={`Encoder ${index + 1} settings`}
       description="Video source, encoding mode, and push destinations."
       editor={editor}
       meta={meta}

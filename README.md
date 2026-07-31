@@ -814,6 +814,59 @@ both mock accounts render with correct role badges; the permissions table
 shows human-readable resource/access labels (e.g. "IP stream in 1 — Video
 user") rather than raw API strings; no console errors.
 
+## Phase 15 — real-unit UX polish
+
+First round of feedback from actually operating against a live unit
+(D01796, connected directly by IP once the `iss.intinor.se` cloud relay
+turned out to require a paid Intinor SLA subscription — see commit
+history for that connectivity fix). Seven fixes, all UI-only:
+
+- **Thumbnails now refresh.** The dense list rows (`NetworkInputRow`,
+  `EncoderRow`, `VideoInputRow`) and the router panel tiles
+  (`SourceTile`, `EncoderDestTile`) rendered raw `<img>` tags with no
+  cache-busting, so a thumbnail only ever showed its first-load frame.
+  The card views already solved this via the `Thumbnail` component; that
+  logic is now a shared hook (`useThumbnailTick`/`withThumbnailTick` in
+  `src/hooks/useThumbnailTick.ts`) so every thumbnail everywhere ticks
+  every 10s.
+- **SRT/RTMP passphrase show/hide.** `SettingsField`'s password kind now
+  renders a relative-positioned eye-icon toggle button instead of a bare
+  masked input. One shared component, so this fixes every passphrase
+  field app-wide in one place.
+- **Dropped the `#N` index numbering.** Card titles, dense-list rows, the
+  router panel, and the pipe picker all showed a redundant `#0`-based
+  index next to a description that's already a human label (e.g.
+  "Encoder 1"). Removed the index display entirely rather than just
+  rebasing it to 1 — the description already carries that information.
+  Settings-page titles (`Network input N settings`, `Encoder N settings`)
+  keep a number, now 1-based instead of 0-based.
+- **Removed the battery indicator** from the system panel — not
+  applicable hardware for this deployment, dropped unconditionally rather
+  than built as a conditional-hide.
+- **SRT listener before SRT caller** on the network input settings page —
+  matches how the unit is actually used (listening for inbound field
+  connections is the common case).
+- **Router panel: Encoders before Sources.** Same drag-and-drop
+  mechanics, just reordered so the drop targets you're routing *into*
+  are the first thing you see.
+- **Encoding modes are now collapsible.** Custom modes default to
+  collapsed (a chevron + title toggle, sibling to a separate Remove
+  button so nothing nests a `<button>` inside a `<button>`), with an
+  "Expand all / Collapse all" toggle and a quick-jump chip row once
+  there are 2+ modes. Adding a mode expands it immediately; removing a
+  mode reindexes the expanded-set bookkeeping so collapse state stays
+  attached to the right mode after the array shifts.
+
+### Verified
+
+`npm run build`, `npm run lint`, `npm test` all pass. Browser-verified in
+mock mode: thumbnails tick, the passphrase toggle reveals/hides typed
+text, no `#N` numbering anywhere, battery tile gone (3-column stat grid),
+SRT listener section renders above SRT caller, the router panel lists
+Encoders before Sources, and a single custom encoding mode renders
+collapsed by default with its own expand/remove controls. No console
+errors.
+
 ## Getting started
 
 ```bash

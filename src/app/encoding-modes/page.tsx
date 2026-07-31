@@ -231,6 +231,25 @@ export default function EncodingModesPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [fresh, setFresh] = useState<EncodingSettingsResponse | null>(null);
 
+  // Custom modes start collapsed — a unit with many of them turns into a huge
+  // wall of fields otherwise. The quick-jump chip row below expands + scrolls
+  // to whichever one you actually want.
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const toggleExpanded = useCallback((i: number) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i);
+      else next.add(i);
+      return next;
+    });
+  }, []);
+  const jumpTo = useCallback((i: number) => {
+    setExpanded((prev) => new Set(prev).add(i));
+    requestAnimationFrame(() => {
+      document.getElementById(`custom-mode-${i}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, []);
+
   const load = useCallback(() => client.getEncodingSettings(), [client]);
 
   useEffect(() => {
@@ -297,6 +316,8 @@ export default function EncodingModesPage() {
   }, []);
 
   const addMode = useCallback(() => {
+    if (!draft) return;
+    const newIndex = draft.custom_encoding_modes.length;
     setDraft((prev) =>
       prev
         ? {
@@ -305,7 +326,10 @@ export default function EncodingModesPage() {
           }
         : prev,
     );
-  }, []);
+    // Open the freshly-added mode immediately — collapsed-by-default is right
+    // for existing modes you're just browsing, not for one you just created.
+    setExpanded((exp) => new Set(exp).add(newIndex));
+  }, [draft]);
 
   const removeMode = useCallback((index: number) => {
     setDraft((prev) =>
@@ -316,6 +340,16 @@ export default function EncodingModesPage() {
           }
         : prev,
     );
+    // Removing a mode shifts every later index down by one — keep `expanded`
+    // pointing at the same modes rather than whatever now occupies that slot.
+    setExpanded((exp) => {
+      const next = new Set<number>();
+      for (const i of exp) {
+        if (i < index) next.add(i);
+        else if (i > index) next.add(i - 1);
+      }
+      return next;
+    });
   }, []);
 
   const reset = useCallback(() => {
@@ -404,44 +438,81 @@ export default function EncodingModesPage() {
         <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">
           Custom encoding modes ({draft.custom_encoding_modes.length})
         </h2>
-        <button
-          onClick={addMode}
-          disabled={saveBlocked}
-          className="rounded border border-sky-500/60 bg-sky-500/10 px-3 py-1 text-xs text-sky-300 hover:bg-sky-500/20 disabled:opacity-40"
-        >
-          + Add mode
-        </button>
+        <div className="flex gap-2">
+          {draft.custom_encoding_modes.length > 1 && (
+            <button
+              onClick={() =>
+                setExpanded((prev) =>
+                  prev.size > 0 ? new Set() : new Set(draft.custom_encoding_modes.map((_, i) => i)),
+                )
+              }
+              className="rounded border border-slate-700 px-3 py-1 text-xs text-slate-300 hover:bg-slate-800"
+            >
+              {expanded.size > 0 ? "Collapse all" : "Expand all"}
+            </button>
+          )}
+          <button
+            onClick={addMode}
+            disabled={saveBlocked}
+            className="rounded border border-sky-500/60 bg-sky-500/10 px-3 py-1 text-xs text-sky-300 hover:bg-sky-500/20 disabled:opacity-40"
+          >
+            + Add mode
+          </button>
+        </div>
       </div>
 
       {draft.custom_encoding_modes.length === 0 && (
         <p className="text-sm text-slate-500">No custom encoding modes defined.</p>
       )}
 
-      {draft.custom_encoding_modes.map((mode, i) => (
-        <section
-          key={i}
-          className="space-y-3 rounded-lg border border-slate-800 bg-slate-900/50 p-4"
-        >
-          <div className="flex items-center justify-between">
-            <h3 className="font-medium text-slate-200">
-              Custom mode {i + 1}
-              {mode.description ? ` — ${mode.description}` : ""}
-            </h3>
+      {/* Quick-jump nav — expands and scrolls to a mode, useful once there are more than a couple. */}
+      {draft.custom_encoding_modes.length > 1 && (
+        <div className="flex flex-wrap gap-2">
+          {draft.custom_encoding_modes.map((mode, i) => (
             <button
-              onClick={() => removeMode(i)}
-              disabled={saveBlocked}
-              className="rounded border border-red-500/40 px-2 py-1 text-xs text-red-300 hover:bg-red-500/10 disabled:opacity-40"
+              key={i}
+              onClick={() => jumpTo(i)}
+              className="rounded border border-slate-700 px-3 py-1 text-xs text-slate-300 hover:bg-slate-800"
             >
-              Remove
+              {mode.description || `Custom mode ${i + 1}`}
             </button>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {customModeFields(mode, i, draft._constraints).map((spec) => (
-              <SettingsField key={spec.path} spec={spec} draft={draft} mutable={mutable} onChange={setField} />
-            ))}
-          </div>
-        </section>
-      ))}
+          ))}
+        </div>
+      )}
+
+      {draft.custom_encoding_modes.map((mode, i) => {
+        const isOpen = expanded.has(i);
+        return (
+          <section key={i} id={`custom-mode-${i}`} className="rounded-lg border border-slate-800 bg-slate-900/50 scroll-mt-4">
+            <div className="flex items-center justify-between gap-2 p-4">
+              <button
+                onClick={() => toggleExpanded(i)}
+                className="flex flex-1 items-center gap-2 text-left"
+              >
+                <span className="text-slate-500">{isOpen ? "▾" : "▸"}</span>
+                <h3 className="font-medium text-slate-200">
+                  Custom mode {i + 1}
+                  {mode.description ? ` — ${mode.description}` : ""}
+                </h3>
+              </button>
+              <button
+                onClick={() => removeMode(i)}
+                disabled={saveBlocked}
+                className="rounded border border-red-500/40 px-2 py-1 text-xs text-red-300 hover:bg-red-500/10 disabled:opacity-40"
+              >
+                Remove
+              </button>
+            </div>
+            {isOpen && (
+              <div className="grid gap-3 border-t border-slate-800 p-4 sm:grid-cols-2">
+                {customModeFields(mode, i, draft._constraints).map((spec) => (
+                  <SettingsField key={spec.path} spec={spec} draft={draft} mutable={mutable} onChange={setField} />
+                ))}
+              </div>
+            )}
+          </section>
+        );
+      })}
 
       <div className="sticky bottom-0 -mx-6 border-t border-slate-800 bg-slate-950/95 px-6 py-3 backdrop-blur">
         <div className="flex flex-wrap items-center justify-between gap-3">

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { usePolledResource } from "@/hooks/usePolledResource";
 import { useIntinorClient } from "@/hooks/useIntinorClient";
+import { useThumbnailTick, withThumbnailTick } from "@/hooks/useThumbnailTick";
 import type { Encoder } from "@/lib/intinor/types";
 
 /** A drop target — one encoder. Dropping a source tile onto it proposes reassigning its video source. */
@@ -25,11 +26,12 @@ export function EncoderDestTile({
     `encoders/${index}?include=settings,status,thumbnails`,
     8000,
   );
+  const tick = useThumbnailTick();
   const [isOver, setIsOver] = useState(false);
 
   const thumbId = data?.thumbnails?.thumbnails[0]?.id;
   const thumbUrl = thumbId
-    ? client.encoderThumbnailUrl(index, thumbId, { width: 200, height: 112 })
+    ? withThumbnailTick(client.encoderThumbnailUrl(index, thumbId, { width: 200, height: 112 }), tick)
     : null;
 
   return (
@@ -70,9 +72,7 @@ export function EncoderDestTile({
         <span
           className={"h-1.5 w-1.5 shrink-0 rounded-full " + (data?.active ? "bg-emerald-400" : "bg-slate-600")}
         />
-        <span className="truncate text-sm text-slate-200">
-          #{index} {data?.description}
-        </span>
+        <span className="truncate text-sm text-slate-200">{data?.description}</span>
       </div>
       <div className="truncate text-[11px] text-slate-500">Source: {sourceLabel || "—"}</div>
       {dropDisabled && (
