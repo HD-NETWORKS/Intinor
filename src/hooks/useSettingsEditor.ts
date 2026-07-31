@@ -5,7 +5,14 @@ import { IntinorApiError } from "@/lib/intinor-client";
 import { buildPutBody, detectConflicts, type ConflictWarning } from "@/lib/settings/apply";
 import { diffSettings, type SettingsChange } from "@/lib/settings/diff";
 import type { FieldSection, FieldSpec } from "@/lib/settings/fields";
-import { setAtPath } from "@/lib/settings/paths";
+import { getAtPath, setAtPath } from "@/lib/settings/paths";
+
+export interface ArrayHelpers {
+  /** Appends `item` to the array at `path`. */
+  addArrayItem: (path: string, item: unknown) => void;
+  /** Removes the item at `index` from the array at `path`. */
+  removeArrayItem: (path: string, index: number) => void;
+}
 
 export type SaveStage = "idle" | "confirming" | "saving" | "saved" | "error";
 
@@ -49,8 +56,8 @@ function describe(err: unknown, fallback: string): string {
 export function useSettingsEditor<T extends object>(opts: {
   load: () => Promise<T>;
   save: (body: T) => Promise<unknown>;
-  /** Built from the loaded settings so select options come from `_constraints`. */
-  sectionsOf: (settings: T) => FieldSection[];
+  /** Built from the live draft (not just the initial load) so an added/removed array item shows up immediately. */
+  sectionsOf: (settings: T, helpers: ArrayHelpers) => FieldSection[];
   mutableOf: (settings: T) => string[] | undefined;
 }): SettingsEditor<T> {
   const { load, save, sectionsOf, mutableOf } = opts;
@@ -90,14 +97,45 @@ export function useSettingsEditor<T extends object>(opts: {
     [original, mutableOf],
   );
 
-  const sections = useMemo(
-    () => (original ? sectionsOf(original) : []),
-    [original, sectionsOf],
+  const addArrayItem = useCallback((path: string, item: unknown) => {
+    setDraft((prev) => {
+      if (!prev) return prev;
+      const arr = (getAtPath(prev, path) as unknown[] | undefined) ?? [];
+      return setAtPath(prev, `${path}[${arr.length}]`, item);
+    });
+  }, []);
+
+  const removeArrayItem = useCallback((path: string, index: number) => {
+    setDraft((prev) => {
+      if (!prev) return prev;
+      const arr = (getAtPath(prev, path) as unknown[] | undefined) ?? [];
+      return setAtPath(prev, path, arr.filter((_, i) => i !== index));
+    });
+  }, []);
+
+  const arrayHelpers = useMemo<ArrayHelpers>(
+    () => ({ addArrayItem, removeArrayItem }),
+    [addArrayItem, removeArrayItem],
   );
-  const specs: FieldSpec[] = useMemo(
-    () => sections.flatMap((s) => s.fields),
-    [sections],
-  );
+
+  // Sections derive from the *draft*, not just the initial load, so adding or
+  // removing an array item (a destination, an access rule, …) shows up
+  // immediately instead of only after a save + reload.
+  const sections = useMemo(() => {
+    const source = draft ?? original;
+    return source ? sectionsOf(source, arrayHelpers) : [];
+  }, [draft, original, sectionsOf, arrayHelpers]);
+  const specs: FieldSpec[] = useMemo(() => {
+    const fromDraft = sections.flatMap((s) => s.fields);
+    if (!original || !draft || original === draft) return fromDraft;
+    // Also fold in the specs implied by the *original* shape: once every
+    // item is removed from an array, the draft-derived sections above stop
+    // mentioning it at all, so its removal would otherwise be invisible to
+    // diffSettings's array-resize detection below.
+    const fromOriginal = sectionsOf(original, arrayHelpers).flatMap((s) => s.fields);
+    const seen = new Set(fromDraft.map((f) => f.path));
+    return [...fromDraft, ...fromOriginal.filter((f) => !seen.has(f.path))];
+  }, [sections, original, draft, sectionsOf, arrayHelpers]);
 
   const changes = useMemo(
     () => (original && draft ? diffSettings(original, draft, specs) : []),

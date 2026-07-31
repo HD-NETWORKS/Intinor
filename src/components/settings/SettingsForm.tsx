@@ -98,23 +98,28 @@ export function SettingsForm<T extends object>({
               : "space-y-3 rounded-lg border border-border-default bg-panel p-4"
           }
         >
-          <div className={compact ? "sr-only" : undefined}>
-            <h2 className="font-medium text-body">{section.title}</h2>
-            {section.description && (
-              <p className="text-xs text-faint">{section.description}</p>
-            )}
+          <div className={"flex items-start justify-between gap-3" + (compact ? " sr-only" : "")}>
+            <div>
+              <h2 className="font-medium text-body">{section.title}</h2>
+              {section.description && (
+                <p className="text-xs text-faint">{section.description}</p>
+              )}
+            </div>
+            {section.headerExtra}
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {section.fields.map((spec) => (
-              <SettingsField
-                key={spec.path}
-                spec={spec}
-                draft={draft}
-                mutable={mutable}
-                onChange={editor.setField}
-              />
-            ))}
-          </div>
+          {section.fields.length > 0 && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {section.fields.map((spec) => (
+                <SettingsField
+                  key={spec.path}
+                  spec={spec}
+                  draft={draft}
+                  mutable={mutable}
+                  onChange={editor.setField}
+                />
+              ))}
+            </div>
+          )}
         </section>
       ))}
 

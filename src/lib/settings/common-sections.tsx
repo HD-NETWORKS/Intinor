@@ -9,9 +9,39 @@
 import type {
   AccessControlSettings,
   DestinationsSettingsBasic,
+  DestinationsSettingsRtmp,
   PipeRecordingSettings,
 } from "@/lib/intinor/types";
 import type { FieldSection, SelectOption } from "./fields";
+
+function RemoveButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded border border-red-500/40 px-2 py-1 text-xs text-danger hover:bg-red-500/10"
+    >
+      Remove
+    </button>
+  );
+}
+
+/** A fields-less section whose only purpose is a title + "+ Add …" button above a list of per-item sections. */
+export function arrayHeaderSection(title: string, onAdd: () => void): FieldSection {
+  return {
+    title,
+    fields: [],
+    headerExtra: (
+      <button
+        type="button"
+        onClick={onAdd}
+        className="rounded border border-sky-500/60 bg-sky-500/10 px-3 py-1 text-xs text-accent hover:bg-sky-500/20"
+      >
+        + Add
+      </button>
+    ),
+  };
+}
 
 export function recordingSections(
   recording: PipeRecordingSettings | undefined,
@@ -79,10 +109,12 @@ export function basicDestinationSections(
   basic: DestinationsSettingsBasic[] | undefined,
   protocolOptions: SelectOption[],
   basePath = "destinations",
+  onRemove?: (index: number) => void,
 ): FieldSection[] {
   return (basic ?? []).map((dest, i) => ({
     title: `Destination ${i + 1}${dest.description ? ` — ${dest.description}` : ""}`,
     description: "Where this pipe pushes its output.",
+    headerExtra: onRemove ? <RemoveButton onClick={() => onRemove(i)} /> : undefined,
     fields: [
       { path: `${basePath}.basic[${i}].active`, label: "Active", kind: "checkbox" },
       { path: `${basePath}.basic[${i}].description`, label: "Description", kind: "text" },
@@ -192,11 +224,13 @@ export function onRequestDestinationSections(
 }
 
 export function rtmpDestinationSections(
-  rtmp: Array<{ description?: string; url?: string }> | undefined,
+  rtmp: DestinationsSettingsRtmp[] | undefined,
   basePath = "destinations",
+  onRemove?: (index: number) => void,
 ): FieldSection[] {
   return (rtmp ?? []).map((dest, i) => ({
     title: `RTMP destination ${i + 1}${dest.description ? ` — ${dest.description}` : ""}`,
+    headerExtra: onRemove ? <RemoveButton onClick={() => onRemove(i)} /> : undefined,
     fields: [
       { path: `${basePath}.rtmp[${i}].active`, label: "Active", kind: "checkbox" },
       { path: `${basePath}.rtmp[${i}].description`, label: "Description", kind: "text" },
