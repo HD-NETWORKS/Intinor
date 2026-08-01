@@ -148,9 +148,11 @@ export function MixerCanvas({
                     origTop: y,
                   };
                 }}
-                className="absolute bottom-0 right-0 h-3.5 w-3.5 cursor-nwse-resize bg-sky-400"
+                className="absolute bottom-0 right-0 flex h-6 w-6 cursor-nwse-resize items-end justify-end p-1"
                 title="Drag to resize"
-              />
+              >
+                <span className="h-3.5 w-3.5 bg-sky-400" />
+              </span>
             )}
           </div>
         );

@@ -12,8 +12,8 @@
  * when the unit provided one.
  */
 
-import type { SettingsChange } from "./diff";
-import { getAtPath, setAtPath } from "./paths";
+import type { SettingsChange } from "./diff.ts";
+import { getAtPath, setAtPath } from "./paths.ts";
 
 export interface ConflictWarning {
   path: string;

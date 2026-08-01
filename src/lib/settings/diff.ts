@@ -4,8 +4,8 @@
  * state and the pre-submit confirmation diff.
  */
 
-import { displayValue, type FieldSpec } from "./fields";
-import { getAtPath } from "./paths";
+import { displayValue, type FieldSpec } from "./fields.ts";
+import { getAtPath } from "./paths.ts";
 
 export interface SettingsChange {
   path: string;
