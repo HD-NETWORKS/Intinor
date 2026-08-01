@@ -1111,6 +1111,22 @@ hamburger opens/closes the drawer, that clicking a nav link inside it
 navigates and auto-closes it, and that the mixer canvas (the most
 layout-heavy page) still renders correctly at phone width.
 
+### Follow-up: hamburger on the right, dismissible auth-disabled warning
+
+- The hamburger button moved from the left of the header (before the logo)
+  to the right (after Log out), and the mobile nav drawer now slides in
+  from the right to match — trigger and drawer on the same side.
+- The `DASHBOARD_AUTH_DISABLED=1` red warning banner is now dismissible
+  (× button, persisted per browser-tab session via `sessionStorage` — it
+  comes back on a fresh session, so it can't be permanently silenced by
+  accident). The mock-mode, not-configured, and live-write banners stay
+  **not** dismissible on purpose — they're safety signals about the unit
+  itself ("mock data can never be mistaken for the live unit — and
+  live-write mode never goes unnoticed", per `ModeBanner`'s own doc
+  comment), not a one-time nag like the local-dev auth warning.
+- All the mode-banner strips now use the same responsive `px-4 sm:px-6`
+  padding as the rest of the shell, instead of a hardcoded `px-6`.
+
 ## Getting started
 
 ```bash

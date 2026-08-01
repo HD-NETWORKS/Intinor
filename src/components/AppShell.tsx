@@ -22,28 +22,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <>
       <ModeBanner />
       <header className="flex flex-wrap items-center gap-3 border-b border-border-default bg-panel-strong px-4 py-3 sm:px-6">
-        <button
-          type="button"
-          onClick={() => setNavOpen((o) => !o)}
-          aria-label="Toggle navigation menu"
-          aria-expanded={navOpen}
-          className="rounded border border-border-strong p-1.5 text-muted hover:bg-panel-hover hover:text-body md:hidden"
-        >
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-            <path
-              d="M2 4.5h14M2 9h14M2 13.5h14"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            />
-          </svg>
-        </button>
         <Image src="/logo.png" alt="HD Networks" width={178} height={92} className="h-9 w-auto" priority />
         <span className="hidden text-sm text-muted sm:inline">Intinor Direkt dashboard</span>
         <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
           <ThemeToggle />
           <UnitSwitcher />
           <LogoutButton />
+          <button
+            type="button"
+            onClick={() => setNavOpen((o) => !o)}
+            aria-label="Toggle navigation menu"
+            aria-expanded={navOpen}
+            className="rounded border border-border-strong p-1.5 text-muted hover:bg-panel-hover hover:text-body md:hidden"
+          >
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+              <path
+                d="M2 4.5h14M2 9h14M2 13.5h14"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
         </div>
       </header>
       <div className="flex flex-1">

@@ -50,9 +50,10 @@ export function Nav({ open, onClose }: { open: boolean; onClose: () => void }) {
       )}
       <nav
         className={
-          "fixed inset-y-0 left-0 z-50 w-48 shrink-0 overflow-y-auto border-r border-border-default " +
+          "fixed inset-y-0 right-0 z-50 w-48 shrink-0 overflow-y-auto border-l border-border-default " +
           "bg-panel-strong p-3 transition-transform duration-200 md:static md:z-auto md:translate-x-0 " +
-          (open ? "translate-x-0" : "-translate-x-full")
+          "md:border-l-0 md:border-r " +
+          (open ? "translate-x-0" : "translate-x-full")
         }
       >
         <ul className="space-y-1">

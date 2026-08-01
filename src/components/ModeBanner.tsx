@@ -12,15 +12,30 @@ interface Meta {
   authConfigured: boolean;
 }
 
+const AUTH_WARNING_DISMISSED_KEY = "intinor-auth-warning-dismissed";
+
 /**
  * Always-visible strip showing which mode the dashboard is in, so mock data
  * can never be mistaken for the live unit — and live-write mode never goes
  * unnoticed. Unit id/label reflect whichever unit is currently selected (see
  * UnitProvider) rather than always the default, so switching units is
  * reflected here too.
+ *
+ * Only the local-dev "auth disabled" nag is dismissible (per browser tab
+ * session, via sessionStorage — it comes back on a fresh session). The
+ * mock/misconfigured/live-write banners are deliberately not dismissible:
+ * they're safety signals about the unit itself, not a one-time nag.
  */
 export function ModeBanner() {
   const [meta, setMeta] = useState<Meta | null>(null);
+  const [authWarningDismissed, setAuthWarningDismissed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return sessionStorage.getItem(AUTH_WARNING_DISMISSED_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
   const { unitId, units } = useCurrentUnit();
 
   useEffect(() => {
@@ -35,10 +50,27 @@ export function ModeBanner() {
   const current = units.find((u) => u.id === unitId);
   const unitLabel = current?.label ? `${current.label} (${current.id})` : (unitId ?? "—");
 
-  const authWarning = meta.authDisabled ? (
-    <div className="bg-red-500/15 border-b border-red-500/40 px-6 py-1.5 text-sm text-danger">
-      <strong>DASHBOARD_AUTH_DISABLED=1</strong> — no login gate. Local dev only; never set this
-      on a deployment reachable from the internet.
+  const authWarning = meta.authDisabled && !authWarningDismissed ? (
+    <div className="flex items-start gap-3 border-b border-red-500/40 bg-red-500/15 px-4 py-1.5 text-sm text-danger sm:px-6">
+      <span className="flex-1">
+        <strong>DASHBOARD_AUTH_DISABLED=1</strong> — no login gate. Local dev only; never set this
+        on a deployment reachable from the internet.
+      </span>
+      <button
+        type="button"
+        onClick={() => {
+          setAuthWarningDismissed(true);
+          try {
+            sessionStorage.setItem(AUTH_WARNING_DISMISSED_KEY, "1");
+          } catch {
+            // ignore — dismissal just won't persist
+          }
+        }}
+        aria-label="Dismiss this warning"
+        className="shrink-0 rounded px-1 text-danger/70 hover:text-danger"
+      >
+        ✕
+      </button>
     </div>
   ) : null;
 
@@ -46,7 +78,7 @@ export function ModeBanner() {
     return (
       <>
         {authWarning}
-        <div className="bg-amber-500/15 border-b border-amber-500/40 px-6 py-1.5 text-sm text-warning">
+        <div className="border-b border-amber-500/40 bg-amber-500/15 px-4 py-1.5 text-sm text-warning sm:px-6">
           <strong>Mock mode</strong> — showing fake data ({unitLabel}). No requests reach a real
           unit.
         </div>
@@ -58,7 +90,7 @@ export function ModeBanner() {
     return (
       <>
         {authWarning}
-        <div className="bg-red-500/15 border-b border-red-500/40 px-6 py-1.5 text-sm text-danger">
+        <div className="border-b border-red-500/40 bg-red-500/15 px-4 py-1.5 text-sm text-danger sm:px-6">
           <strong>Not configured</strong> — set INTINOR_* variables in .env.local
           or enable MOCK=1.
         </div>
@@ -71,9 +103,10 @@ export function ModeBanner() {
       {authWarning}
       <div
         className={
-          meta.writesAllowed
-            ? "bg-red-500/15 border-b border-red-500/40 px-6 py-1.5 text-sm text-danger"
-            : "bg-sky-500/10 border-b border-sky-500/30 px-6 py-1.5 text-sm text-accent"
+          "px-4 py-1.5 text-sm sm:px-6 " +
+          (meta.writesAllowed
+            ? "border-b border-red-500/40 bg-red-500/15 text-danger"
+            : "border-b border-sky-500/30 bg-sky-500/10 text-accent")
         }
       >
         {meta.writesAllowed ? (
