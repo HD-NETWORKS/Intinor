@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { ModeBanner } from "./ModeBanner";
@@ -13,6 +13,7 @@ import { ThemeToggle } from "./ThemeToggle";
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [navOpen, setNavOpen] = useState(false);
+  const hamburgerRef = useRef<HTMLButtonElement>(null);
 
   if (pathname === "/login") {
     return <>{children}</>;
@@ -29,6 +30,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <UnitSwitcher />
           <LogoutButton />
           <button
+            ref={hamburgerRef}
             type="button"
             onClick={() => setNavOpen((o) => !o)}
             aria-label="Toggle navigation menu"
@@ -47,7 +49,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
       <div className="flex flex-1">
-        <Nav open={navOpen} onClose={() => setNavOpen(false)} />
+        <Nav open={navOpen} onClose={() => setNavOpen(false)} triggerRef={hamburgerRef} />
         <main className="min-w-0 flex-1 p-4 sm:p-6">{children}</main>
       </div>
     </>

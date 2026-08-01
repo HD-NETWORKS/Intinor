@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { usePolledResource } from "@/hooks/usePolledResource";
@@ -23,9 +23,23 @@ const ITEMS = [
  * Static sidebar on desktop (md+). Below that it's an off-canvas drawer:
  * hidden by default, toggled by the hamburger button in AppShell's header,
  * and closes itself on navigation or backdrop click.
+ *
+ * `triggerRef` is the hamburger button — focus moves into the drawer's first
+ * link when it opens, Tab is trapped inside while it's open, and Escape (or
+ * any other close path) returns focus to the trigger, so keyboard users
+ * aren't dropped into empty space or left with two focus rings on screen.
  */
-export function Nav({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function Nav({
+  open,
+  onClose,
+  triggerRef,
+}: {
+  open: boolean;
+  onClose: () => void;
+  triggerRef: React.RefObject<HTMLButtonElement | null>;
+}) {
   const pathname = usePathname();
+  const navRef = useRef<HTMLElement>(null);
   // Long poll interval: this only decides whether to show the "Video mixer"
   // link at all, so it doesn't need to track live changes. `data === null`
   // (not yet loaded) shows the link by default rather than flash-hiding it.
@@ -39,16 +53,55 @@ export function Nav({ open, onClose }: { open: boolean; onClose: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- close on route change only
   }, [pathname]);
 
+  useEffect(() => {
+    if (!open) return;
+    navRef.current?.querySelector<HTMLAnchorElement>("a")?.focus();
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        onClose();
+        triggerRef.current?.focus();
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const focusables = navRef.current?.querySelectorAll<HTMLElement>("a");
+      if (!focusables || focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [open, onClose, triggerRef]);
+
+  function closeAndReturnFocus() {
+    onClose();
+    triggerRef.current?.focus();
+  }
+
   return (
     <>
       {open && (
         <div
           className="fixed inset-0 z-40 bg-black/50 md:hidden"
-          onClick={onClose}
+          onClick={closeAndReturnFocus}
           aria-hidden="true"
         />
       )}
       <nav
+        ref={navRef}
+        aria-label="Main navigation"
         className={
           "fixed inset-y-0 right-0 z-50 w-48 shrink-0 overflow-y-auto border-l border-border-default " +
           "bg-panel-strong p-3 transition-transform duration-200 md:static md:z-auto md:translate-x-0 " +
