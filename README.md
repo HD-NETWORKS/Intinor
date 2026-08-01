@@ -1127,6 +1127,82 @@ layout-heavy page) still renders correctly at phone width.
 - All the mode-banner strips now use the same responsive `px-4 sm:px-6`
   padding as the rest of the shell, instead of a hardcoded `px-6`.
 
+## Phase 21 — site-wide polish pass
+
+A broader review after the mobile work above, fixing six smaller gaps found
+across the rest of the app:
+
+1. **Mixer resize handle, too small for touch.** `MixerCanvas`'s
+   drag-to-resize handle was a bare 14×14px square — hard to grab with a
+   finger even though it already used Pointer Events (so touch worked in
+   principle). The visible dot stays 14×14px, but its hit target is now a
+   24×24px padded area around it, matching the ~24px minimum most touch
+   guidelines call for, without changing how it looks.
+2. **Login inputs had no `autoComplete`.** Added `name`/`autoComplete`
+   (`username` / `current-password`) to the login form's fields, so browsers
+   and password managers can actually offer to save/fill credentials.
+3. **No focus management in the mobile nav drawer.** Opening the drawer now
+   moves focus to its first link; Tab is trapped inside it while open
+   (wraps last → first and back); Escape, backdrop click, and navigating
+   all close it and return focus to the hamburger button. Previously a
+   keyboard user could open the drawer and tab straight out of it into the
+   page behind.
+4. **Polling never paused when the tab was hidden.** Every panel polls
+   independently (5s/10s/30s) via `usePolledResource`, with no regard for
+   whether anyone's looking — on a phone this keeps the radio active and
+   drains battery/data while the dashboard sits backgrounded. The hook now
+   skips fetching while `document.visibilityState === "hidden"` and resumes
+   immediately (not after a stale wait) the moment the page is visible
+   again, via a `visibilitychange` listener.
+5. **No custom error/404 pages.** Added `src/app/error.tsx` (a route-segment
+   error boundary — renders inside the root layout, so the header/nav/mode
+   banner stay visible and only the content area shows the fallback card;
+   uses `unstable_retry()` rather than the classic `reset()`, per this Next
+   version's convention) and `src/app/global-not-found.tsx` for genuinely
+   unmatched URLs. The latter required enabling the experimental
+   `globalNotFound` flag in `next.config.ts` — in this Next version, a plain
+   `app/not-found.tsx` only fires from an explicit `notFound()` call within
+   a matched route, not automatically for unmatched paths; nothing in this
+   app calls `notFound()`, so only `global-not-found.tsx` actually catches a
+   mistyped URL. It bypasses the root layout entirely (its own `<html>`),
+   so it imports `globals.css` directly and relies on the
+   `prefers-color-scheme` fallback in there rather than the app's stored
+   light/dark toggle, which lives in a script the root layout runs.
+6. **Thin test coverage on pure logic that guards live writes.** Added
+   `src/lib/settings/diff.test.mts`, `src/lib/settings/apply.test.mts`, and
+   `src/lib/mixer-layout.test.mts`, covering `diffSettings`/`buildPutBody`/
+   `detectConflicts` (the GET → modify → PUT pipeline every settings page
+   depends on) and the mixer's pure layout math (`clampLayout`,
+   `buildPresetLayers`, `prepareMixerPut`, `slotCoverage`, `withEnabled`/
+   `stripEnabled`). Running these directly via `node --experimental-strip-types`
+   needed `.ts` extensions added to a few internal relative imports
+   (`diff.ts`, `apply.ts`, `mixer-layout.ts`) that Next's bundler resolves
+   fine either way but Node's native ESM loader doesn't — which in turn
+   needed `allowImportingTsExtensions: true` in `tsconfig.json` (safe given
+   `noEmit: true` is already set, its own precondition).
+
+### Verified
+
+`npm run lint`, `npm run build`, `npm test` (47 assertions across five test
+files) all pass. Browser-verified in mock mode with Playwright:
+
+- Swept all eleven routes at 375×812 — zero horizontal overflow.
+- Resize handle's touch target measured 24×24px in the DOM.
+- Login inputs report the correct `autocomplete` values.
+- Drawer: opening moves focus to "Overview"; Tab from the last link
+  ("System") wraps to the first; Escape closes the drawer and returns focus
+  to the hamburger button (confirmed via its `aria-label`).
+- Polling pause: forced `document.visibilityState` to `"hidden"` and
+  confirmed **zero** new `network_interfaces` requests over 7 seconds
+  (interval is 5s) — then flipped back to `"visible"` and confirmed a
+  request fired within 500ms.
+- `global-not-found.tsx`: a nonexistent path returned HTTP 404 with the
+  branded "Page not found" card.
+- `error.tsx`: temporarily forced a page to throw, confirmed the header/
+  nav/mode-banner stayed visible and only the content area showed the
+  "Something went wrong" fallback card, then reverted the test throw (no
+  diff left behind).
+
 ## Getting started
 
 ```bash
