@@ -17,6 +17,12 @@ export interface PolledResourceState<T> {
  *
  * `path` may include query params (e.g. `encoders/0?include=status`).
  * Pass `enabled: false` to pause polling without unmounting.
+ *
+ * Skips fetching while the tab/window is hidden (`document.visibilityState`)
+ * — a backgrounded dashboard has no one watching it, so there's no reason to
+ * keep hitting the unit and burning battery/data, especially on a phone.
+ * Polling resumes immediately (not after a stale wait) the moment the page
+ * becomes visible again.
  */
 export function usePolledResource<T>(
   path: string,
@@ -38,6 +44,10 @@ export function usePolledResource<T>(
     etagRef.current = null;
 
     async function poll() {
+      if (document.visibilityState === "hidden") {
+        timer = setTimeout(poll, intervalMs);
+        return;
+      }
       try {
         const headers: HeadersInit = {};
         if (etagRef.current) headers["If-None-Match"] = etagRef.current;
@@ -79,10 +89,19 @@ export function usePolledResource<T>(
       }
     }
 
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        if (timer) clearTimeout(timer);
+        void poll();
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     void poll();
     return () => {
       cancelled = true;
       if (timer) clearTimeout(timer);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intervalMs changes shouldn't restart with a stale etag
   }, [path, enabled, base]);
