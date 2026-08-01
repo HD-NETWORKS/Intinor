@@ -17,7 +17,7 @@ import type {
   VideoMixerSettings,
   VideoMixerSettingsResponse,
   VideoSourceConstraint,
-} from "./intinor/types";
+} from "./intinor/types.ts";
 
 // ---------------------------------------------------------------------------
 // Constraints

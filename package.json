@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types src/lib/settings/permissions.test.mts && node --experimental-strip-types src/lib/monitor/rules.test.mts"
+    "test": "node --experimental-strip-types src/lib/settings/permissions.test.mts && node --experimental-strip-types src/lib/settings/diff.test.mts && node --experimental-strip-types src/lib/settings/apply.test.mts && node --experimental-strip-types src/lib/mixer-layout.test.mts && node --experimental-strip-types src/lib/monitor/rules.test.mts"
   },
   "dependencies": {
     "next": "16.2.12",
