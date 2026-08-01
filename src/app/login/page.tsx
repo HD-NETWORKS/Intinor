@@ -60,6 +60,8 @@ function LoginForm() {
           </label>
           <input
             id="username"
+            name="username"
+            autoComplete="username"
             autoFocus
             value={username}
             onChange={(e) => setUsername(e.target.value)}
@@ -73,7 +75,9 @@ function LoginForm() {
           </label>
           <input
             id="password"
+            name="password"
             type="password"
+            autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="w-full rounded border border-border-strong bg-page px-3 py-2 text-sm text-body"
