@@ -1264,6 +1264,32 @@ chaining on `err.detail.errors`, falls back correctly when absent) rather
 than a live 422 reproduction — the real unit's exact validation response
 shape isn't something mock mode can faithfully stand in for.
 
+### Follow-up: `newAccessControlRule()` was sending an invalid rule by default
+
+That validation-message fix immediately paid off against a real unit: a
+freshly-added access rule with only its Access key filled in came back
+`access_control[0].ip: Can't use both 'ip' and 'key'` — even though the IP
+address field looked empty in the form. The factory set `ip: ""` and
+`serial: ""` by default rather than leaving them genuinely absent, and the
+unit treats an empty-string `ip` as "set" just as much as a real one, so it
+collided with the key the user actually wanted to use.
+
+- `newAccessControlRule()` now returns only `{ description, active }` —
+  `ip`/`key`/`serial` stay entirely absent until the user actually types
+  into one of those fields, matching how every other optional field in
+  this codebase already behaves (`SettingsField`'s text input already
+  renders `undefined` as blank, so this changes nothing visually).
+
+### Verified
+
+`npm run lint`, `npm run build`, `npm test` all pass. Browser-verified in
+mock mode by inspecting the actual PUT body Playwright captured: a newly
+added rule with only its Access key and Active fields touched now sends
+`{"description":"New access rule","active":true,"key":"..."}` — `ip` and
+`serial` correctly absent — instead of the old
+`{"ip":"","key":"...","serial":"",...}` that would trip the unit's "can't
+use both ip and key" check every time.
+
 ## Getting started
 
 ```bash
