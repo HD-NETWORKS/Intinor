@@ -37,6 +37,7 @@ import type {
   TestPictureSettingsResponse,
   UserList,
   UserSettingsResponse,
+  ValidationError,
   VideoInput,
   VideoInputSettings,
   VideoInputSettingsResponse,
@@ -64,7 +65,7 @@ export const UNIT_PROXY_BASE = "/api/unit";
 export class IntinorApiError extends Error {
   constructor(
     public readonly status: number,
-    public readonly detail: Partial<StmError>,
+    public readonly detail: Partial<ValidationError>,
     message?: string,
   ) {
     super(message ?? detail.message ?? `Intinor API error (HTTP ${status})`);
