@@ -14,10 +14,12 @@ import type { FieldSection } from "@/lib/settings/fields";
 import { optionsFromDescribed } from "@/lib/settings/options";
 import {
   accessControlSections,
+  arrayHeaderSection,
   basicDestinationSections,
+  newAccessControlRule,
   recordingSections,
 } from "@/lib/settings/common-sections";
-import { useSettingsEditor } from "@/hooks/useSettingsEditor";
+import { useSettingsEditor, type ArrayHelpers } from "@/hooks/useSettingsEditor";
 import { useUnitMeta } from "@/hooks/useUnitMeta";
 import { useSelectionHandoff } from "@/lib/navigation/selection";
 import { usePolledResource } from "@/hooks/usePolledResource";
@@ -35,7 +37,10 @@ interface NetworkSourceConstraints {
   };
 }
 
-function inputSections(s: NetworkInputSettingsResponse): FieldSection[] {
+function inputSections(
+  s: NetworkInputSettingsResponse,
+  helpers: ArrayHelpers,
+): FieldSection[] {
   const c = (s._constraints?.network_sources ?? {}) as NetworkSourceConstraints;
   const src = s.network_sources;
   const ifaceOptions = optionsFromDescribed(c.udp_unicast?.network_interface);
@@ -200,7 +205,17 @@ function inputSections(s: NetworkInputSettingsResponse): FieldSection[] {
   }
 
   sections.push(...recordingSections(s.recording));
-  sections.push(...accessControlSections(s.access_control));
+  const accessRuleCount = s.access_control?.length ?? 0;
+  sections.push(
+    arrayHeaderSection(`Access rules (${accessRuleCount})`, () =>
+      helpers.addArrayItem("access_control", newAccessControlRule()),
+    ),
+  );
+  sections.push(
+    ...accessControlSections(s.access_control, "access_control", (i) =>
+      helpers.removeArrayItem("access_control", i),
+    ),
+  );
 
   return sections;
 }
