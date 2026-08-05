@@ -87,9 +87,15 @@ export function recordingSections(
   return sections;
 }
 
-/** A fresh, inactive rule — filled in and activated by hand before saving. */
+/**
+ * A fresh, inactive rule — filled in and activated by hand before saving.
+ * `ip`/`key`/`serial` are left entirely absent (not empty strings): the unit
+ * rejects a rule that sets both `ip` and `key`, and treats an empty-string
+ * `ip` as "set" just like a real one — only a genuinely absent field counts
+ * as unused.
+ */
 export function newAccessControlRule(): AccessControlSettings {
-  return { description: "New access rule", active: false, ip: "", key: "", serial: "" };
+  return { description: "New access rule", active: false };
 }
 
 export function accessControlSections(
