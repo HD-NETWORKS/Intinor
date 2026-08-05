@@ -87,18 +87,30 @@ export function recordingSections(
   return sections;
 }
 
+/** A fresh, inactive rule — filled in and activated by hand before saving. */
+export function newAccessControlRule(): AccessControlSettings {
+  return { description: "New access rule", active: false, ip: "", key: "", serial: "" };
+}
+
 export function accessControlSections(
   list: AccessControlSettings[] | undefined,
   basePath = "access_control",
+  onRemove?: (index: number) => void,
 ): FieldSection[] {
   return (list ?? []).map((rule, i) => ({
     title: `Access rule ${i + 1}${rule.description ? ` — ${rule.description}` : ""}`,
     description: "Restricts who may connect to this source by IP, key, or unit serial.",
+    headerExtra: onRemove ? <RemoveButton onClick={() => onRemove(i)} /> : undefined,
     fields: [
       { path: `${basePath}[${i}].active`, label: "Active", kind: "checkbox" },
       { path: `${basePath}[${i}].description`, label: "Description", kind: "text" },
       { path: `${basePath}[${i}].ip`, label: "IP address", kind: "text" },
-      { path: `${basePath}[${i}].key`, label: "Access key", kind: "text" },
+      {
+        path: `${basePath}[${i}].key`,
+        label: "Access key",
+        kind: "text",
+        help: "Paste another unit's sender key here (Settings → General → Access control on that unit) to let it send streams to this input.",
+      },
       { path: `${basePath}[${i}].serial`, label: "Remote unit serial", kind: "text" },
     ],
   }));

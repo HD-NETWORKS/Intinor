@@ -18,6 +18,7 @@ import {
   accessControlSections,
   arrayHeaderSection,
   basicDestinationSections,
+  newAccessControlRule,
   onRequestDestinationSections,
   recordingSections,
   rtmpDestinationSections,
@@ -270,7 +271,17 @@ function encoderSections(
     ),
   );
   sections.push(...recordingSections(s.recording));
-  sections.push(...accessControlSections(s.access_control));
+  const accessRuleCount = s.access_control?.length ?? 0;
+  sections.push(
+    arrayHeaderSection(`Access rules (${accessRuleCount})`, () =>
+      helpers.addArrayItem("access_control", newAccessControlRule()),
+    ),
+  );
+  sections.push(
+    ...accessControlSections(s.access_control, "access_control", (i) =>
+      helpers.removeArrayItem("access_control", i),
+    ),
+  );
   sections.push(...muxingSection(s));
 
   return sections;

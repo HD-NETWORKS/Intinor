@@ -1203,6 +1203,42 @@ files) all pass. Browser-verified in mock mode with Playwright:
   "Something went wrong" fallback card, then reverted the test throw (no
   diff left behind).
 
+## Phase 22 — add/remove access rules on network inputs and encoders
+
+`AccessControlSettings` (`access_control[]` on both resources) already had a
+form section — `Active`/`Description`/`IP address`/`Access key`/`Remote unit
+serial` per rule — but only for rules the unit already had configured; there
+was no way to add the *first* one from the dashboard.
+
+This matters for Intinor's unit-to-unit stream sharing: each unit's IDM
+console (Settings → General → Access control) shows that unit's own "sender
+key" (an SSH-style public key, e.g. `ssh-rsa AAAAB3Nza...`) meant to be
+pasted into an `access_control[].key` field on *another* unit's network
+input or encoder, to let that other unit send it a stream directly. If a
+unit had zero rules configured, the dashboard's settings page silently
+rendered nothing for that section — no way to add the first one without
+going through IDM.
+
+- Added an "+ Add" header (matching the existing destinations pattern) and
+  a per-rule "Remove" button to `accessControlSections` in
+  `common-sections.tsx`, plus a shared `newAccessControlRule()` factory —
+  wired into both `/inputs` and `/encoders` (`/inputs` had no add/remove
+  for *any* array before this; `/encoders` already had it for destinations,
+  so this was just extending the same `helpers.addArrayItem`/
+  `removeArrayItem` pattern to a field that didn't have it yet).
+- Added a help line under the Access key field pointing back at where that
+  value comes from (the other unit's Settings → General → Access control
+  page), since "sender key" isn't a term this dashboard used anywhere else.
+
+### Verified
+
+`npm run lint`, `npm run build`, `npm test` all pass. Browser-verified in
+mock mode: on `/inputs`, clicking "+ Add" appended a new "New access rule"
+section, the header count updated from `(1)` to `(2)`, and adding then
+immediately removing the same rule left zero unsaved changes (confirming
+the diff engine treats it as a no-op, not a false-dirty state). Confirmed
+the same "+ Add"/"Access rules (N)" section renders on `/encoders` too.
+
 ## Getting started
 
 ```bash
