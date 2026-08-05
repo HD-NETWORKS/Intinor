@@ -42,7 +42,15 @@ export interface SettingsEditor<T> {
 }
 
 function describe(err: unknown, fallback: string): string {
-  if (err instanceof IntinorApiError) return `${err.message} (HTTP ${err.status})`;
+  if (err instanceof IntinorApiError) {
+    // The unit's own per-field validation reasons (e.g. which access_control
+    // entry and why) are far more actionable than the generic top-level
+    // message ("Input validation failed") alone.
+    const fieldErrors = err.detail.errors
+      ?.map((e) => (e.fields?.length ? `${e.fields.join(", ")}: ${e.message}` : e.message))
+      .join("; ");
+    return `${fieldErrors || err.message} (HTTP ${err.status})`;
+  }
   if (err instanceof Error) return err.message;
   return fallback;
 }

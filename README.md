@@ -1239,6 +1239,31 @@ immediately removing the same rule left zero unsaved changes (confirming
 the diff engine treats it as a no-op, not a false-dirty state). Confirmed
 the same "+ Add"/"Access rules (N)" section renders on `/encoders` too.
 
+### Follow-up: surface the unit's actual validation reason on a failed save
+
+Trying this against a real unit, a rejected save (e.g. an invalid access-key
+value) only ever showed a generic **"Input validation failed (HTTP 422)"**
+— unhelpful for figuring out which field or why. The unit's error responses
+follow `ValidationError extends StmError { errors?: ApiMessage[] }`
+(`_messages`-shaped entries with `fields`/`message`), and the JSON was
+already being parsed in full — `IntinorApiError.detail` was just typed as
+the narrower `Partial<StmError>`, so nothing downstream could read
+`.errors` even though it was there at runtime.
+
+- Widened `IntinorApiError.detail` to `Partial<ValidationError>`.
+- `useSettingsEditor`'s `describe()` now joins each error's `fields` (if
+  any) with its `message` and shows that instead of the generic top-level
+  message, falling back to the old generic message when the unit doesn't
+  return a structured `errors` array.
+
+### Verified
+
+`npm run lint`, `npm run build`, `npm test` all pass. This is error-path
+formatting logic verified by type-checking and code review (safe optional
+chaining on `err.detail.errors`, falls back correctly when absent) rather
+than a live 422 reproduction — the real unit's exact validation response
+shape isn't something mock mode can faithfully stand in for.
+
 ## Getting started
 
 ```bash
