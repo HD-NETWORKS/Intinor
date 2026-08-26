@@ -86,7 +86,7 @@ export default function MixerBuilderPage() {
     return (
       <div className="mx-auto max-w-5xl">
         <h1 className="text-xl font-semibold text-fg">Video mixer</h1>
-        <div className="mt-4 rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-danger">
+        <div className="mt-4 rounded border border-signal-red-500/40 bg-signal-red-500/10 px-4 py-3 text-sm text-danger">
           {error}
         </div>
       </div>
@@ -351,7 +351,7 @@ function MixerEditor({
 
   if (error) {
     return (
-      <div className="rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-danger">
+      <div className="rounded border border-signal-red-500/40 bg-signal-red-500/10 px-4 py-3 text-sm text-danger">
         {error}
       </div>
     );
@@ -390,7 +390,7 @@ function MixerEditor({
       <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
         <div className="space-y-4">
           <div>
-            <div className="mb-1 text-xs uppercase tracking-wide text-faint">
+            <div className="mb-1 text-xs font-mono uppercase tracking-wide text-faint">
               Editing canvas {dirty && <span className="text-warning">· unsaved edits</span>}
             </div>
             <MixerCanvas
@@ -405,7 +405,7 @@ function MixerEditor({
           </div>
 
           <div>
-            <div className="mb-1 text-xs uppercase tracking-wide text-faint">
+            <div className="mb-1 text-xs font-mono uppercase tracking-wide text-faint">
               Live program output
             </div>
             <MixerPreview index={mixerIndex} refreshKey={previewKey} />
@@ -444,7 +444,7 @@ function MixerEditor({
           />
 
           {/* Apply */}
-          <div className="space-y-2 rounded-lg border border-border-default bg-panel p-3">
+          <div className="space-y-2 rounded border border-border-default bg-panel p-3">
             <div className="text-sm font-medium text-body">Apply to mixer</div>
 
             {meta?.mock && (
@@ -489,7 +489,7 @@ function MixerEditor({
                   <button
                     onClick={() => void doApply()}
                     disabled={confirmText !== "APPLY"}
-                    className="rounded bg-red-600 px-3 py-1.5 text-sm text-white hover:bg-red-500 disabled:opacity-40"
+                    className="rounded bg-signal-red-600 px-3 py-1.5 text-sm text-white hover:bg-signal-red-500 disabled:opacity-40"
                   >
                     Confirm apply
                   </button>
@@ -508,7 +508,7 @@ function MixerEditor({
               <button
                 onClick={onApplyClick}
                 disabled={applyState === "applying" || liveReadOnly || enabledLayers.length === 0}
-                className="w-full rounded bg-sky-600 px-3 py-2 text-sm font-medium text-white hover:bg-sky-500 disabled:opacity-40"
+                className="w-full rounded bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-500 disabled:opacity-40"
               >
                 {applyState === "applying"
                   ? "Applying…"

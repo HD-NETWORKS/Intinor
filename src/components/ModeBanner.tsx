@@ -51,7 +51,7 @@ export function ModeBanner() {
   const unitLabel = current?.label ? `${current.label} (${current.id})` : (unitId ?? "—");
 
   const authWarning = meta.authDisabled && !authWarningDismissed ? (
-    <div className="flex items-start gap-3 border-b border-red-500/40 bg-red-500/15 px-4 py-1.5 text-sm text-danger sm:px-6">
+    <div className="flex items-start gap-3 border-b border-signal-red-500/40 bg-signal-red-500/15 px-4 py-1.5 text-sm text-danger sm:px-6">
       <span className="flex-1">
         <strong>DASHBOARD_AUTH_DISABLED=1</strong> — no login gate. Local dev only; never set this
         on a deployment reachable from the internet.
@@ -90,7 +90,7 @@ export function ModeBanner() {
     return (
       <>
         {authWarning}
-        <div className="border-b border-red-500/40 bg-red-500/15 px-4 py-1.5 text-sm text-danger sm:px-6">
+        <div className="border-b border-signal-red-500/40 bg-signal-red-500/15 px-4 py-1.5 text-sm text-danger sm:px-6">
           <strong>Not configured</strong> — set INTINOR_* variables in .env.local
           or enable MOCK=1.
         </div>
@@ -105,8 +105,8 @@ export function ModeBanner() {
         className={
           "px-4 py-1.5 text-sm sm:px-6 " +
           (meta.writesAllowed
-            ? "border-b border-red-500/40 bg-red-500/15 text-danger"
-            : "border-b border-sky-500/30 bg-sky-500/10 text-accent")
+            ? "border-b border-signal-red-500/40 bg-signal-red-500/15 text-danger"
+            : "border-b border-brand-500/30 bg-brand-500/10 text-accent")
         }
       >
         {meta.writesAllowed ? (

@@ -81,7 +81,7 @@ export function MixerOutputSettings({
   });
 
   return (
-    <div className="rounded-lg border border-border-default bg-panel p-4">
+    <div className="rounded border border-border-default bg-panel p-4">
       <SettingsForm
         title="Output settings"
         description="Format of the composited program output."

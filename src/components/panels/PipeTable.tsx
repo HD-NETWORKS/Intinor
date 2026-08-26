@@ -30,7 +30,7 @@ export function PipeTable({
     : items;
 
   return (
-    <div className="rounded-lg border border-border-default bg-panel">
+    <div className="rounded border border-border-default bg-panel">
       <div className="flex items-center justify-between gap-3 border-b border-border-default p-3">
         <h3 className="text-sm font-medium text-body">{title}</h3>
         <input

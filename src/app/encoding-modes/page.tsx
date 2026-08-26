@@ -401,7 +401,7 @@ export default function EncodingModesPage() {
 
   if (error) {
     return (
-      <div className="mx-auto max-w-4xl rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-danger">
+      <div className="mx-auto max-w-4xl rounded border border-signal-red-500/40 bg-signal-red-500/10 px-4 py-3 text-sm text-danger">
         {error}
       </div>
     );
@@ -425,7 +425,7 @@ export default function EncodingModesPage() {
 
       <PermissionBanner mutable={mutable} />
 
-      <section className="space-y-3 rounded-lg border border-border-default bg-panel p-4">
+      <section className="space-y-3 rounded border border-border-default bg-panel p-4">
         <h2 className="font-medium text-body">Global</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           {globalFields(draft._constraints).map((spec) => (
@@ -435,7 +435,7 @@ export default function EncodingModesPage() {
       </section>
 
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-medium uppercase tracking-wide text-muted">
+        <h2 className="text-sm font-medium font-mono uppercase tracking-wide text-muted">
           Custom encoding modes ({draft.custom_encoding_modes.length})
         </h2>
         <div className="flex gap-2">
@@ -454,7 +454,7 @@ export default function EncodingModesPage() {
           <button
             onClick={addMode}
             disabled={saveBlocked}
-            className="rounded border border-sky-500/60 bg-sky-500/10 px-3 py-1 text-xs text-accent hover:bg-sky-500/20 disabled:opacity-40"
+            className="rounded border border-brand-500/60 bg-brand-500/10 px-3 py-1 text-xs text-accent hover:bg-brand-500/20 disabled:opacity-40"
           >
             + Add mode
           </button>
@@ -483,7 +483,7 @@ export default function EncodingModesPage() {
       {draft.custom_encoding_modes.map((mode, i) => {
         const isOpen = expanded.has(i);
         return (
-          <section key={i} id={`custom-mode-${i}`} className="rounded-lg border border-border-default bg-panel scroll-mt-4">
+          <section key={i} id={`custom-mode-${i}`} className="rounded border border-border-default bg-panel scroll-mt-4">
             <div className="flex items-center justify-between gap-2 p-4">
               <button
                 onClick={() => toggleExpanded(i)}
@@ -498,7 +498,7 @@ export default function EncodingModesPage() {
               <button
                 onClick={() => removeMode(i)}
                 disabled={saveBlocked}
-                className="rounded border border-red-500/40 px-2 py-1 text-xs text-danger hover:bg-red-500/10 disabled:opacity-40"
+                className="rounded border border-signal-red-500/40 px-2 py-1 text-xs text-danger hover:bg-signal-red-500/10 disabled:opacity-40"
               >
                 Remove
               </button>
@@ -542,7 +542,7 @@ export default function EncodingModesPage() {
             <button
               onClick={() => void beginSave()}
               disabled={!dirty || saveBlocked || stage === "saving"}
-              className="rounded bg-sky-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-sky-500 disabled:opacity-40"
+              className="rounded bg-brand-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-500 disabled:opacity-40"
             >
               Review &amp; save…
             </button>

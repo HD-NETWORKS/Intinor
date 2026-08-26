@@ -87,7 +87,7 @@ export function SourceTile({
       onDragEnd={onDragEnd}
       onClick={openSettings}
       className={
-        "w-40 shrink-0 cursor-pointer space-y-1 rounded border border-border-default bg-panel p-2 hover:border-sky-600/60 " +
+        "w-40 shrink-0 cursor-pointer space-y-1 rounded border border-border-default bg-panel p-2 hover:border-brand-600/60 " +
         (dragDisabled ? "opacity-50" : "active:cursor-grabbing")
       }
       title={
@@ -101,7 +101,7 @@ export function SourceTile({
           // eslint-disable-next-line @next/next/no-img-element
           <img src={thumbUrl} alt="" className="h-full w-full object-cover" />
         ) : (
-          <span className="text-[10px] uppercase tracking-wide text-slate-600">
+          <span className="text-[10px] font-mono uppercase tracking-wide text-slate-600">
             {kind === "test_picture" ? "Test picture" : "No stream"}
           </span>
         )}
@@ -114,7 +114,7 @@ export function SourceTile({
         )}
         <span className="truncate text-xs text-body">{label}</span>
       </div>
-      <div className="text-[10px] uppercase tracking-wide text-faint">{KIND_LABEL[kind]}</div>
+      <div className="text-[10px] font-mono uppercase tracking-wide text-faint">{KIND_LABEL[kind]}</div>
       {usedBy && usedBy.length > 0 && (
         <div className="truncate text-[10px] text-warning" title={`Also used by ${usedBy.join(", ")}`}>
           ⚠ used by {usedBy.join(", ")}

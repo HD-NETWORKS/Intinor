@@ -118,10 +118,10 @@ export function Nav({
                 <Link
                   href={href}
                   className={
-                    "block rounded px-3 py-2 text-sm transition-colors " +
+                    "block rounded border-l-2 px-3 py-2 text-sm transition-colors " +
                     (active
-                      ? "bg-sky-500/15 text-accent"
-                      : "text-muted hover:bg-panel-hover hover:text-body")
+                      ? "border-brand-500 bg-brand-500/15 text-accent"
+                      : "border-transparent text-muted hover:bg-panel-hover hover:text-body")
                   }
                 >
                   {label}

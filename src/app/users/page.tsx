@@ -31,10 +31,10 @@ function permissionLabels(
 
 function UserCard({ user }: { user: UserSettingsResponse }) {
   return (
-    <section className="space-y-3 rounded-lg border border-border-default bg-panel p-4">
+    <section className="space-y-3 rounded border border-border-default bg-panel p-4">
       <div className="flex items-center gap-2">
         <h2 className="font-medium text-fg">{user.username}</h2>
-        <span className="rounded bg-sky-500/15 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-accent">
+        <span className="rounded bg-brand-500/15 px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wide text-accent">
           {roleLabel(user, user.role)}
         </span>
       </div>
@@ -109,7 +109,7 @@ export default function UsersPage() {
       </div>
 
       {error && (
-        <div className="rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-danger">
+        <div className="rounded border border-signal-red-500/40 bg-signal-red-500/10 px-4 py-3 text-sm text-danger">
           {error}
         </div>
       )}

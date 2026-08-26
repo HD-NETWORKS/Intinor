@@ -57,7 +57,7 @@ export default function Overview() {
 
       <div>
         <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-sm font-medium uppercase tracking-wide text-muted">
+          <h2 className="text-sm font-medium font-mono uppercase tracking-wide text-muted">
             Signal chain
           </h2>
           <div className="flex items-center gap-3">
@@ -73,7 +73,7 @@ export default function Overview() {
                   className={
                     "rounded border px-2 py-0.5 text-xs capitalize " +
                     (effectiveView === v
-                      ? "border-sky-500/60 bg-sky-500/10 text-accent"
+                      ? "border-brand-500/60 bg-brand-500/10 text-accent"
                       : "border-border-strong text-muted hover:bg-panel-hover")
                   }
                 >
@@ -85,7 +85,7 @@ export default function Overview() {
         </div>
 
         {listError && !anyListData ? (
-          <div className="rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-danger">
+          <div className="rounded border border-signal-red-500/40 bg-signal-red-500/10 px-4 py-3 text-sm text-danger">
             {listError}
           </div>
         ) : effectiveView === "cards" ? (

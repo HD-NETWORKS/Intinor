@@ -22,14 +22,14 @@ export default function GlobalNotFound() {
   return (
     <html lang="en" className="h-full antialiased">
       <body className="flex min-h-full items-center justify-center bg-page p-6 text-fg">
-        <div className="max-w-sm space-y-4 rounded-lg border border-border-default bg-panel p-6 text-center">
+        <div className="max-w-sm space-y-4 rounded border border-border-default bg-panel p-6 text-center">
           <h1 className="text-lg font-semibold text-fg">Page not found</h1>
           <p className="text-sm text-muted">
             The page you&apos;re looking for doesn&apos;t exist, or the link is out of date.
           </p>
           <Link
             href="/"
-            className="inline-block rounded bg-sky-600 px-3 py-2 text-sm font-medium text-white hover:bg-sky-500"
+            className="inline-block rounded bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-500"
           >
             Back to dashboard
           </Link>

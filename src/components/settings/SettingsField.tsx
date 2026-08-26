@@ -52,7 +52,7 @@ export function SettingsField<T>({
           checked={Boolean(raw)}
           disabled={!editable}
           onChange={(e) => onChange(spec.path, e.target.checked)}
-          className="h-4 w-4 self-start accent-sky-500 disabled:opacity-50"
+          className="h-4 w-4 self-start accent-brand-500 disabled:opacity-50"
         />
       ) : spec.kind === "select" ? (
         <select

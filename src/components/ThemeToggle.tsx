@@ -23,7 +23,7 @@ export function ThemeToggle() {
           className={
             "rounded px-2 py-1 text-xs transition-colors " +
             (preference === opt.value
-              ? "bg-sky-500/15 text-accent"
+              ? "bg-brand-500/15 text-accent"
               : "text-muted hover:bg-panel-hover hover:text-body")
           }
         >

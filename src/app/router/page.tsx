@@ -196,7 +196,7 @@ export default function RouterPage() {
 
   if (error) {
     return (
-      <div className="mx-auto max-w-6xl rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-danger">
+      <div className="mx-auto max-w-6xl rounded border border-signal-red-500/40 bg-signal-red-500/10 px-4 py-3 text-sm text-danger">
         {error}
       </div>
     );
@@ -218,13 +218,13 @@ export default function RouterPage() {
       </div>
 
       {saveBlocked && (
-        <div className="rounded border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-xs text-accent">
+        <div className="rounded border border-brand-500/40 bg-brand-500/10 px-3 py-2 text-xs text-accent">
           Live unit, read-only mode — dragging is disabled by the proxy.
         </div>
       )}
 
       <div>
-        <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-muted">
+        <h2 className="mb-2 text-sm font-medium font-mono uppercase tracking-wide text-muted">
           Encoders ({encoderInfos.length})
         </h2>
         {encoderInfos.length === 0 ? (
@@ -246,7 +246,7 @@ export default function RouterPage() {
       </div>
 
       <div>
-        <h2 className="mb-2 text-sm font-medium uppercase tracking-wide text-muted">Sources</h2>
+        <h2 className="mb-2 text-sm font-medium font-mono uppercase tracking-wide text-muted">Sources</h2>
         {sources.length === 0 ? (
           <p className="text-sm text-faint">No sources available.</p>
         ) : (

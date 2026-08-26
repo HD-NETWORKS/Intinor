@@ -6,7 +6,7 @@ import type { SystemStatus } from "@/lib/intinor/types";
 function FirmwareRow({ label, version, datetime, valid }: { label: string; version?: string; datetime?: string; valid?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded border border-border-default bg-panel-strong px-3 py-2">
-      <span className="text-xs uppercase tracking-wide text-faint">{label}</span>
+      <span className="text-xs font-mono uppercase tracking-wide text-faint">{label}</span>
       <div className="text-right">
         <div className="text-sm text-body">{version ?? "—"}</div>
         {datetime && (
@@ -26,7 +26,7 @@ export function FirmwarePanel() {
 
   if (error && !data) {
     return (
-      <div className="rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-danger">
+      <div className="rounded border border-signal-red-500/40 bg-signal-red-500/10 px-4 py-3 text-sm text-danger">
         {error}
       </div>
     );
@@ -39,7 +39,7 @@ export function FirmwarePanel() {
   return (
     <section className="space-y-3">
       <div>
-        <h2 className="text-sm font-medium uppercase tracking-wide text-muted">Firmware</h2>
+        <h2 className="text-sm font-medium font-mono uppercase tracking-wide text-muted">Firmware</h2>
         <p className="mt-1 text-xs text-faint">
           Running, default (installed on next boot), and recovery firmware slots — from{" "}
           <code className="rounded bg-panel-hover px-1">system/status.firmware</code>. There is no

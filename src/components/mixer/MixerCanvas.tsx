@@ -113,7 +113,7 @@ export function MixerCanvas({
               "absolute flex cursor-move items-center justify-center overflow-hidden text-xs font-medium " +
               (disabled ? "opacity-35 " : "") +
               (selected
-                ? "z-10 ring-2 ring-sky-400"
+                ? "z-10 ring-2 ring-brand-400"
                 : "ring-1 ring-slate-600 hover:ring-slate-400")
             }
             style={{
@@ -151,7 +151,7 @@ export function MixerCanvas({
                 className="absolute bottom-0 right-0 flex h-6 w-6 cursor-nwse-resize items-end justify-end p-1"
                 title="Drag to resize"
               >
-                <span className="h-3.5 w-3.5 bg-sky-400" />
+                <span className="h-3.5 w-3.5 bg-brand-400" />
               </span>
             )}
           </div>

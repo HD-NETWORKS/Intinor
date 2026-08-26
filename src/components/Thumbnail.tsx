@@ -40,7 +40,7 @@ export function Thumbnail({
             type="checkbox"
             checked={ppm}
             onChange={(e) => setPpm(e.target.checked)}
-            className="accent-sky-500"
+            className="accent-brand-500"
           />
           Audio level overlay (PPM)
         </label>
@@ -49,7 +49,7 @@ export function Thumbnail({
             href={src}
             download={downloadFilename}
             onClick={(e) => e.stopPropagation()}
-            className="rounded border border-sky-500/60 bg-sky-500/10 px-2 py-1 text-xs text-accent hover:bg-sky-500/20"
+            className="rounded border border-brand-500/60 bg-brand-500/10 px-2 py-1 text-xs text-accent hover:bg-brand-500/20"
           >
             Download snapshot
           </a>

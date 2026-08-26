@@ -69,7 +69,7 @@ export function LayoutProfiles({
               </button>
               <button
                 onClick={() => onDelete(p.id)}
-                className="rounded px-1 text-xs text-danger hover:bg-red-500/10"
+                className="rounded px-1 text-xs text-danger hover:bg-signal-red-500/10"
                 title="Delete profile"
               >
                 ✕

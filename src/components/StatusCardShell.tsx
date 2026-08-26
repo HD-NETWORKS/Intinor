@@ -35,8 +35,8 @@ export function StatusCardShell({
       onClick={onClick}
       title={onClick ? "Click to open settings" : undefined}
       className={
-        "space-y-3 rounded-lg border border-border-default bg-panel p-4" +
-        (onClick ? " cursor-pointer hover:border-sky-600/60" : "")
+        "space-y-3 rounded border border-border-default bg-panel p-4" +
+        (onClick ? " cursor-pointer hover:border-brand-600/60" : "")
       }
     >
       <div className="flex items-center justify-between">
@@ -56,7 +56,7 @@ export function StatusCardShell({
       {description && <p className="text-sm text-muted">{description}</p>}
 
       {error ? (
-        <div className="rounded border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-danger">
+        <div className="rounded border border-signal-red-500/40 bg-signal-red-500/10 px-3 py-2 text-xs text-danger">
           {error}
         </div>
       ) : (
@@ -64,7 +64,7 @@ export function StatusCardShell({
           <dl className="grid grid-cols-3 gap-2 text-sm">
             {stats.map((s) => (
               <div key={s.label} className="min-w-0">
-                <dt className="text-xs uppercase tracking-wide text-faint">{s.label}</dt>
+                <dt className="text-xs font-mono uppercase tracking-wide text-faint">{s.label}</dt>
                 <dd className="truncate text-body" title={s.value}>
                   {s.value ?? "—"}
                 </dd>
@@ -82,7 +82,7 @@ export function StatusCardShell({
                   className={
                     "rounded px-2 py-1 text-xs " +
                     (m.severity === "error"
-                      ? "bg-red-500/10 text-danger"
+                      ? "bg-signal-red-500/10 text-danger"
                       : m.severity === "warning"
                         ? "bg-amber-500/10 text-warning"
                         : "bg-panel-hover text-muted")

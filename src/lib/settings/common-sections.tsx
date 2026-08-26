@@ -19,7 +19,7 @@ function RemoveButton({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="rounded border border-red-500/40 px-2 py-1 text-xs text-danger hover:bg-red-500/10"
+      className="rounded border border-signal-red-500/40 px-2 py-1 text-xs text-danger hover:bg-signal-red-500/10"
     >
       Remove
     </button>
@@ -35,7 +35,7 @@ export function arrayHeaderSection(title: string, onAdd: () => void): FieldSecti
       <button
         type="button"
         onClick={onAdd}
-        className="rounded border border-sky-500/60 bg-sky-500/10 px-3 py-1 text-xs text-accent hover:bg-sky-500/20"
+        className="rounded border border-brand-500/60 bg-brand-500/10 px-3 py-1 text-xs text-accent hover:bg-brand-500/20"
       >
         + Add
       </button>
@@ -105,19 +105,30 @@ export function accessControlSections(
 ): FieldSection[] {
   return (list ?? []).map((rule, i) => ({
     title: `Access rule ${i + 1}${rule.description ? ` — ${rule.description}` : ""}`,
-    description: "Restricts who may connect to this source by IP, key, or unit serial.",
+    description:
+      "Restricts who may connect to this source — fill in exactly one of IP, key, or serial below, not more than one.",
     headerExtra: onRemove ? <RemoveButton onClick={() => onRemove(i)} /> : undefined,
     fields: [
       { path: `${basePath}[${i}].active`, label: "Active", kind: "checkbox" },
       { path: `${basePath}[${i}].description`, label: "Description", kind: "text" },
-      { path: `${basePath}[${i}].ip`, label: "IP address", kind: "text" },
+      {
+        path: `${basePath}[${i}].ip`,
+        label: "IP address",
+        kind: "text",
+        help: "Leave blank if you're using a key or serial below — the unit rejects a rule that sets more than one.",
+      },
       {
         path: `${basePath}[${i}].key`,
         label: "Access key",
         kind: "text",
-        help: "Paste another unit's sender key here (Settings → General → Access control on that unit) to let it send streams to this input.",
+        help: "Paste the other unit's sender key (Settings → General → Access control on that unit). If the copied text has a trailing name after the key itself, e.g. \"...Kw== Direkt-D01796\", that's just a label — paste only the part before the space, and leave IP/serial below blank.",
       },
-      { path: `${basePath}[${i}].serial`, label: "Remote unit serial", kind: "text" },
+      {
+        path: `${basePath}[${i}].serial`,
+        label: "Remote unit serial",
+        kind: "text",
+        help: "Leave blank if you're using a key above — the unit rejects a rule that sets more than one.",
+      },
     ],
   }));
 }

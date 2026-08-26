@@ -22,7 +22,7 @@ export default function Error({
   }, [error]);
 
   return (
-    <div className="mx-auto max-w-md space-y-4 rounded-lg border border-red-500/40 bg-panel p-6 text-center">
+    <div className="mx-auto max-w-md space-y-4 rounded border border-signal-red-500/40 bg-panel p-6 text-center">
       <h1 className="text-lg font-semibold text-danger">Something went wrong</h1>
       <p className="text-sm text-muted">
         An unexpected error occurred while rendering this page. This is a dashboard bug, not
@@ -33,7 +33,7 @@ export default function Error({
         <button
           type="button"
           onClick={() => unstable_retry()}
-          className="rounded bg-sky-600 px-3 py-2 text-sm font-medium text-white hover:bg-sky-500"
+          className="rounded bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-500"
         >
           Try again
         </button>

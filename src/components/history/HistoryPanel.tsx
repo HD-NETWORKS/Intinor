@@ -121,10 +121,10 @@ export function HistoryPanel() {
   if (!loading && data && !data.configured) {
     return (
       <section className="space-y-2">
-        <h2 className="text-sm font-medium uppercase tracking-wide text-muted">
+        <h2 className="text-sm font-medium font-mono uppercase tracking-wide text-muted">
           History &amp; alerts
         </h2>
-        <div className="rounded-lg border border-dashed border-border-strong bg-panel p-5 text-sm text-muted">
+        <div className="rounded border border-dashed border-border-strong bg-panel p-5 text-sm text-muted">
           <p className="text-body">History storage isn&apos;t configured yet.</p>
           <p className="mt-1 text-faint">
             {data.message} Until then the dashboard still shows live status — it just
@@ -140,7 +140,7 @@ export function HistoryPanel() {
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-medium uppercase tracking-wide text-muted">
+        <h2 className="text-sm font-medium font-mono uppercase tracking-wide text-muted">
           History &amp; alerts
         </h2>
         <div className="flex gap-1">
@@ -154,7 +154,7 @@ export function HistoryPanel() {
               className={
                 "rounded border px-2.5 py-1 text-xs " +
                 (r.hours === hours
-                  ? "border-sky-500/60 bg-sky-500/10 text-accent"
+                  ? "border-brand-500/60 bg-brand-500/10 text-accent"
                   : "border-border-strong text-muted hover:bg-panel-hover")
               }
             >
@@ -172,7 +172,7 @@ export function HistoryPanel() {
               className={
                 "rounded border px-3 py-2 text-sm " +
                 (a.severity === "error"
-                  ? "border-red-500/40 bg-red-500/10 text-danger"
+                  ? "border-signal-red-500/40 bg-signal-red-500/10 text-danger"
                   : "border-amber-500/40 bg-amber-500/10 text-warning")
               }
             >
@@ -188,7 +188,7 @@ export function HistoryPanel() {
       {loading && !data ? (
         <p className="text-sm text-faint">Loading history…</p>
       ) : points.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border-strong bg-panel p-5 text-sm text-muted">
+        <div className="rounded border border-dashed border-border-strong bg-panel p-5 text-sm text-muted">
           No samples in this window yet. The monitor writes one row per poll — history
           appears once the scheduled job has run a few times.
         </div>
@@ -216,7 +216,7 @@ export function HistoryPanel() {
 
 function RecentAlerts({ alerts }: { alerts: AlertRow[] }) {
   return (
-    <figure className="rounded-lg border border-border-default bg-panel p-4">
+    <figure className="rounded border border-border-default bg-panel p-4">
       <figcaption className="mb-2 text-sm font-medium text-body">
         Alert history
       </figcaption>
@@ -232,7 +232,7 @@ function RecentAlerts({ alerts }: { alerts: AlertRow[] }) {
                   (a.closed_at
                     ? "bg-slate-600"
                     : a.severity === "error"
-                      ? "bg-red-400"
+                      ? "bg-signal-red-400"
                       : "bg-amber-400")
                 }
               />

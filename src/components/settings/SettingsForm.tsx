@@ -55,7 +55,7 @@ export function SettingsForm<T extends object>({
     return (
       <div className={compact ? "" : "mx-auto max-w-4xl"}>
         <h1 className="text-xl font-semibold text-fg">{title}</h1>
-        <div className="mt-4 rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-danger">
+        <div className="mt-4 rounded border border-signal-red-500/40 bg-signal-red-500/10 px-4 py-3 text-sm text-danger">
           {error}
         </div>
       </div>
@@ -95,7 +95,7 @@ export function SettingsForm<T extends object>({
           className={
             compact
               ? "space-y-3"
-              : "space-y-3 rounded-lg border border-border-default bg-panel p-4"
+              : "space-y-3 rounded border border-border-default bg-panel p-4"
           }
         >
           <div className={"flex items-start justify-between gap-3" + (compact ? " sr-only" : "")}>
@@ -164,7 +164,7 @@ export function SettingsForm<T extends object>({
             <button
               onClick={() => void editor.beginSave()}
               disabled={!dirty || saveBlocked || stage === "saving"}
-              className="rounded bg-sky-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-sky-500 disabled:opacity-40"
+              className="rounded bg-brand-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-500 disabled:opacity-40"
             >
               Review &amp; save…
             </button>

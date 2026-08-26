@@ -84,7 +84,7 @@ function CustomBackgroundUpload() {
   const saveBlocked = writeMode === "live-readonly";
 
   return (
-    <section className="space-y-3 rounded-lg border border-border-default bg-panel p-4">
+    <section className="space-y-3 rounded border border-border-default bg-panel p-4">
       <div>
         <h2 className="font-medium text-body">Custom background</h2>
         <p className="text-xs text-faint">
@@ -113,7 +113,7 @@ function CustomBackgroundUpload() {
         <button
           onClick={() => void upload()}
           disabled={!pending || uploading || saveBlocked}
-          className="rounded bg-sky-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-500 disabled:opacity-40"
+          className="rounded bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-500 disabled:opacity-40"
         >
           {uploading ? "Uploading…" : "Upload"}
         </button>

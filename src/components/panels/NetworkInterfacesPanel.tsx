@@ -36,7 +36,7 @@ export function NetworkInterfacesPanel() {
 
   if (error && !data) {
     return (
-      <div className="rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-danger">
+      <div className="rounded border border-signal-red-500/40 bg-signal-red-500/10 px-4 py-3 text-sm text-danger">
         {error}
       </div>
     );
@@ -48,11 +48,11 @@ export function NetworkInterfacesPanel() {
   const primaryIp = primary?.ip?.address ?? primary?.ethernet?.address ?? null;
 
   return (
-    <div className="rounded-lg border border-border-default bg-panel p-4">
+    <div className="rounded border border-border-default bg-panel p-4">
       <h2 className="mb-3 font-medium text-body">Network interfaces</h2>
 
-      <div className="mb-4 flex flex-wrap items-center gap-3 rounded border border-sky-500/40 bg-sky-500/10 px-3 py-2.5">
-        <span className="text-xs font-medium uppercase tracking-wide text-muted">
+      <div className="mb-4 flex flex-wrap items-center gap-3 rounded border border-brand-500/40 bg-brand-500/10 px-3 py-2.5">
+        <span className="text-xs font-medium font-mono uppercase tracking-wide text-muted">
           Primary IP
         </span>
         <span className="font-mono text-lg font-semibold text-body">{primaryIp ?? "—"}</span>
@@ -79,7 +79,7 @@ export function NetworkInterfacesPanel() {
                 <span className="font-medium text-body">{iface.name}</span>
                 <span className="text-xs text-faint">{iface.type}</span>
                 {status?.primary_interface && (
-                  <span className="rounded bg-sky-500/15 px-1.5 py-0.5 text-[10px] text-accent">
+                  <span className="rounded bg-brand-500/15 px-1.5 py-0.5 text-[10px] text-accent">
                     primary
                   </span>
                 )}

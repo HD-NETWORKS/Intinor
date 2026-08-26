@@ -22,9 +22,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <ModeBanner />
-      <header className="flex flex-wrap items-center gap-3 border-b border-border-default bg-panel-strong px-4 py-3 sm:px-6">
+      <header className="flex flex-wrap items-center gap-3 border-b border-border-default border-t-2 border-t-brand-500 bg-panel-strong px-4 py-3 sm:px-6">
         <Image src="/logo.png" alt="HD Networks" width={178} height={92} className="h-9 w-auto" priority />
-        <span className="hidden text-sm text-muted sm:inline">Intinor Direkt dashboard</span>
+        <span className="hidden font-mono text-xs uppercase tracking-wide text-muted sm:inline">
+          Intinor Direkt dashboard
+        </span>
         <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
           <ThemeToggle />
           <UnitSwitcher />

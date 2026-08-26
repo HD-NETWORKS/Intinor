@@ -18,7 +18,7 @@ export function StreamPreviewSection({
   if (!thumbId) return null;
 
   return (
-    <section className="space-y-3 rounded-lg border border-border-default bg-panel p-4">
+    <section className="space-y-3 rounded border border-border-default bg-panel p-4">
       <h2 className="font-medium text-body">Preview</h2>
       <Thumbnail alt={alt} urlBuilder={(opts) => urlBuilder(thumbId, opts)} downloadFilename={downloadFilename} />
     </section>
