@@ -13,6 +13,11 @@
   --panel: #ffffff;
   --panel-hover: #eeeef7;
   --panel-strong: #ffffff;
+  /* Always fully opaque — for anything that floats over other content (the
+     mobile nav drawer, modal dialogs), unlike --panel/--panel-strong which
+     are intentionally translucent "frosted glass" in dark mode and would let
+     whatever's underneath show through an overlay. */
+  --surface-solid: #ffffff;
   --border-default: #e5e5f0;
   --border-strong: #cbccdf;
   --fg: #15162b;
@@ -34,6 +39,7 @@
     --panel: rgb(21 22 43 / 55%);
     --panel-hover: #21234a;
     --panel-strong: rgb(16 17 36 / 60%);
+    --surface-solid: #1a1c3d;
     --border-default: #26284f;
     --border-strong: #383b6e;
     --fg: #f7f7fb;
@@ -55,6 +61,7 @@
   --panel: #ffffff;
   --panel-hover: #eeeef7;
   --panel-strong: #ffffff;
+  --surface-solid: #ffffff;
   --border-default: #e5e5f0;
   --border-strong: #cbccdf;
   --fg: #15162b;
@@ -75,6 +82,7 @@
   --panel: rgb(21 22 43 / 55%);
   --panel-hover: #21234a;
   --panel-strong: rgb(16 17 36 / 60%);
+  --surface-solid: #1a1c3d;
   --border-default: #26284f;
   --border-strong: #383b6e;
   --fg: #f7f7fb;
@@ -95,6 +103,7 @@
   --color-panel: var(--panel);
   --color-panel-hover: var(--panel-hover);
   --color-panel-strong: var(--panel-strong);
+  --color-surface-solid: var(--surface-solid);
   --color-border-default: var(--border-default);
   --color-border-strong: var(--border-strong);
   --color-fg: var(--fg);

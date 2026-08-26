@@ -87,7 +87,7 @@ export function SourceTile({
       onDragEnd={onDragEnd}
       onClick={openSettings}
       className={
-        "w-40 shrink-0 cursor-pointer space-y-1 rounded border border-border-default bg-panel p-2 hover:border-brand-600/60 " +
+        "w-full cursor-pointer space-y-1 rounded border border-border-default bg-panel p-2 hover:border-brand-600/60 " +
         (dragDisabled ? "opacity-50" : "active:cursor-grabbing")
       }
       title={

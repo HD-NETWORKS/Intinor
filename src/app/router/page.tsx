@@ -230,7 +230,7 @@ export default function RouterPage() {
         {encoderInfos.length === 0 ? (
           <p className="text-sm text-faint">This unit has no encoders.</p>
         ) : (
-          <div className="flex flex-wrap gap-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
             {encoderInfos.map((e) => (
               <EncoderDestTile
                 key={e.index}
@@ -250,7 +250,7 @@ export default function RouterPage() {
         {sources.length === 0 ? (
           <p className="text-sm text-faint">No sources available.</p>
         ) : (
-          <div className="flex flex-wrap gap-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7">
             {sources.map((s) => (
               <SourceTile
                 key={s.href}

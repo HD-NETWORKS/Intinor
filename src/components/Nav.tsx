@@ -68,7 +68,7 @@ export function Nav({
         return;
       }
       if (e.key !== "Tab") return;
-      const focusables = navRef.current?.querySelectorAll<HTMLElement>("a");
+      const focusables = navRef.current?.querySelectorAll<HTMLElement>("a, button");
       if (!focusables || focusables.length === 0) return;
       const first = focusables[0];
       const last = focusables[focusables.length - 1];
@@ -103,13 +103,31 @@ export function Nav({
         ref={navRef}
         aria-label="Main navigation"
         className={
-          "fixed inset-y-0 right-0 z-50 w-48 shrink-0 overflow-y-auto border-l border-border-default " +
-          "bg-panel-strong p-3 transition-transform duration-200 md:static md:z-auto md:translate-x-0 " +
+          "fixed inset-y-0 right-0 z-50 flex w-56 shrink-0 flex-col overflow-y-auto border-l border-border-default " +
+          "bg-surface-solid shadow-xl transition-transform duration-200 md:static md:z-auto md:w-48 md:translate-x-0 md:shadow-none " +
           "md:border-l-0 md:border-r " +
           (open ? "translate-x-0" : "translate-x-full")
         }
       >
-        <ul className="space-y-1">
+        <div className="flex items-center justify-between border-b border-border-default px-3 py-3 md:hidden">
+          <span className="font-mono text-xs uppercase tracking-wide text-muted">Menu</span>
+          <button
+            type="button"
+            onClick={closeAndReturnFocus}
+            aria-label="Close navigation menu"
+            className="rounded p-1 text-muted hover:bg-panel-hover hover:text-body"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path
+                d="M3 3l10 10M13 3L3 13"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+        </div>
+        <ul className="space-y-1 p-3">
           {items.map(({ href, label }) => {
             const active =
               href === "/" ? pathname === "/" : pathname.startsWith(href);
