@@ -33,7 +33,7 @@ export function ConfirmChangesDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-lg space-y-4 rounded border border-border-strong bg-panel p-5 shadow-xl">
+      <div className="w-full max-w-lg space-y-4 rounded border border-border-strong bg-surface-solid p-5 shadow-xl">
         <div>
           <h2 className="text-base font-semibold text-fg">Confirm changes</h2>
           <p className="text-sm text-muted">

@@ -66,7 +66,7 @@ export function EncoderDestTile({
       onClick={openSettings}
       title="Open this encoder's settings"
       className={
-        "w-48 shrink-0 cursor-pointer space-y-1 rounded border-2 p-2 transition-colors " +
+        "w-full cursor-pointer space-y-1 rounded border-2 p-2 transition-colors " +
         (isOver
           ? "border-brand-400 bg-brand-500/10"
           : isDragActive && !dropDisabled
