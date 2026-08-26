@@ -57,13 +57,13 @@ const ACTIONS: ActionDef[] = [
 const SEVERITY_STYLE: Record<ActionDef["severity"], string> = {
   medium: "border-amber-500/40 bg-amber-500/5",
   high: "border-orange-500/40 bg-orange-500/5",
-  critical: "border-red-500/50 bg-red-500/5",
+  critical: "border-signal-red-500/50 bg-signal-red-500/5",
 };
 
 const SEVERITY_BADGE: Record<ActionDef["severity"], string> = {
   medium: "bg-amber-500/15 text-warning",
   high: "bg-orange-500/15 text-warning",
-  critical: "bg-red-500/15 text-danger",
+  critical: "bg-signal-red-500/15 text-danger",
 };
 
 export function DangerZone() {
@@ -79,7 +79,7 @@ export function DangerZone() {
   return (
     <section className="space-y-3">
       <div>
-        <h2 className="text-sm font-medium uppercase tracking-wide text-danger">Danger zone</h2>
+        <h2 className="text-sm font-medium font-mono uppercase tracking-wide text-danger">Danger zone</h2>
         <p className="mt-1 text-xs text-faint">
           Whole-unit maintenance actions — separate from every other control in this dashboard.
           Each one requires typing its name to confirm, and none of it is reachable unless{" "}
@@ -174,12 +174,12 @@ function ActionCard({ def }: { def: ActionDef }) {
   }
 
   return (
-    <div className={`rounded-lg border p-4 ${SEVERITY_STYLE[def.severity]}`}>
+    <div className={`rounded border p-4 ${SEVERITY_STYLE[def.severity]}`}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <div className="flex items-center gap-2">
             <h3 className="font-medium text-fg">{def.label}</h3>
-            <span className={`rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide ${SEVERITY_BADGE[def.severity]}`}>
+            <span className={`rounded px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wide ${SEVERITY_BADGE[def.severity]}`}>
               {def.severity}
             </span>
           </div>
@@ -231,7 +231,7 @@ function ActionCard({ def }: { def: ActionDef }) {
             <button
               onClick={run}
               disabled={!canConfirm}
-              className="rounded bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-500 disabled:opacity-40"
+              className="rounded bg-signal-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-signal-red-500 disabled:opacity-40"
             >
               {busy ? "Running…" : "Confirm"}
             </button>

@@ -100,7 +100,7 @@ export function LayerEditor({
                 (disabled
                   ? "border-border-default bg-panel-strong opacity-60"
                   : selected
-                    ? "border-sky-500/60 bg-sky-500/5"
+                    ? "border-brand-500/60 bg-brand-500/5"
                     : "border-border-default bg-panel-strong")
               }
             >
@@ -152,7 +152,7 @@ export function LayerEditor({
                   </button>
                   <button
                     onClick={() => onDelete(i)}
-                    className="rounded px-1 text-xs text-danger hover:bg-red-500/10"
+                    className="rounded px-1 text-xs text-danger hover:bg-signal-red-500/10"
                     title="Remove layer"
                   >
                     ✕

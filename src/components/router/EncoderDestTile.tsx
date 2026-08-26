@@ -68,10 +68,10 @@ export function EncoderDestTile({
       className={
         "w-48 shrink-0 cursor-pointer space-y-1 rounded border-2 p-2 transition-colors " +
         (isOver
-          ? "border-sky-400 bg-sky-500/10"
+          ? "border-brand-400 bg-brand-500/10"
           : isDragActive && !dropDisabled
-            ? "border-dashed border-sky-700 bg-panel"
-            : "border-border-default bg-panel hover:border-sky-600/60")
+            ? "border-dashed border-brand-700 bg-panel"
+            : "border-border-default bg-panel hover:border-brand-600/60")
       }
     >
       <div className="flex h-[112px] items-center justify-center overflow-hidden rounded bg-slate-950">
@@ -80,7 +80,7 @@ export function EncoderDestTile({
           // eslint-disable-next-line @next/next/no-img-element
           <img src={thumbUrl} alt="" className="h-full w-full object-cover" />
         ) : (
-          <span className="text-[10px] uppercase tracking-wide text-slate-600">No stream</span>
+          <span className="text-[10px] font-mono uppercase tracking-wide text-slate-600">No stream</span>
         )}
       </div>
       <div className="flex items-center gap-1.5">

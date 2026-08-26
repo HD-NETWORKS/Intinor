@@ -37,7 +37,7 @@ export function BackupPanel() {
   return (
     <section className="space-y-3">
       <div>
-        <h2 className="text-sm font-medium uppercase tracking-wide text-muted">
+        <h2 className="text-sm font-medium font-mono uppercase tracking-wide text-muted">
           Settings backup
         </h2>
         <p className="mt-1 text-xs text-faint">

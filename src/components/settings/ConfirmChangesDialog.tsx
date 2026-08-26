@@ -33,7 +33,7 @@ export function ConfirmChangesDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-lg space-y-4 rounded-lg border border-border-strong bg-panel p-5 shadow-xl">
+      <div className="w-full max-w-lg space-y-4 rounded border border-border-strong bg-panel p-5 shadow-xl">
         <div>
           <h2 className="text-base font-semibold text-fg">Confirm changes</h2>
           <p className="text-sm text-muted">
@@ -104,8 +104,8 @@ export function ConfirmChangesDialog({
             className={
               "rounded px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40 " +
               (needsTypeToConfirm
-                ? "bg-red-600 hover:bg-red-500"
-                : "bg-sky-600 hover:bg-sky-500")
+                ? "bg-signal-red-600 hover:bg-signal-red-500"
+                : "bg-brand-600 hover:bg-brand-500")
             }
           >
             {saving ? "Saving…" : `Save ${changes.length} change${changes.length === 1 ? "" : "s"}`}

@@ -1,92 +1,93 @@
 @import "tailwindcss";
 
 /*
- * Theme tokens. Dark is the original "control room" look (unchanged values);
- * light is a new, additive theme. `html[data-theme]` is set by an inline
- * script in layout.tsx before first paint (no flash) and kept in sync by
- * ThemeProvider (src/lib/theme/context.tsx). Falls back to
- * prefers-color-scheme when no explicit preference is stored.
+ * Theme tokens, from the HD Networks brand kit: Signal Blue #3E4095 (accent),
+ * Signal Red #ED3237 (danger/highlight, used sparingly), Ink #15162B (text/dark
+ * surfaces), Slate #8A8CA8 (muted text), Paper #F7F7FB (page background).
+ * `html[data-theme]` is set by an inline script in layout.tsx before first
+ * paint (no flash) and kept in sync by ThemeProvider (src/lib/theme/context.tsx).
+ * Falls back to prefers-color-scheme when no explicit preference is stored.
  */
 :root {
-  --page: #f8fafc;
+  --page: #f7f7fb;
   --panel: #ffffff;
-  --panel-hover: #f1f5f9;
+  --panel-hover: #eeeef7;
   --panel-strong: #ffffff;
-  --border-default: #e2e8f0;
-  --border-strong: #cbd5e1;
-  --fg: #0f172a;
-  --body-text: #1e293b;
-  --muted: #475569;
-  --faint: #64748b;
-  --subtle: #64748b;
-  --accent-text: #0369a1;
-  --danger-text: #b91c1c;
+  --border-default: #e5e5f0;
+  --border-strong: #cbccdf;
+  --fg: #15162b;
+  --body-text: #15162b;
+  --muted: #55577a;
+  --faint: #8a8ca8;
+  --subtle: #8a8ca8;
+  --accent-text: #3e4095;
+  --danger-text: #c81e23;
   --warning-text: #b45309;
   --success-text: #047857;
-  --chart-grid: #e2e8f0;
-  --chart-axis-text: #64748b;
+  --chart-grid: #e5e5f0;
+  --chart-axis-text: #8a8ca8;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --page: #0b0f17;
-    --panel: rgb(15 23 42 / 50%);
-    --panel-hover: #1e293b;
-    --panel-strong: rgb(2 6 23 / 40%);
-    --border-default: #1e293b;
-    --border-strong: #334155;
-    --fg: #f1f5f9;
-    --body-text: #e2e8f0;
-    --muted: #94a3b8;
-    --faint: #64748b;
-    --subtle: #475569;
-    --accent-text: #7dd3fc;
-    --danger-text: #fca5a5;
+    --page: #101124;
+    --panel: rgb(21 22 43 / 55%);
+    --panel-hover: #21234a;
+    --panel-strong: rgb(16 17 36 / 60%);
+    --border-default: #26284f;
+    --border-strong: #383b6e;
+    --fg: #f7f7fb;
+    --body-text: #e4e4f2;
+    --muted: #a3a5c6;
+    --faint: #8a8ca8;
+    --subtle: #6f7196;
+    --accent-text: #9195e0;
+    --danger-text: #ff8489;
     --warning-text: #fcd34d;
     --success-text: #6ee7b7;
-    --chart-grid: #2c2c2a;
-    --chart-axis-text: #898781;
+    --chart-grid: #2a2b52;
+    --chart-axis-text: #8a8ca8;
   }
 }
 
 :root[data-theme="light"] {
-  --page: #f8fafc;
+  --page: #f7f7fb;
   --panel: #ffffff;
-  --panel-hover: #f1f5f9;
+  --panel-hover: #eeeef7;
   --panel-strong: #ffffff;
-  --border-default: #e2e8f0;
-  --border-strong: #cbd5e1;
-  --fg: #0f172a;
-  --body-text: #1e293b;
-  --muted: #475569;
-  --faint: #64748b;
-  --subtle: #64748b;
-  --accent-text: #0369a1;
-  --danger-text: #b91c1c;
+  --border-default: #e5e5f0;
+  --border-strong: #cbccdf;
+  --fg: #15162b;
+  --body-text: #15162b;
+  --muted: #55577a;
+  --faint: #8a8ca8;
+  --subtle: #8a8ca8;
+  --accent-text: #3e4095;
+  --danger-text: #c81e23;
   --warning-text: #b45309;
   --success-text: #047857;
-  --chart-grid: #e2e8f0;
-  --chart-axis-text: #64748b;
+  --chart-grid: #e5e5f0;
+  --chart-axis-text: #8a8ca8;
 }
 
 :root[data-theme="dark"] {
-  --page: #0b0f17;
-  --panel: rgb(15 23 42 / 50%);
-  --panel-hover: #1e293b;
-  --panel-strong: rgb(2 6 23 / 40%);
-  --border-default: #1e293b;
-  --border-strong: #334155;
-  --fg: #f1f5f9;
-  --body-text: #e2e8f0;
-  --muted: #94a3b8;
-  --faint: #64748b;
-  --subtle: #475569;
-  --accent-text: #7dd3fc;
-  --danger-text: #fca5a5;
+  --page: #101124;
+  --panel: rgb(21 22 43 / 55%);
+  --panel-hover: #21234a;
+  --panel-strong: rgb(16 17 36 / 60%);
+  --border-default: #26284f;
+  --border-strong: #383b6e;
+  --fg: #f7f7fb;
+  --body-text: #e4e4f2;
+  --muted: #a3a5c6;
+  --faint: #8a8ca8;
+  --subtle: #6f7196;
+  --accent-text: #9195e0;
+  --danger-text: #ff8489;
   --warning-text: #fcd34d;
   --success-text: #6ee7b7;
-  --chart-grid: #2c2c2a;
-  --chart-axis-text: #898781;
+  --chart-grid: #2a2b52;
+  --chart-axis-text: #8a8ca8;
 }
 
 @theme inline {
@@ -105,16 +106,39 @@
   --color-danger: var(--danger-text);
   --color-warning: var(--warning-text);
   --color-success: var(--success-text);
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-sora), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+
+  /* Signal Blue, from the logo wordmark — the site's primary/accent color. */
+  --color-brand-50: #eeeefa;
+  --color-brand-100: #dadbf3;
+  --color-brand-200: #b6b7e6;
+  --color-brand-300: #8d8fd6;
+  --color-brand-400: #6669c3;
+  --color-brand-500: #3e4095;
+  --color-brand-600: #33357c;
+  --color-brand-700: #282a63;
+  --color-brand-800: #1e1f4a;
+  --color-brand-900: #131332;
+
+  /* Signal Red, the logo's "D" — reserved for danger states and rare highlights. */
+  --color-signal-red-400: #f26f73;
+  --color-signal-red-500: #ed3237;
+  --color-signal-red-600: #c81e23;
+  --color-signal-red-700: #9e181c;
 }
 
 body {
   background: var(--page);
   color: var(--fg);
-  font-family:
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    Roboto,
-    sans-serif;
+  font-family: var(--font-sans);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-heading);
 }

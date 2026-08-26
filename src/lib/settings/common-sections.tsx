@@ -19,7 +19,7 @@ function RemoveButton({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="rounded border border-red-500/40 px-2 py-1 text-xs text-danger hover:bg-red-500/10"
+      className="rounded border border-signal-red-500/40 px-2 py-1 text-xs text-danger hover:bg-signal-red-500/10"
     >
       Remove
     </button>
@@ -35,7 +35,7 @@ export function arrayHeaderSection(title: string, onAdd: () => void): FieldSecti
       <button
         type="button"
         onClick={onAdd}
-        className="rounded border border-sky-500/60 bg-sky-500/10 px-3 py-1 text-xs text-accent hover:bg-sky-500/20"
+        className="rounded border border-brand-500/60 bg-brand-500/10 px-3 py-1 text-xs text-accent hover:bg-brand-500/20"
       >
         + Add
       </button>

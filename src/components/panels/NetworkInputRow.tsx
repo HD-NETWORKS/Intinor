@@ -42,7 +42,7 @@ export function NetworkInputRow({ index }: { index: number }) {
           // eslint-disable-next-line @next/next/no-img-element
           <img src={thumbUrl} alt="" className="h-full w-full object-cover" />
         ) : (
-          <span className="text-[9px] uppercase tracking-wide text-slate-600">No stream</span>
+          <span className="text-[9px] font-mono uppercase tracking-wide text-slate-600">No stream</span>
         )}
       </div>
 

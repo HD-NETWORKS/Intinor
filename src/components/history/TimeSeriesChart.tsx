@@ -84,7 +84,7 @@ export function TimeSeriesChart({
 
   if (!stats) {
     return (
-      <figure className="rounded-lg border border-border-default bg-panel p-4">
+      <figure className="rounded border border-border-default bg-panel p-4">
         <figcaption className="mb-2 text-sm font-medium text-body">{title}</figcaption>
         <div className="flex h-32 items-center justify-center text-sm text-faint">
           {emptyMessage}
@@ -133,7 +133,7 @@ export function TimeSeriesChart({
   }
 
   return (
-    <figure className="rounded-lg border border-border-default bg-panel p-4">
+    <figure className="rounded border border-border-default bg-panel p-4">
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
         <figcaption className="text-sm font-medium text-body">{title}</figcaption>
         <div className="flex items-center gap-3">

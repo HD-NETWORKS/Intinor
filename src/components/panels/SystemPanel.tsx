@@ -10,7 +10,7 @@ export function SystemPanel() {
 
   if (error && !data) {
     return (
-      <div className="rounded border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-danger">
+      <div className="rounded border border-signal-red-500/40 bg-signal-red-500/10 px-4 py-3 text-sm text-danger">
         {error}
       </div>
     );
