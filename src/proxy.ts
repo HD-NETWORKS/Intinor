@@ -26,7 +26,12 @@ function isPublicApi(pathname: string): boolean {
     pathname === "/api/meta" ||
     // External scheduler auth (CRON_SECRET), not a browser session — must
     // stay reachable without one. See app/api/cron/poll/route.ts.
-    pathname === "/api/cron/poll"
+    pathname === "/api/cron/poll" ||
+    // Zixi install-script agents push here directly — not a browser session,
+    // authenticated with their own ZIXI_SNAPSHOT_TOKEN instead. The bare
+    // /api/zixi-snapshot (no trailing slash, no id) is the dashboard's own
+    // stream-list read and stays behind the normal session gate.
+    pathname.startsWith("/api/zixi-snapshot/")
   );
 }
 

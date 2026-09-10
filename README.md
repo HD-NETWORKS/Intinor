@@ -1290,6 +1290,61 @@ added rule with only its Access key and Active fields touched now sends
 `{"ip":"","key":"...","serial":"",...}` that would trip the unit's "can't
 use both ip and key" check every time.
 
+## Phase 23 — Zixi feed monitoring (snapshots)
+
+Separate from the Intinor unit entirely: several servers push RTMP feeds
+into Zixi for satellite delivery, and there was no way to confirm a feed
+actually has picture short of a direct connection to that server or the
+satellite link itself — the receiving end (the teleport's Zixi Broadcaster)
+isn't something this operation controls, which also ruled out Zixi's own
+ZEN Master (it needs to decode at the receive end to generate a thumbnail).
+The practical alternative: capture a snapshot at the *source* instead, where
+the signal is directly reachable.
+
+- `POST /api/zixi-snapshot/{streamId}` — the push endpoint a small
+  install-script agent (not yet built — this phase is the dashboard side
+  only) calls every few seconds from each Zixi-sending server. Authenticated
+  with its own shared secret (`ZIXI_SNAPSHOT_TOKEN`, same posture as
+  `CRON_SECRET` on `/api/cron/poll`) rather than a dashboard session, since
+  it's a machine caller — carved out of the session gate in `proxy.ts`
+  accordingly. A stream registers itself on its first push (upserts into a
+  new `zixi_streams` table) — nothing to configure dashboard-side to add a
+  7th stream later.
+- The image itself lives in a public Supabase Storage bucket
+  (`zixi-snapshots/{streamId}.jpg`, overwritten each push) rather than a
+  database row, so the browser can poll it directly without proxying bytes
+  through a serverless function on every refresh.
+- `/zixi` — a grid of tiles polling `GET /api/zixi-snapshot` (a normal,
+  session-gated dashboard route) every 5s. A tile whose `last_seen_at` is
+  more than 30s old is visibly flagged "No recent update" instead of
+  silently showing a stale frame — that's the actual failure this page
+  exists to catch (the agent skips pushing when it can't grab a frame at
+  all, e.g. the local encoder has no signal).
+- Extracted the Supabase PostgREST client (`config`/`rest`/`expectOk`) that
+  `monitor/store.ts` already had into a shared `@/lib/supabase/rest`, since
+  Zixi's store needed the same thing plus a Storage-object variant.
+
+Deliberately out of scope for this phase: the install-script agent itself
+(a Windows PowerShell script, since that's what these servers run — prompts
+for Stream ID/channel name/local RTMP URL, edit-in-place for reconfiguring),
+and click-a-thumbnail-to-watch-live (needs a low-bitrate relay — the plan is
+to reuse the always-on server already running `cloudflared` for D01393,
+adding `node-media-server` for on-demand RTMP→HLS, rather than a paid
+streaming service).
+
+### Verified
+
+`npm run lint`, `npx tsc --noEmit`, `npm test`, `npm run build` all pass.
+Browser-verified: `/zixi` renders the "not configured" state correctly with
+no `SUPABASE_*` env vars set (matching the existing History panel's
+pattern); the push endpoint correctly 401s with no/wrong
+`ZIXI_SNAPSHOT_TOKEN`, 400s on a malformed stream ID, 415s on a non-JPEG
+content type, and 503s (only once the request itself is well-formed) with
+no Supabase configured; the grid layout, per-tile staleness badge, and
+"no snapshot yet" placeholder all verified by mocking the list response in
+the browser (no live Supabase project to test the write path against from
+this environment).
+
 ## Getting started
 
 ```bash
