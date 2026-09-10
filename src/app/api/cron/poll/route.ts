@@ -33,6 +33,8 @@ import {
   markNotified,
   openAlert,
 } from "@/lib/monitor/store";
+import { evaluateZixiStaleness, ZIXI_ALERT_UNIT_ID } from "@/lib/zixi/rules";
+import { isConfigured as zixiConfigured, listStreams } from "@/lib/zixi/store";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -139,6 +141,74 @@ async function pollUnit(id: string) {
   };
 }
 
+/**
+ * Same open/notify-on-appear, close/notify-on-clear idiom as pollUnit's
+ * alert handling, just over Zixi streams' staleness instead of an Intinor
+ * snapshot — kept as its own function rather than sharing pollUnit's loop
+ * bodies, since the two have little else in common (no sample storage here).
+ */
+async function pollZixi() {
+  if (!zixiConfigured()) return { configured: false };
+
+  // This runs alongside the Intinor unit poll in the same Promise.all — a
+  // Supabase read failure here must degrade to an error field, never reject
+  // and take the whole cron response (and unit alerting) down with it.
+  let streams;
+  try {
+    streams = await listStreams();
+  } catch (err) {
+    return { configured: true, error: err instanceof Error ? err.message : "stream list failed" };
+  }
+
+  const detected = evaluateZixiStaleness(streams);
+  const open = await fetchOpenAlerts(ZIXI_ALERT_UNIT_ID).catch(() => []);
+  const { opened, resolved, ongoing } = diffAlerts(detected, open);
+
+  const delivered: unknown[] = [];
+
+  for (const alert of opened) {
+    const row = await openAlert({
+      unit_id: ZIXI_ALERT_UNIT_ID,
+      kind: alert.kind,
+      subject: alert.subject,
+      severity: alert.severity,
+      message: alert.message,
+    }).catch(() => null);
+
+    const results = await deliver({
+      unitId: ZIXI_ALERT_UNIT_ID,
+      severity: alert.severity,
+      recovery: false,
+      title: `Zixi feed down — ${alert.subject}`,
+      body: alert.message,
+    });
+    delivered.push({ kind: alert.kind, subject: alert.subject, results });
+    if (row) await markNotified(row.id).catch(() => {});
+  }
+
+  for (const row of resolved) {
+    await closeAlert(row.id).catch(() => {});
+    const results = await deliver({
+      unitId: ZIXI_ALERT_UNIT_ID,
+      severity: row.severity,
+      recovery: true,
+      title: `Resolved: Zixi feed back — ${row.subject}`,
+      body: `Condition cleared. Originally: ${row.message}`,
+    });
+    delivered.push({ kind: row.kind, subject: row.subject, recovery: true, results });
+  }
+
+  return {
+    configured: true,
+    streams: streams.length,
+    detected: detected.length,
+    opened: opened.length,
+    resolved: resolved.length,
+    ongoing: ongoing.length,
+    delivered,
+  };
+}
+
 export async function GET(req: NextRequest) {
   if (!authorized(req)) {
     return NextResponse.json(
@@ -157,13 +227,14 @@ export async function GET(req: NextRequest) {
   }
 
   const started = Date.now();
-  const units = await Promise.all(ids.map(pollUnit));
+  const [units, zixi] = await Promise.all([Promise.all(ids.map(pollUnit)), pollZixi()]);
 
   return NextResponse.json({
     ok: true,
     ts: new Date().toISOString(),
     durationMs: Date.now() - started,
     units,
+    zixi,
   });
 }
 

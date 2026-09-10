@@ -1345,6 +1345,40 @@ no Supabase configured; the grid layout, per-tile staleness badge, and
 the browser (no live Supabase project to test the write path against from
 this environment).
 
+### Follow-up: email (and Slack/Telegram/webhook) when a feed goes stale
+
+The `/zixi` page's staleness badge only helps if someone is looking at it.
+Wired Zixi's staleness check into the same `/api/cron/poll` run that already
+drives the Intinor unit's alerts, reusing every bit of that machinery rather
+than building a parallel one:
+
+- `evaluateZixiStaleness` (pure, in `lib/zixi/rules.ts`) flags any stream
+  whose `last_seen_at` exceeds the same 30s threshold the page's badge
+  uses — imported from one place now, so "stale on screen" and "alerted by
+  email" can't drift apart.
+- The open/notify-on-appear, close/notify-on-clear episode bookkeeping goes
+  through the *existing* `monitor_alerts` table and `deliver()` — a feed
+  going down sends one alert, coming back sends one recovery notice, and it
+  stays silent in between (the same anti-spam design Phase 4's alerts
+  already had). No new table, no new channel config — `RESEND_API_KEY` /
+  `ALERT_EMAIL_TO` / `ALERT_EMAIL_FROM` (or Slack/Telegram/webhook) now
+  cover both the unit and Zixi feeds from the one set of env vars.
+- Zixi's poll runs alongside the unit poll in the same `Promise.all` —
+  wrapped its own Supabase read in a try/catch so a transient failure there
+  reports as an `error` field instead of rejecting and taking the *unit's*
+  alerting down with it (verified by pointing `SUPABASE_URL` at an
+  unreachable address and confirming the response still comes back `200`
+  with `zixi.error` set, `units[]` unaffected).
+
+### Verified (follow-up)
+
+`npm run lint`, `npx tsc --noEmit`, `npm test` (new `lib/zixi/rules.test.mts`:
+fresh/stale/exactly-at-threshold/mixed-list cases), `npm run build` all pass.
+Hit `/api/cron/poll` directly against a production build: with Supabase
+unconfigured, `zixi: {"configured":false}`; with `SUPABASE_URL` pointed at an
+unreachable host, `zixi: {"configured":true,"error":"fetch failed"}` and the
+unit's own poll result alongside it unaffected — confirming the isolation.
+
 ## Getting started
 
 ```bash

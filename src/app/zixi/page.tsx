@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useThumbnailTick, withThumbnailTick } from "@/hooks/useThumbnailTick";
+import { ZIXI_STALE_AFTER_MS } from "@/lib/zixi/rules";
 
 interface ZixiStream {
   streamId: string;
@@ -18,8 +19,6 @@ interface ZixiResponse {
 }
 
 const POLL_MS = 5000;
-/** No push in this long flags a tile stale — a couple of missed cycles, not a hair trigger. */
-const STALE_AFTER_MS = 30_000;
 
 function useZixiStreams(): { data: ZixiResponse | null; loading: boolean } {
   const [data, setData] = useState<ZixiResponse | null>(null);
@@ -78,7 +77,7 @@ function StreamTile({ stream, tick }: { stream: ZixiStream; tick: number }) {
     return () => clearInterval(id);
   }, [stream.lastSeenAt]);
 
-  const stale = age > STALE_AFTER_MS;
+  const stale = age > ZIXI_STALE_AFTER_MS;
 
   return (
     <div
