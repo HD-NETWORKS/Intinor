@@ -52,6 +52,7 @@ function LoginForm() {
             height={92}
             className="mx-auto h-10 w-auto"
             priority
+            unoptimized
           />
           <div>
             <h1 className="text-lg font-semibold text-fg">Intinor Direkt dashboard</h1>
