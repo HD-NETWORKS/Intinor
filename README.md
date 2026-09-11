@@ -1325,12 +1325,10 @@ the signal is directly reachable.
   Zixi's store needed the same thing plus a Storage-object variant.
 
 Deliberately out of scope for this phase: the install-script agent itself
-(a Windows PowerShell script, since that's what these servers run — prompts
-for Stream ID/channel name/local RTMP URL, edit-in-place for reconfiguring),
-and click-a-thumbnail-to-watch-live (needs a low-bitrate relay — the plan is
-to reuse the always-on server already running `cloudflared` for D01393,
-adding `node-media-server` for on-demand RTMP→HLS, rather than a paid
-streaming service).
+(built as a follow-up below), and click-a-thumbnail-to-watch-live (needs a
+low-bitrate relay — the plan is to reuse the always-on server already
+running `cloudflared` for D01393, adding `node-media-server` for on-demand
+RTMP→HLS, rather than a paid streaming service — not yet built).
 
 ### Verified
 
@@ -1378,6 +1376,56 @@ Hit `/api/cron/poll` directly against a production build: with Supabase
 unconfigured, `zixi: {"configured":false}`; with `SUPABASE_URL` pointed at an
 unreachable host, `zixi: {"configured":true,"error":"fetch failed"}` and the
 unit's own poll result alongside it unaffected — confirming the isolation.
+
+### Follow-up: Windows install-script agent
+
+The piece each Zixi-sending server actually runs, at `agent/windows/`:
+
+- **`install.ps1`** — run once (as Administrator) on each server. Prompts
+  for the Zixi Stream ID, a display name, the local RTMP URL to grab frames
+  from (defaulting to `rtmp://localhost:1935/<StreamID>`, since these
+  servers all use OBS on port 1935 — but always asks, rather than assuming
+  Zixi's exact path convention), the dashboard's base URL, and the
+  `ZIXI_SNAPSHOT_TOKEN` shared secret. Installs `ffmpeg` via `winget` if it's
+  not already on `PATH`, writes `agent\config.json`, and registers a
+  Scheduled Task (`HDNetworksZixiSnapshotAgent`, running as SYSTEM, starting
+  at boot, auto-restarting on failure) to keep `snapshot-loop.ps1` running
+  forever. **Safe to re-run**: an existing config is loaded and offered back
+  as the default at every prompt (press Enter to keep it), so changing the
+  Stream ID, channel name, or RTMP URL later is just running the script
+  again — not a reinstall. `.\install.ps1 -Uninstall` removes the task and
+  config.
+- **`snapshot-loop.ps1`** — the loop the task runs: grab one frame via
+  `ffmpeg` (a short timeout so a dead RTMP source fails fast rather than
+  hanging), `POST` it to `/api/zixi-snapshot/{streamId}` with the bearer
+  token and `X-Channel-Label` header, sleep, repeat. Every iteration is
+  wrapped so a single failure (no signal, a network blip) logs to
+  `agent.log` and moves on instead of taking the whole loop down — the
+  agent simply skips a push it can't make, which is what lets the
+  dashboard's staleness badge mean something.
+- `config.json`'s bearer token has nowhere better to live without a
+  compiled service host, so the practical guard is filesystem ACLs:
+  `install.ps1` locks the agent folder down to SYSTEM and Administrators
+  only (by well-known SID, so it also works on non-English Windows).
+
+### Verified (Windows agent)
+
+No Windows box in this environment, so verified the actual script logic
+end-to-end on Linux instead of by inspection alone: ran `snapshot-loop.ps1`
+under PowerShell 7 against a stub `ffmpeg` and a local HTTP server standing
+in for the real route's validation (bearer token + `image/jpeg` content
+type). Caught and fixed a real bug this way — `$env:TEMP` isn't guaranteed
+to be set outside a genuine Windows session, which the first run surfaced
+immediately as a null-path crash; fixed by falling back to
+`[System.IO.Path]::GetTempPath()`. Confirmed, after the fix: a successful
+push logs `ok` and the mock server observes the right headers and body; a
+wrong token logs the 401 and the loop continues; a failing `ffmpeg` (dead
+source) logs and continues without ever calling out. Both scripts also
+parse cleanly with zero syntax errors via
+`[System.Management.Automation.Language.Parser]::ParseFile`.
+`install.ps1`'s Windows-only surface (`winget`, `Register-ScheduledTask`,
+`icacls`) has no Linux equivalent to execute, so that part is reviewed but
+not run — worth a real dry run on one server before wider rollout.
 
 ## Getting started
 
