@@ -1,0 +1,19 @@
+name = "intinor-cron-poll"
+main = "src/index.ts"
+compatibility_date = "2025-09-01"
+
+# Every minute — Cloudflare Cron Triggers' finest granularity. Cheap: this
+# just does one outbound fetch per tick, well inside the free plan's request
+# and CPU-time limits (see README §Phase 25 in the main repo for why this
+# exists instead of Vercel's own cron).
+[triggers]
+crons = ["* * * * *"]
+
+[vars]
+# Public by nature — this is just the app's URL, not a secret. Override if
+# the production domain differs (custom domain, staging, etc).
+DASHBOARD_URL = "https://intinor.vercel.app"
+
+# CRON_SECRET is NOT set here — it must match the one on the Vercel project
+# and is provided as a Worker secret instead, so it never ends up in git:
+#   npx wrangler secret put CRON_SECRET

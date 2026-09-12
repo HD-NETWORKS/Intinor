@@ -1547,6 +1547,63 @@ Next.js like everything else here).
   the following 6s) — confirming the cleanup effect actually tears down,
   not just that the happy path works.
 
+## Phase 25 — Cloudflare Worker for near-real-time cron polling
+
+`/api/cron/poll` was cadence-independent by design from Phase 4 onward (it
+diffs state transitions, not "how long since the last run"), which was
+lucky: Vercel's Hobby plan only runs cron jobs **once a day**, so alerting
+on this project sat at daily-at-best until something else called that
+route more often. Rather than pay for Vercel Pro just to unlock frequent
+cron, `cron-worker/` is a small standalone Cloudflare Worker whose only job
+is to call `/api/cron/poll` — on Cloudflare's free plan, a Cron Trigger can
+fire every minute with no paid tier required.
+
+- **`cron-worker/src/index.ts`** — a `scheduled()` handler that does one
+  authenticated `fetch` to `{DASHBOARD_URL}/api/cron/poll` with
+  `Authorization: Bearer $CRON_SECRET` (the same secret already set on the
+  Vercel project — nothing new to add there). Wrapped in `ctx.waitUntil`
+  and its own try/catch so a network hiccup logs and moves on rather than
+  doing anything alarming; there's no user-facing surface to this Worker at
+  all, it either fires on schedule or someone hits `GET /__scheduled` to
+  trigger it by hand.
+- **`cron-worker/wrangler.toml`** — `crons = ["* * * * *"]` (every minute).
+  `DASHBOARD_URL` is a plain (non-secret) var in the file; `CRON_SECRET` is
+  a Worker secret (`wrangler secret put CRON_SECRET`), never committed.
+- **`vercel.json`'s existing daily cron is left in place** as a free
+  backstop — if the Worker or its Cron Trigger ever silently stops, alerting
+  degrades to once-a-day instead of going completely dark. Costs nothing to
+  keep and the poll route's episode bookkeeping is idempotent either way, so
+  having both running is harmless, not double-alerting.
+
+### Deploying
+
+```bash
+cd cron-worker
+npm install
+npx wrangler login              # once, opens a browser to authorize
+npx wrangler secret put CRON_SECRET   # paste the same value as on Vercel
+npx wrangler deploy
+```
+
+That's it — no Vercel-side changes needed beyond `CRON_SECRET` already
+being set (it was, for the daily cron). If the production domain isn't
+`https://intinor.vercel.app` (a custom domain, say), update `DASHBOARD_URL`
+in `wrangler.toml` first.
+
+### Verified
+
+Ran the actual `scheduled()` handler locally via `wrangler dev
+--test-scheduled` against `cdn-cgi/handler/scheduled` — the same mechanism
+Cloudflare uses to simulate a real Cron Trigger firing, not just a plain
+HTTP request to the Worker — pointed at a local mock server standing in for
+`/api/cron/poll`. Confirmed: the request carries the correct
+`Authorization: Bearer` header and hits exactly `/api/cron/poll` with no
+path errors; pointing `DASHBOARD_URL` at an unreachable address logs `poll
+errored: ...` and the Worker keeps serving normally afterward (checked with
+a follow-up request) rather than crashing — the try/catch actually does
+what it's supposed to, not just reads like it does. `tsc --noEmit` passes
+against `@cloudflare/workers-types`.
+
 ## Getting started
 
 ```bash
