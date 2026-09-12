@@ -7,9 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types src/lib/settings/permissions.test.mts && node --experimental-strip-types src/lib/settings/diff.test.mts && node --experimental-strip-types src/lib/settings/apply.test.mts && node --experimental-strip-types src/lib/mixer-layout.test.mts && node --experimental-strip-types src/lib/monitor/rules.test.mts"
+    "test": "node --experimental-strip-types src/lib/settings/permissions.test.mts && node --experimental-strip-types src/lib/settings/diff.test.mts && node --experimental-strip-types src/lib/settings/apply.test.mts && node --experimental-strip-types src/lib/mixer-layout.test.mts && node --experimental-strip-types src/lib/monitor/rules.test.mts && node --experimental-strip-types src/lib/zixi/rules.test.mts"
   },
   "dependencies": {
+    "hls.js": "^1.7.3",
     "next": "16.2.12",
     "react": "19.2.4",
     "react-dom": "19.2.4",

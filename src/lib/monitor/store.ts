@@ -1,23 +1,20 @@
 import "server-only";
 
 /**
- * Supabase persistence for monitoring samples and alert episodes.
+ * Supabase persistence for monitoring samples and alert episodes, on top of
+ * the shared PostgREST client in @/lib/supabase/rest.
  *
- * Talks to PostgREST over plain HTTP rather than pulling in `@supabase/*` —
- * we need four queries, and a serverless cron function is a good place not to
- * add dependencies.
- *
- * Everything here is **optional**: with no Supabase env vars the module
- * reports `isConfigured() === false` and all calls become no-ops, so the app
- * (and the cron endpoint) still runs, just without history. That keeps the
- * dashboard usable before anyone has set up a database.
- *
- * The service-role key bypasses RLS and must never reach the browser — this
- * module is server-only, and the dashboard reads history through
- * /api/history rather than talking to Supabase directly.
+ * Everything here is **optional**: with no Supabase env vars configured, all
+ * calls become no-ops, so the app (and the cron endpoint) still runs, just
+ * without history. That keeps the dashboard usable before anyone has set up
+ * a database. The dashboard reads history through /api/history rather than
+ * talking to Supabase directly.
  */
 
+import { expectOk, isConfigured, rest } from "@/lib/supabase/rest";
 import type { AlertKind, AlertSeverity } from "./rules";
+
+export { isConfigured };
 
 export interface MonitorSample {
   unit_id: string;
@@ -45,43 +42,6 @@ export interface OpenAlertRow {
   opened_at: string;
   closed_at: string | null;
   notified_at: string | null;
-}
-
-function config(): { url: string; key: string } | null {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) return null;
-  return { url: url.replace(/\/+$/, ""), key };
-}
-
-export function isConfigured(): boolean {
-  return config() !== null;
-}
-
-async function rest(
-  path: string,
-  init: { method?: string; body?: unknown; prefer?: string } = {},
-): Promise<Response> {
-  const cfg = config();
-  if (!cfg) throw new Error("Supabase is not configured");
-  return fetch(`${cfg.url}/rest/v1/${path}`, {
-    method: init.method ?? "GET",
-    headers: {
-      apikey: cfg.key,
-      Authorization: `Bearer ${cfg.key}`,
-      "Content-Type": "application/json",
-      ...(init.prefer ? { Prefer: init.prefer } : {}),
-    },
-    body: init.body === undefined ? undefined : JSON.stringify(init.body),
-    cache: "no-store",
-  });
-}
-
-async function expectOk(res: Response, what: string): Promise<void> {
-  if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    throw new Error(`Supabase ${what} failed (${res.status}): ${detail.slice(0, 300)}`);
-  }
 }
 
 // ---------------------------------------------------------------------------

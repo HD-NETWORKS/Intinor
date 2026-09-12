@@ -14,7 +14,12 @@
  * which is why `evaluateRules` takes both.
  */
 
-export type AlertKind = "stream_down" | "firmware_update" | "storage_full" | "link_loss";
+export type AlertKind =
+  | "stream_down"
+  | "firmware_update"
+  | "storage_full"
+  | "link_loss"
+  | "zixi_stream_down";
 export type AlertSeverity = "warning" | "error";
 
 export interface DetectedAlert {

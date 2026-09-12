@@ -1290,6 +1290,263 @@ added rule with only its Access key and Active fields touched now sends
 `{"ip":"","key":"...","serial":"",...}` that would trip the unit's "can't
 use both ip and key" check every time.
 
+## Phase 23 — Zixi feed monitoring (snapshots)
+
+Separate from the Intinor unit entirely: several servers push RTMP feeds
+into Zixi for satellite delivery, and there was no way to confirm a feed
+actually has picture short of a direct connection to that server or the
+satellite link itself — the receiving end (the teleport's Zixi Broadcaster)
+isn't something this operation controls, which also ruled out Zixi's own
+ZEN Master (it needs to decode at the receive end to generate a thumbnail).
+The practical alternative: capture a snapshot at the *source* instead, where
+the signal is directly reachable.
+
+- `POST /api/zixi-snapshot/{streamId}` — the push endpoint a small
+  install-script agent (not yet built — this phase is the dashboard side
+  only) calls every few seconds from each Zixi-sending server. Authenticated
+  with its own shared secret (`ZIXI_SNAPSHOT_TOKEN`, same posture as
+  `CRON_SECRET` on `/api/cron/poll`) rather than a dashboard session, since
+  it's a machine caller — carved out of the session gate in `proxy.ts`
+  accordingly. A stream registers itself on its first push (upserts into a
+  new `zixi_streams` table) — nothing to configure dashboard-side to add a
+  7th stream later.
+- The image itself lives in a public Supabase Storage bucket
+  (`zixi-snapshots/{streamId}.jpg`, overwritten each push) rather than a
+  database row, so the browser can poll it directly without proxying bytes
+  through a serverless function on every refresh.
+- `/zixi` — a grid of tiles polling `GET /api/zixi-snapshot` (a normal,
+  session-gated dashboard route) every 5s. A tile whose `last_seen_at` is
+  more than 30s old is visibly flagged "No recent update" instead of
+  silently showing a stale frame — that's the actual failure this page
+  exists to catch (the agent skips pushing when it can't grab a frame at
+  all, e.g. the local encoder has no signal).
+- Extracted the Supabase PostgREST client (`config`/`rest`/`expectOk`) that
+  `monitor/store.ts` already had into a shared `@/lib/supabase/rest`, since
+  Zixi's store needed the same thing plus a Storage-object variant.
+
+Deliberately out of scope for this phase: the install-script agent itself
+(built as a follow-up below), and click-a-thumbnail-to-watch-live (needs a
+low-bitrate relay — the plan is to reuse the always-on server already
+running `cloudflared` for D01393, adding `node-media-server` for on-demand
+RTMP→HLS, rather than a paid streaming service — not yet built).
+
+### Verified
+
+`npm run lint`, `npx tsc --noEmit`, `npm test`, `npm run build` all pass.
+Browser-verified: `/zixi` renders the "not configured" state correctly with
+no `SUPABASE_*` env vars set (matching the existing History panel's
+pattern); the push endpoint correctly 401s with no/wrong
+`ZIXI_SNAPSHOT_TOKEN`, 400s on a malformed stream ID, 415s on a non-JPEG
+content type, and 503s (only once the request itself is well-formed) with
+no Supabase configured; the grid layout, per-tile staleness badge, and
+"no snapshot yet" placeholder all verified by mocking the list response in
+the browser (no live Supabase project to test the write path against from
+this environment).
+
+### Follow-up: email (and Slack/Telegram/webhook) when a feed goes stale
+
+The `/zixi` page's staleness badge only helps if someone is looking at it.
+Wired Zixi's staleness check into the same `/api/cron/poll` run that already
+drives the Intinor unit's alerts, reusing every bit of that machinery rather
+than building a parallel one:
+
+- `evaluateZixiStaleness` (pure, in `lib/zixi/rules.ts`) flags any stream
+  whose `last_seen_at` exceeds the same 30s threshold the page's badge
+  uses — imported from one place now, so "stale on screen" and "alerted by
+  email" can't drift apart.
+- The open/notify-on-appear, close/notify-on-clear episode bookkeeping goes
+  through the *existing* `monitor_alerts` table and `deliver()` — a feed
+  going down sends one alert, coming back sends one recovery notice, and it
+  stays silent in between (the same anti-spam design Phase 4's alerts
+  already had). No new table, no new channel config — `RESEND_API_KEY` /
+  `ALERT_EMAIL_TO` / `ALERT_EMAIL_FROM` (or Slack/Telegram/webhook) now
+  cover both the unit and Zixi feeds from the one set of env vars.
+- Zixi's poll runs alongside the unit poll in the same `Promise.all` —
+  wrapped its own Supabase read in a try/catch so a transient failure there
+  reports as an `error` field instead of rejecting and taking the *unit's*
+  alerting down with it (verified by pointing `SUPABASE_URL` at an
+  unreachable address and confirming the response still comes back `200`
+  with `zixi.error` set, `units[]` unaffected).
+
+### Verified (follow-up)
+
+`npm run lint`, `npx tsc --noEmit`, `npm test` (new `lib/zixi/rules.test.mts`:
+fresh/stale/exactly-at-threshold/mixed-list cases), `npm run build` all pass.
+Hit `/api/cron/poll` directly against a production build: with Supabase
+unconfigured, `zixi: {"configured":false}`; with `SUPABASE_URL` pointed at an
+unreachable host, `zixi: {"configured":true,"error":"fetch failed"}` and the
+unit's own poll result alongside it unaffected — confirming the isolation.
+
+### Follow-up: Windows install-script agent
+
+The piece each Zixi-sending server actually runs, at `agent/windows/`:
+
+- **`install.ps1`** — run once (as Administrator) on each server. Prompts
+  for the Zixi Stream ID, a display name, the local RTMP URL to grab frames
+  from (defaulting to `rtmp://localhost:1935/<StreamID>`, since these
+  servers all use OBS on port 1935 — but always asks, rather than assuming
+  Zixi's exact path convention), the dashboard's base URL, and the
+  `ZIXI_SNAPSHOT_TOKEN` shared secret. Installs `ffmpeg` via `winget` if it's
+  not already on `PATH`, writes `agent\config.json`, and registers a
+  Scheduled Task (`HDNetworksZixiSnapshotAgent`, running as SYSTEM, starting
+  at boot, auto-restarting on failure) to keep `snapshot-loop.ps1` running
+  forever. **Safe to re-run**: an existing config is loaded and offered back
+  as the default at every prompt (press Enter to keep it), so changing the
+  Stream ID, channel name, or RTMP URL later is just running the script
+  again — not a reinstall. `.\install.ps1 -Uninstall` removes the task and
+  config.
+- **`snapshot-loop.ps1`** — the loop the task runs: grab one frame via
+  `ffmpeg` (a short timeout so a dead RTMP source fails fast rather than
+  hanging), `POST` it to `/api/zixi-snapshot/{streamId}` with the bearer
+  token and `X-Channel-Label` header, sleep, repeat. Every iteration is
+  wrapped so a single failure (no signal, a network blip) logs to
+  `agent.log` and moves on instead of taking the whole loop down — the
+  agent simply skips a push it can't make, which is what lets the
+  dashboard's staleness badge mean something.
+- `config.json`'s bearer token has nowhere better to live without a
+  compiled service host, so the practical guard is filesystem ACLs:
+  `install.ps1` locks the agent folder down to SYSTEM and Administrators
+  only (by well-known SID, so it also works on non-English Windows).
+
+### Verified (Windows agent)
+
+No Windows box in this environment, so verified the actual script logic
+end-to-end on Linux instead of by inspection alone: ran `snapshot-loop.ps1`
+under PowerShell 7 against a stub `ffmpeg` and a local HTTP server standing
+in for the real route's validation (bearer token + `image/jpeg` content
+type). Caught and fixed a real bug this way — `$env:TEMP` isn't guaranteed
+to be set outside a genuine Windows session, which the first run surfaced
+immediately as a null-path crash; fixed by falling back to
+`[System.IO.Path]::GetTempPath()`. Confirmed, after the fix: a successful
+push logs `ok` and the mock server observes the right headers and body; a
+wrong token logs the 401 and the loop continues; a failing `ffmpeg` (dead
+source) logs and continues without ever calling out. Both scripts also
+parse cleanly with zero syntax errors via
+`[System.Management.Automation.Language.Parser]::ParseFile`.
+`install.ps1`'s Windows-only surface (`winget`, `Register-ScheduledTask`,
+`icacls`) has no Linux equivalent to execute, so that part is reviewed but
+not run — worth a real dry run on one server before wider rollout.
+
+## Phase 24 — Low-bitrate live preview relay (click a snapshot to watch)
+
+The `/zixi` grid confirms a feed *has* picture; the natural next question
+when a tile looks wrong is "let me actually look at it," at a bitrate that
+survives an office internet connection (500–700kbps) without a direct
+connection to that server. Design for the relay this needs, before writing
+its code:
+
+**Why not just point a player at each streaming server directly?** They're
+plain Windows boxes on ordinary connections with no public hostname and no
+inbound port opened — the same reason the snapshot agent *pushes* rather
+than being polled. The fix is the same shape: reuse the one always-on
+server that already runs `cloudflared` for D01393, and have it terminate
+video the same way it already terminates that tunnel.
+
+**Why not transcode continuously?** Six servers running a second live
+encode 24/7 for a feature nobody's looking at most of the time is wasted
+CPU and bandwidth for no benefit. The relay has to make "is anyone
+watching" a real, cheap question the agent can poll — so the low-bitrate
+encode only runs while a viewer actually has the tile open.
+
+**Why HTTP instead of RTMP into `node-media-server`?** RTMP push from six
+remote servers into one central ingest would need raw TCP reachability to
+that box, which means either opening a port or standing up Cloudflare's
+TCP/WARP tunnel mode on every sending server too — exactly the extra
+per-server infrastructure the snapshot agent's design deliberately avoided.
+ffmpeg's HLS muxer can instead PUT its playlist and segments straight to
+plain HTTP(S) URLs (`-method PUT`, with a bearer header via `-headers`) —
+ordinary outbound HTTPS, the same posture the snapshot push already uses,
+through the same tunnel hostname pattern as D01393. No new agent-side
+transport, no new firewall rule anywhere.
+
+**Design:**
+
+- **Relay service** (`relay/server.mjs`) — a small dependency-free Node
+  HTTP server for the same always-on box, listening on one local port that
+  gets its own hostname on the existing Cloudflare Tunnel (a second public
+  hostname pointed at `localhost:<port>`, alongside whatever D01393 already
+  uses — no new tunnel, just another ingress entry):
+  - `PUT /ingest/{streamId}/{file}` and `DELETE /ingest/{streamId}/{file}` —
+    the agent's ffmpeg process's own HLS upload/cleanup traffic. Gated by a
+    `RELAY_INGEST_TOKEN` bearer, checked the same way `ZIXI_SNAPSHOT_TOKEN`
+    is — a **separate** secret, since this one can inject video frames into
+    a stream's playback, a higher-stakes capability than overwriting one
+    JPEG.
+  - `GET /hls/{streamId}/{file}` — serves the latest playlist/segments back
+    out, open/CORS-enabled like the existing public snapshot bucket (same
+    "it's an internal monitoring preview, not a protected asset" call
+    already made there).
+  - `POST /viewers/{streamId}/heartbeat` — called directly by the
+    dashboard's player while it's open (browser → relay, bypassing Vercel
+    entirely so video bytes never transit a serverless function). Open, not
+    token-gated: worst case is a forged heartbeat wastes one source
+    server's CPU for a few seconds, not a meaningful risk for an internal
+    tool.
+  - `GET /viewers/{streamId}/wanted` — polled by the agent every ~5s;
+    `true` for as long as a heartbeat arrived in the last 15s (three missed
+    beats' grace so a tab briefly backgrounding doesn't flap the encode on
+    and off).
+  - Everything lives in memory, keyed by `streamId`, with a garbage
+    collector for streams nobody has ingested to or asked about in a while
+    — it's live video, a restart just means players reconnect, there's
+    nothing worth persisting.
+- **Agent** (`agent/windows/`) — `install.ps1` gains two more optional
+  prompts (relay base URL + `RELAY_INGEST_TOKEN`; leaving them blank keeps
+  the snapshot feature working exactly as before, watch just stays off,
+  same "optional/no-op unconfigured" posture as everything else in this
+  project). A new loop polls `GET /viewers/{streamId}/wanted` and
+  starts/stops one ffmpeg process accordingly — reading the same local RTMP
+  source the snapshot loop already does, re-encoded down to ~600kbps
+  H.264/AAC, HLS-muxed straight out over HTTP PUT to the relay. Isolated
+  from the snapshot loop (a stuck watch-encode must never stop snapshots,
+  or vice versa).
+- **Dashboard** (`/zixi`) — each tile gets a "Watch" action opening an
+  `hls.js` player pointed at `{NEXT_PUBLIC_ZIXI_RELAY_URL}/hls/{streamId}/index.m3u8`,
+  sending the heartbeat every ~5s for as long as the player is open. New
+  `NEXT_PUBLIC_ZIXI_RELAY_URL` env var (public by nature — it's a hostname
+  the browser needs to hit directly, no secret in it).
+
+Deliberately out of scope for now: an install script for the relay itself
+(it's one box the operator already manages by hand, unlike the six
+streaming servers) and any authentication on the playback/heartbeat paths
+beyond "know the stream ID" — acceptable for an internal low-bitrate
+monitoring preview, revisit if that changes.
+
+### Verified
+
+`npm run lint`, `npx tsc --noEmit`, `npm test`, `npm run build` all pass with
+`hls.js` added as a real dependency (not a CDN script — it's bundled by
+Next.js like everything else here).
+
+- **Relay** (`relay/server.test.mts`, 17 cases, its own `npm test` inside
+  `relay/`): unauthenticated ingest rejected with 401, authenticated
+  PUT/GET/DELETE round-trip correctly with the right content types per
+  extension, playback and viewer-signaling routes need no auth and carry
+  open CORS, `wanted` is false until a heartbeat arrives and true right
+  after, an unknown stream is never wanted, and the process refuses to
+  start at all with no `RELAY_INGEST_TOKEN` — same posture as `CRON_SECRET`
+  and `ZIXI_SNAPSHOT_TOKEN`.
+- **Agent** (`watch-loop.ps1`, ad hoc against the real relay above, no
+  Windows box available so a stub `ffmpeg` stood in for the encode
+  process): confirmed the full lifecycle in one continuously-running
+  loop — idle with no viewer (nothing started, nothing logged), a heartbeat
+  arriving flips it to started within one poll tick, and letting the
+  heartbeat lapse past the 15s grace window stops the encode on its own a
+  tick later. Also confirmed it stays a pure no-op (no polling, no
+  processes) when `relayBaseUrl`/`relayIngestToken` are blank, and that
+  refactoring the shared logging helper into `common.ps1` didn't regress
+  `snapshot-loop.ps1` (re-ran its existing push/401/dead-source cases).
+- **Dashboard**: browser-driven end-to-end, not just component-level —
+  a real relay instance seeded with a real (fake-content) HLS
+  playlist/segment, the dashboard pointed at it via
+  `NEXT_PUBLIC_ZIXI_RELAY_URL`, and `/api/zixi-snapshot`'s response mocked
+  to supply one stream. Clicking a tile opens the modal, `hls.js` loads the
+  seeded playlist into a real `<video>` element, a heartbeat is sent
+  immediately on open, and closing the modal both removes it from the DOM
+  and stops the heartbeats (verified no further heartbeat requests fired in
+  the following 6s) — confirming the cleanup effect actually tears down,
+  not just that the happy path works.
+
 ## Getting started
 
 ```bash
