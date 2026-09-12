@@ -1604,6 +1604,107 @@ a follow-up request) rather than crashing — the try/catch actually does
 what it's supposed to, not just reads like it does. `tsc --noEmit` passes
 against `@cloudflare/workers-types`.
 
+## Phase 26 — Full migration to Cloudflare Workers (in progress, not yet live)
+
+Phase 25 only moved the cron *ping* to Cloudflare; the dashboard itself
+stayed on Vercel. The actual reason to move further: Vercel's free Hobby
+plan does not support connecting a private repository owned by a GitHub
+Organization (only personal-account repos) — this org's repo had to be made
+public to deploy at all. Rather than pay for Vercel Pro, the app itself is
+being ported to Cloudflare Workers via the OpenNext adapter, where that
+restriction doesn't exist.
+
+**This is set up and verified locally, but not deployed, and Vercel is
+still the live site.** Cutting over is a separate, deliberate decision —
+see "Not done yet" below.
+
+- **`@opennextjs/cloudflare`** transforms the standard `next build` output
+  into a Cloudflare Worker. Config: `wrangler.jsonc` (Worker name, the
+  `nodejs_compat` flag this app's session-cookie signing needs, static
+  asset serving) and `open-next.config.ts` (defaults — no KV/R2/D1
+  bindings needed, this app only reads plain env vars). `next.config.ts`
+  gained `initOpenNextCloudflareForDev()` so `next dev` sees the same
+  bindings production will. New scripts: `npm run cf:build`, `cf:preview`
+  (local Workers runtime via `wrangler`), `cf:deploy`.
+- **Required a real Next.js upgrade, not just config**: the adapter version
+  that supports this app's exact setup requires Next.js ≥16.3.3 (this app
+  was on 16.2.12). Bumped to **16.3.5** (`next` + `eslint-config-next`
+  together) — a genuine framework version change, not scoped to only the
+  Cloudflare path, so it's live for the current Vercel deployment too the
+  moment this merges. Re-ran the full gate and a real browser pass against
+  a plain `next start` (i.e. what Vercel actually runs) to confirm no
+  regression from the bump alone, independent of anything Cloudflare-related.
+- **`@opennextjs/cloudflare` is pinned to an exact version (`1.20.2`, then
+  `1.20.6`), not a caret range** — its peer-supported Next.js range has
+  shifted with almost every patch release during this investigation (some
+  patches *narrowed* support and dropped versions this app was just on), so
+  an unpinned `npm install` here could silently jump to an adapter version
+  that no longer supports this app's Next.js version. Bump deliberately.
+
+### The one real risk worth naming clearly
+
+Next.js 16 renamed `middleware.ts` to `proxy.ts` and made it **always run
+on the Node.js runtime** (previously edge-only) — this app's own login
+gate (`src/proxy.ts`) already relied on that by the time this phase
+started. The OpenNext Cloudflare adapter's own build output says, verbatim:
+
+> `Node.js middleware support is experimental in cloudflare, and not
+> officially maintained by OpenNext maintainers. Use at your own risk.`
+
+That's not a footnote — it's the exact mechanism protecting every page and
+API route behind a login. It works correctly in everything tested below,
+but "experimental, not officially maintained" on your auth gate is a real
+thing to weigh before treating Cloudflare as production, independent of
+how solid Phase 25's tiny cron-worker (no auth surface at all) has been.
+
+### Verified (locally — not yet deployed)
+
+`npm run lint`, `npx tsc --noEmit`, `npm test`, `npm run build` all pass
+post-upgrade. `npm run cf:build` succeeds (it failed outright pre-upgrade
+with `Node.js middleware is not currently supported`, confirming the
+version bump was the actual fix, not incidental). Then, against a real
+`wrangler`-run local Workers runtime (`npm run cf:preview`), not just a
+successful build:
+
+- An unauthenticated request to `/` and `/router` gets a real `307` to
+  `/login`; `/api/cron/poll` (deliberately public — see `proxy.ts`'s
+  `isPublicApi`) reaches the real route handler instead of the login
+  redirect, and gets its own expected 401 (`CRON_SECRET` unset in this
+  test).
+- Logging in via `POST /api/auth/login` returns a correctly-signed session
+  cookie (confirming `node:crypto` in `lib/auth/session.ts` works under
+  `nodejs_compat`); that cookie then gets real `200`s from previously-blocked
+  pages. A **tampered** cookie is correctly rejected back to `/login` —
+  not just "a cookie gets you in," but "signature verification actually
+  verifies."
+- Browser-driven (Playwright) end to end: logged in through the real login
+  form, landed on `/router` with the full UI rendered — encoders, sources,
+  drag targets, thumbnails, mock-mode banner, all real, not a shell — and
+  `/zixi` correctly showing its "not configured" state. No console/page
+  errors.
+- Separately, and just as importantly: rebuilt and ran the **plain**
+  `next build && next start` path (what Vercel actually runs, nothing
+  Cloudflare-specific) after the 16.3.5 bump and repeated the login +
+  `/router` browser pass there too, pixel-identical rendering — isolating
+  "did the version bump alone break anything" from "does the Cloudflare
+  path work," since the former ships to production on merge regardless of
+  any Cloudflare decision.
+
+### Not done yet (deliberately)
+
+- **No deployment.** `cf:deploy` has not been run against a real Cloudflare
+  account from this environment. Everything above is local build +
+  `wrangler`'s local Workers runtime.
+- **No production cutover.** Vercel stays the live site until a deliberate
+  decision to point DNS/traffic at Cloudflare instead — that's not a call
+  to make unilaterally given the "experimental, not officially maintained"
+  label on the exact code path that gates every page behind a login.
+- **Env vars/secrets are not yet configured on Cloudflare.** Whoever
+  deploys needs every var from `.env.example` set there too (`vars` for
+  non-secret ones like `MOCK`, `wrangler secret put` for
+  `DASHBOARD_PASSWORD`/`AUTH_SECRET`/`SUPABASE_SERVICE_ROLE_KEY`/etc.),
+  same posture as the Vercel project today.
+
 ## Getting started
 
 ```bash

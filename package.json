@@ -7,24 +7,29 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types src/lib/settings/permissions.test.mts && node --experimental-strip-types src/lib/settings/diff.test.mts && node --experimental-strip-types src/lib/settings/apply.test.mts && node --experimental-strip-types src/lib/mixer-layout.test.mts && node --experimental-strip-types src/lib/monitor/rules.test.mts && node --experimental-strip-types src/lib/zixi/rules.test.mts"
+    "test": "node --experimental-strip-types src/lib/settings/permissions.test.mts && node --experimental-strip-types src/lib/settings/diff.test.mts && node --experimental-strip-types src/lib/settings/apply.test.mts && node --experimental-strip-types src/lib/mixer-layout.test.mts && node --experimental-strip-types src/lib/monitor/rules.test.mts && node --experimental-strip-types src/lib/zixi/rules.test.mts",
+    "cf:build": "opennextjs-cloudflare build",
+    "cf:preview": "opennextjs-cloudflare preview",
+    "cf:deploy": "opennextjs-cloudflare deploy"
   },
   "dependencies": {
     "hls.js": "^1.7.3",
-    "next": "16.2.12",
+    "next": "16.3.5",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "server-only": "^0.0.1"
   },
   "devDependencies": {
+    "@opennextjs/cloudflare": "1.20.6",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.2.12",
+    "eslint-config-next": "16.3.5",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wrangler": "^4.131.1"
   },
   "overrides": {
     "sharp": "^0.35.3",

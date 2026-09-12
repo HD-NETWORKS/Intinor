@@ -31,5 +31,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "cron-worker", "relay"]
+  "exclude": ["node_modules", "cron-worker", "relay", ".open-next", ".wrangler"]
 }
