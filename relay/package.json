@@ -1,0 +1,12 @@
+{
+  "name": "zixi-preview-relay",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Low-bitrate live preview relay for the Zixi feed monitor — see README.md §Phase 24. Deliberately dependency-free so it's `node server.mjs` and nothing else on the relay box.",
+  "type": "module",
+  "main": "server.mjs",
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --experimental-strip-types server.test.mts"
+  }
+}

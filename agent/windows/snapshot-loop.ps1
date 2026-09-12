@@ -15,19 +15,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$TempDir = if ($env:TEMP) { $env:TEMP } else { [System.IO.Path]::GetTempPath() }
-
-function Write-Log([string]$Message) {
-    $line = "{0}  {1}" -f (Get-Date -Format "yyyy-MM-dd HH:mm:ss"), $Message
-    Write-Host $line
-    $logPath = Join-Path $PSScriptRoot "agent.log"
-    Add-Content -Path $logPath -Value $line
-    # Keep the log from growing forever; a few MB of history is plenty.
-    if ((Get-Item $logPath).Length -gt 5MB) {
-        $tail = Get-Content $logPath -Tail 2000
-        Set-Content -Path $logPath -Value $tail
-    }
-}
+. (Join-Path $PSScriptRoot "common.ps1")
+function Write-Log([string]$Message) { Write-AgentLog "agent.log" $Message }
 
 function Invoke-SnapshotOnce {
     param($Config)

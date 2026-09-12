@@ -5,29 +5,36 @@
 
     .DESCRIPTION
     Asks for the Zixi Stream ID, a display name, the local RTMP URL to grab
-    frames from, the dashboard's base URL and its ZIXI_SNAPSHOT_TOKEN, then:
+    frames from, the dashboard's base URL and its ZIXI_SNAPSHOT_TOKEN, plus
+    (optional) a low-bitrate preview relay URL/token for click-to-watch, then:
       - installs ffmpeg via winget if it isn't already on PATH,
       - writes agent\config.json next to this script,
-      - registers a scheduled task that runs snapshot-loop.ps1 forever,
-        starting at boot and restarting itself if it ever exits.
+      - registers two scheduled tasks — one running snapshot-loop.ps1, one
+        running watch-loop.ps1 — both starting at boot and restarting
+        themselves if they ever exit. The watch task runs unconditionally;
+        it simply idles doing nothing until a relay URL/token are set.
 
     Safe to re-run: an existing config.json is loaded and offered back as the
     default for every prompt (press Enter to keep it), so changing the Stream
-    ID, channel name, or RTMP URL later is just "run this again", not a
-    reinstall. Requires an elevated (Administrator) PowerShell.
+    ID, channel name, RTMP URL, or relay settings later is just "run this
+    again", not a reinstall — both tasks re-read config.json on their own, so
+    no task restart is needed either. Requires an elevated (Administrator)
+    PowerShell.
 
     .PARAMETER Uninstall
-    Removes the scheduled task and deletes config.json (leaves ffmpeg alone).
+    Removes both scheduled tasks and deletes config.json (leaves ffmpeg alone).
 #>
 param(
     [switch]$Uninstall
 )
 
 $ErrorActionPreference = "Stop"
-$TaskName = "HDNetworksZixiSnapshotAgent"
+$SnapshotTaskName = "HDNetworksZixiSnapshotAgent"
+$WatchTaskName = "HDNetworksZixiWatchAgent"
 $AgentDir = $PSScriptRoot
 $ConfigPath = Join-Path $AgentDir "config.json"
-$LoopScript = Join-Path $AgentDir "snapshot-loop.ps1"
+$SnapshotLoopScript = Join-Path $AgentDir "snapshot-loop.ps1"
+$WatchLoopScript = Join-Path $AgentDir "watch-loop.ps1"
 
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin) {
@@ -36,10 +43,12 @@ if (-not $isAdmin) {
 }
 
 if ($Uninstall) {
-    if (Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue) {
-        Stop-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
-        Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false
-        Write-Host "Removed scheduled task '$TaskName'."
+    foreach ($t in @($SnapshotTaskName, $WatchTaskName)) {
+        if (Get-ScheduledTask -TaskName $t -ErrorAction SilentlyContinue) {
+            Stop-ScheduledTask -TaskName $t -ErrorAction SilentlyContinue
+            Unregister-ScheduledTask -TaskName $t -Confirm:$false
+            Write-Host "Removed scheduled task '$t'."
+        }
     }
     if (Test-Path $ConfigPath) {
         Remove-Item $ConfigPath -Force
@@ -114,6 +123,34 @@ do {
     }
 } while ($intervalSeconds -eq 0)
 
+# --- Low-bitrate preview relay (optional — click-to-watch) -------------------
+do {
+    $defaultRelayUrl = if ($existing.relayBaseUrl) { $existing.relayBaseUrl } else { "" }
+    $relayBaseUrl = Read-WithDefault `
+        "Low-bitrate preview relay URL (optional, enables click-to-watch — leave blank to skip)" `
+        $defaultRelayUrl
+    $relayUrlValid = [string]::IsNullOrWhiteSpace($relayBaseUrl) -or $relayBaseUrl -match "^https?://"
+    if (-not $relayUrlValid) {
+        Write-Host "  Must start with http:// or https://, or be left blank. Try again." -ForegroundColor Yellow
+    }
+} while (-not $relayUrlValid)
+
+$relayIngestToken = ""
+if ($relayBaseUrl) {
+    $relayTokenPrompt = "RELAY_INGEST_TOKEN (shared secret for that relay)"
+    if ($existing.relayIngestToken) { $relayTokenPrompt += " [keep existing — press Enter]" }
+    $secureRelayToken = Read-Host $relayTokenPrompt -AsSecureString
+    $relayIngestToken = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureRelayToken))
+    if ([string]::IsNullOrWhiteSpace($relayIngestToken)) {
+        if ($existing.relayIngestToken) {
+            $relayIngestToken = $existing.relayIngestToken
+        } else {
+            Write-Warning "No RELAY_INGEST_TOKEN given — click-to-watch stays disabled until you re-run this with one."
+            $relayBaseUrl = ""
+        }
+    }
+}
+
 # --- ffmpeg -------------------------------------------------------------------
 if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
     Write-Host "ffmpeg not found on PATH — installing via winget (Gyan.FFmpeg)..."
@@ -134,6 +171,8 @@ $config = [ordered]@{
     dashboardBaseUrl  = $dashboardBaseUrl
     zixiSnapshotToken = $zixiSnapshotToken
     intervalSeconds   = $intervalSeconds
+    relayBaseUrl      = $relayBaseUrl
+    relayIngestToken  = $relayIngestToken
 }
 $config | ConvertTo-Json | Set-Content -Path $ConfigPath -Encoding utf8
 
@@ -150,9 +189,7 @@ try {
     Write-Warning "Could not lock down permissions on $AgentDir — do it manually if this server is shared."
 }
 
-# --- Scheduled task ---------------------------------------------------------
-$action = New-ScheduledTaskAction -Execute "powershell.exe" `
-    -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$LoopScript`""
+# --- Scheduled tasks ---------------------------------------------------------
 $trigger = New-ScheduledTaskTrigger -AtStartup
 $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
 $settings = New-ScheduledTaskSettingsSet `
@@ -160,16 +197,29 @@ $settings = New-ScheduledTaskSettingsSet `
     -StartWhenAvailable -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) `
     -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew
 
-if (Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue) {
-    Stop-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
-    Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false
+function Register-LoopTask([string]$TaskName, [string]$ScriptPath, [string]$Description) {
+    $action = New-ScheduledTaskAction -Execute "powershell.exe" `
+        -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$ScriptPath`""
+    if (Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue) {
+        Stop-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
+        Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false
+    }
+    Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger `
+        -Principal $principal -Settings $settings -Description $Description | Out-Null
+    Start-ScheduledTask -TaskName $TaskName
 }
-Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger `
-    -Principal $principal -Settings $settings `
-    -Description "Pushes a Zixi feed snapshot to the HD Networks dashboard every few seconds. Installed by agent/windows/install.ps1." | Out-Null
-Start-ScheduledTask -TaskName $TaskName
+
+Register-LoopTask $SnapshotTaskName $SnapshotLoopScript `
+    "Pushes a Zixi feed snapshot to the HD Networks dashboard every few seconds. Installed by agent/windows/install.ps1."
+Register-LoopTask $WatchTaskName $WatchLoopScript `
+    "Starts/stops a low-bitrate live encode to the preview relay based on viewer demand. A no-op until a relay URL/token are configured. Installed by agent/windows/install.ps1."
 
 Write-Host ""
 Write-Host "Done. '$streamId' ($channelLabel) is now pushing snapshots to $dashboardBaseUrl every $intervalSeconds s." -ForegroundColor Green
-Write-Host "Logs: $(Join-Path $AgentDir 'agent.log')"
+if ($relayBaseUrl) {
+    Write-Host "Click-to-watch is enabled, relaying through $relayBaseUrl." -ForegroundColor Green
+} else {
+    Write-Host "Click-to-watch is disabled (no relay URL/token set) — re-run this script to enable it." -ForegroundColor Yellow
+}
+Write-Host "Logs: $(Join-Path $AgentDir 'agent.log') and $(Join-Path $AgentDir 'watch.log')"
 Write-Host "To change any setting later, just re-run this script. To remove entirely: .\install.ps1 -Uninstall"

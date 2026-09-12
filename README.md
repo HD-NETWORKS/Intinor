@@ -1427,6 +1427,126 @@ parse cleanly with zero syntax errors via
 `icacls`) has no Linux equivalent to execute, so that part is reviewed but
 not run — worth a real dry run on one server before wider rollout.
 
+## Phase 24 — Low-bitrate live preview relay (click a snapshot to watch)
+
+The `/zixi` grid confirms a feed *has* picture; the natural next question
+when a tile looks wrong is "let me actually look at it," at a bitrate that
+survives an office internet connection (500–700kbps) without a direct
+connection to that server. Design for the relay this needs, before writing
+its code:
+
+**Why not just point a player at each streaming server directly?** They're
+plain Windows boxes on ordinary connections with no public hostname and no
+inbound port opened — the same reason the snapshot agent *pushes* rather
+than being polled. The fix is the same shape: reuse the one always-on
+server that already runs `cloudflared` for D01393, and have it terminate
+video the same way it already terminates that tunnel.
+
+**Why not transcode continuously?** Six servers running a second live
+encode 24/7 for a feature nobody's looking at most of the time is wasted
+CPU and bandwidth for no benefit. The relay has to make "is anyone
+watching" a real, cheap question the agent can poll — so the low-bitrate
+encode only runs while a viewer actually has the tile open.
+
+**Why HTTP instead of RTMP into `node-media-server`?** RTMP push from six
+remote servers into one central ingest would need raw TCP reachability to
+that box, which means either opening a port or standing up Cloudflare's
+TCP/WARP tunnel mode on every sending server too — exactly the extra
+per-server infrastructure the snapshot agent's design deliberately avoided.
+ffmpeg's HLS muxer can instead PUT its playlist and segments straight to
+plain HTTP(S) URLs (`-method PUT`, with a bearer header via `-headers`) —
+ordinary outbound HTTPS, the same posture the snapshot push already uses,
+through the same tunnel hostname pattern as D01393. No new agent-side
+transport, no new firewall rule anywhere.
+
+**Design:**
+
+- **Relay service** (`relay/server.mjs`) — a small dependency-free Node
+  HTTP server for the same always-on box, listening on one local port that
+  gets its own hostname on the existing Cloudflare Tunnel (a second public
+  hostname pointed at `localhost:<port>`, alongside whatever D01393 already
+  uses — no new tunnel, just another ingress entry):
+  - `PUT /ingest/{streamId}/{file}` and `DELETE /ingest/{streamId}/{file}` —
+    the agent's ffmpeg process's own HLS upload/cleanup traffic. Gated by a
+    `RELAY_INGEST_TOKEN` bearer, checked the same way `ZIXI_SNAPSHOT_TOKEN`
+    is — a **separate** secret, since this one can inject video frames into
+    a stream's playback, a higher-stakes capability than overwriting one
+    JPEG.
+  - `GET /hls/{streamId}/{file}` — serves the latest playlist/segments back
+    out, open/CORS-enabled like the existing public snapshot bucket (same
+    "it's an internal monitoring preview, not a protected asset" call
+    already made there).
+  - `POST /viewers/{streamId}/heartbeat` — called directly by the
+    dashboard's player while it's open (browser → relay, bypassing Vercel
+    entirely so video bytes never transit a serverless function). Open, not
+    token-gated: worst case is a forged heartbeat wastes one source
+    server's CPU for a few seconds, not a meaningful risk for an internal
+    tool.
+  - `GET /viewers/{streamId}/wanted` — polled by the agent every ~5s;
+    `true` for as long as a heartbeat arrived in the last 15s (three missed
+    beats' grace so a tab briefly backgrounding doesn't flap the encode on
+    and off).
+  - Everything lives in memory, keyed by `streamId`, with a garbage
+    collector for streams nobody has ingested to or asked about in a while
+    — it's live video, a restart just means players reconnect, there's
+    nothing worth persisting.
+- **Agent** (`agent/windows/`) — `install.ps1` gains two more optional
+  prompts (relay base URL + `RELAY_INGEST_TOKEN`; leaving them blank keeps
+  the snapshot feature working exactly as before, watch just stays off,
+  same "optional/no-op unconfigured" posture as everything else in this
+  project). A new loop polls `GET /viewers/{streamId}/wanted` and
+  starts/stops one ffmpeg process accordingly — reading the same local RTMP
+  source the snapshot loop already does, re-encoded down to ~600kbps
+  H.264/AAC, HLS-muxed straight out over HTTP PUT to the relay. Isolated
+  from the snapshot loop (a stuck watch-encode must never stop snapshots,
+  or vice versa).
+- **Dashboard** (`/zixi`) — each tile gets a "Watch" action opening an
+  `hls.js` player pointed at `{NEXT_PUBLIC_ZIXI_RELAY_URL}/hls/{streamId}/index.m3u8`,
+  sending the heartbeat every ~5s for as long as the player is open. New
+  `NEXT_PUBLIC_ZIXI_RELAY_URL` env var (public by nature — it's a hostname
+  the browser needs to hit directly, no secret in it).
+
+Deliberately out of scope for now: an install script for the relay itself
+(it's one box the operator already manages by hand, unlike the six
+streaming servers) and any authentication on the playback/heartbeat paths
+beyond "know the stream ID" — acceptable for an internal low-bitrate
+monitoring preview, revisit if that changes.
+
+### Verified
+
+`npm run lint`, `npx tsc --noEmit`, `npm test`, `npm run build` all pass with
+`hls.js` added as a real dependency (not a CDN script — it's bundled by
+Next.js like everything else here).
+
+- **Relay** (`relay/server.test.mts`, 17 cases, its own `npm test` inside
+  `relay/`): unauthenticated ingest rejected with 401, authenticated
+  PUT/GET/DELETE round-trip correctly with the right content types per
+  extension, playback and viewer-signaling routes need no auth and carry
+  open CORS, `wanted` is false until a heartbeat arrives and true right
+  after, an unknown stream is never wanted, and the process refuses to
+  start at all with no `RELAY_INGEST_TOKEN` — same posture as `CRON_SECRET`
+  and `ZIXI_SNAPSHOT_TOKEN`.
+- **Agent** (`watch-loop.ps1`, ad hoc against the real relay above, no
+  Windows box available so a stub `ffmpeg` stood in for the encode
+  process): confirmed the full lifecycle in one continuously-running
+  loop — idle with no viewer (nothing started, nothing logged), a heartbeat
+  arriving flips it to started within one poll tick, and letting the
+  heartbeat lapse past the 15s grace window stops the encode on its own a
+  tick later. Also confirmed it stays a pure no-op (no polling, no
+  processes) when `relayBaseUrl`/`relayIngestToken` are blank, and that
+  refactoring the shared logging helper into `common.ps1` didn't regress
+  `snapshot-loop.ps1` (re-ran its existing push/401/dead-source cases).
+- **Dashboard**: browser-driven end-to-end, not just component-level —
+  a real relay instance seeded with a real (fake-content) HLS
+  playlist/segment, the dashboard pointed at it via
+  `NEXT_PUBLIC_ZIXI_RELAY_URL`, and `/api/zixi-snapshot`'s response mocked
+  to supply one stream. Clicking a tile opens the modal, `hls.js` loads the
+  seeded playlist into a real `<video>` element, a heartbeat is sent
+  immediately on open, and closing the modal both removes it from the DOM
+  and stops the heartbeats (verified no further heartbeat requests fired in
+  the following 6s) — confirming the cleanup effect actually tears down,
+  not just that the happy path works.
+
 ## Getting started
 
 ```bash

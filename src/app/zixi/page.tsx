@@ -3,6 +3,12 @@
 import { useEffect, useState } from "react";
 import { useThumbnailTick, withThumbnailTick } from "@/hooks/useThumbnailTick";
 import { ZIXI_STALE_AFTER_MS } from "@/lib/zixi/rules";
+import { WatchModal } from "@/components/zixi/WatchModal";
+
+// Public by nature — the browser talks to the relay directly (heartbeats,
+// video bytes) rather than proxying through this app. Unset in production
+// simply hides the Watch action; snapshots keep working either way.
+const RELAY_URL = process.env.NEXT_PUBLIC_ZIXI_RELAY_URL;
 
 interface ZixiStream {
   streamId: string;
@@ -70,7 +76,15 @@ function msSince(iso: string): number {
   return Date.now() - new Date(iso).getTime();
 }
 
-function StreamTile({ stream, tick }: { stream: ZixiStream; tick: number }) {
+function StreamTile({
+  stream,
+  tick,
+  onWatch,
+}: {
+  stream: ZixiStream;
+  tick: number;
+  onWatch?: () => void;
+}) {
   const [age, setAge] = useState(() => msSince(stream.lastSeenAt));
   useEffect(() => {
     const id = setInterval(() => setAge(msSince(stream.lastSeenAt)), 1000);
@@ -86,7 +100,12 @@ function StreamTile({ stream, tick }: { stream: ZixiStream; tick: number }) {
         (stale ? "border-signal-red-500/50 bg-signal-red-500/5" : "border-border-default bg-panel")
       }
     >
-      <div className="flex h-32 items-center justify-center overflow-hidden rounded bg-slate-950">
+      <button
+        type="button"
+        onClick={onWatch}
+        disabled={!onWatch}
+        className="group relative flex h-32 w-full items-center justify-center overflow-hidden rounded bg-slate-950 disabled:cursor-default"
+      >
         {stream.snapshotUrl ? (
           // Public Supabase Storage object — plain <img> is correct here.
           // eslint-disable-next-line @next/next/no-img-element
@@ -100,7 +119,12 @@ function StreamTile({ stream, tick }: { stream: ZixiStream; tick: number }) {
             No snapshot yet
           </span>
         )}
-      </div>
+        {onWatch && (
+          <span className="absolute inset-0 flex items-center justify-center bg-black/0 text-xs font-medium text-transparent transition group-hover:bg-black/40 group-hover:text-white">
+            ▶ Watch
+          </span>
+        )}
+      </button>
       <div className="truncate text-sm text-body">{stream.label}</div>
       <div className="flex items-center justify-between text-[11px] text-faint">
         <span className="font-mono">{stream.streamId}</span>
@@ -115,6 +139,7 @@ function StreamTile({ stream, tick }: { stream: ZixiStream; tick: number }) {
 export default function ZixiPage() {
   const { data, loading } = useZixiStreams();
   const tick = useThumbnailTick(POLL_MS);
+  const [watching, setWatching] = useState<{ streamId: string; label: string } | null>(null);
 
   return (
     <div className="mx-auto max-w-6xl space-y-4">
@@ -147,9 +172,25 @@ export default function ZixiPage() {
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
           {(data?.streams ?? []).map((s) => (
-            <StreamTile key={s.streamId} stream={s} tick={tick} />
+            <StreamTile
+              key={s.streamId}
+              stream={s}
+              tick={tick}
+              onWatch={
+                RELAY_URL ? () => setWatching({ streamId: s.streamId, label: s.label }) : undefined
+              }
+            />
           ))}
         </div>
+      )}
+
+      {watching && RELAY_URL && (
+        <WatchModal
+          streamId={watching.streamId}
+          label={watching.label}
+          relayUrl={RELAY_URL}
+          onClose={() => setWatching(null)}
+        />
       )}
     </div>
   );
