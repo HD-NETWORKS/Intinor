@@ -2,7 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   // Same project name shown in the Cloudflare dashboard; distinct from the
   // "intinor-cron-poll" Worker in cron-worker/ — separate deployables.
-  "name": "intinor-dashboard",
+  "name": "intinor",
   "main": ".open-next/worker.js",
   // Must be 2024-09-23 or later for @opennextjs/cloudflare's Node.js
   // compat requirements (session signing uses node:crypto, etc).
