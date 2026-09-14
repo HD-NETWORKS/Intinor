@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 
 const nextConfig: NextConfig = {
   experimental: {
@@ -11,3 +12,9 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+
+// Gives `next dev` access to Cloudflare bindings (env vars, in this app's
+// case — no KV/R2/D1) the same way they're available once deployed, so
+// local dev matches production rather than silently reading nothing. A
+// no-op outside of Cloudflare tooling; see README §Phase 26.
+initOpenNextCloudflareForDev();
