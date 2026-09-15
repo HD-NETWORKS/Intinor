@@ -8,6 +8,10 @@
   // compat requirements (session signing uses node:crypto, etc).
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
+  // Empty on purpose: every env var this app needs (DASHBOARD_USERNAME,
+  // AUTH_SECRET, INTINOR_*, SUPABASE_*, etc.) is set as an encrypted Secret
+  // on the Cloudflare dashboard, not a plain var — nothing here to declare.
+  "vars": {},
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
