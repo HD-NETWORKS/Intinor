@@ -5,8 +5,8 @@
   "description": "Cloudflare Worker: fires the dashboard's /api/cron/poll every minute via a Cron Trigger. See README.md §Phase 25 in the repo root.",
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev --test-scheduled",
-    "deploy": "wrangler deploy",
+    "dev": "wrangler dev --test-scheduled --config wrangler.toml",
+    "deploy": "wrangler deploy --config wrangler.toml",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
