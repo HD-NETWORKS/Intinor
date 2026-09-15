@@ -1581,14 +1581,35 @@ fire every minute with no paid tier required.
 cd cron-worker
 npm install
 npx wrangler login              # once, opens a browser to authorize
-npx wrangler secret put CRON_SECRET   # paste the same value as on Vercel
-npx wrangler deploy
+npx wrangler secret put CRON_SECRET --config wrangler.toml   # paste the same value as on Vercel
+npx wrangler deploy --config wrangler.toml
 ```
 
 That's it — no Vercel-side changes needed beyond `CRON_SECRET` already
 being set (it was, for the daily cron). If the production domain isn't
 `https://intinor.vercel.app` (a custom domain, say), update `DASHBOARD_URL`
 in `wrangler.toml` first.
+
+**Always pass `--config wrangler.toml` explicitly**, here and in every
+`wrangler` command run from this directory (`npm run dev`/`deploy` already
+do). Wrangler 4.131's config auto-detection resolves to the *repo root's*
+`wrangler.jsonc` (the dashboard's own Worker config) instead of this
+directory's `wrangler.toml`, even when run with this directory as the
+working directory — reproduced directly: `cd cron-worker && npx wrangler
+deploy --dry-run` fails with `The entry-point file at ".open-next/worker.js"
+was not found` (the dashboard's entry point, not this Worker's), while the
+same command with `--config wrangler.toml` appended deploys correctly. This
+is what breaks a **Git-connected Cloudflare Workers Builds** deploy of this
+directory if its Deploy/Version commands are left as the plain `npx
+wrangler deploy` / `npx wrangler versions upload` Cloudflare suggests by
+default — set them to:
+```
+npx wrangler deploy --config wrangler.toml
+npx wrangler versions upload --config wrangler.toml
+```
+with Root directory = `cron-worker` (unaffected by this bug either way,
+since root has no ambiguous parent config above it: `cf:deploy` and a plain
+`wrangler deploy` run from the repo root both resolve correctly).
 
 ### Verified
 
