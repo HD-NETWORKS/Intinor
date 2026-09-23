@@ -58,7 +58,11 @@ function Start-WatchEncode {
         "$ingestBase/index.m3u8"
     )
 
-    return Start-Process -FilePath "ffmpeg" -ArgumentList $ffmpegArgs `
+    # Full path, not the bare "ffmpeg" name — see the matching comment in
+    # snapshot-loop.ps1: this runs as SYSTEM via the scheduled task, which
+    # doesn't see a per-user PATH entry winget may have added.
+    $ffmpegExe = if ($Config.ffmpegPath) { $Config.ffmpegPath } else { "ffmpeg" }
+    return Start-Process -FilePath $ffmpegExe -ArgumentList $ffmpegArgs `
         -NoNewWindow -PassThru -RedirectStandardError (Join-Path $TempDir "ffmpeg-zixi-watch-stderr.log")
 }
 
