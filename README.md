@@ -1808,6 +1808,47 @@ work — verified everything that doesn't require one directly:
   carries, worth a real dry run on the affected server before wider
   rollout.
 
+### Follow-up: let OBS move instead of the ingest appliance
+
+The first version above only supported one topology: MediaMTX claims the
+ingest appliance's existing port, and the appliance has to move off it (in
+its own settings). Real feedback from the server that surfaced this whole
+issue: **not touching Zixi Feeder's configuration at all** was a hard
+requirement — it's a vendor appliance, not something to be reconfigured on
+a whim.
+
+`install.ps1` now asks which side moves, defaulting to the lower-risk
+option:
+
+- **Move OBS instead (default).** OBS's Server field gets a new local port
+  (default: the original port + 1); MediaMTX claims that new port and
+  forwards on, unmodified, to the ingest target's **existing, completely
+  untouched address** — the target never finds out MediaMTX exists. The
+  agent's own `rtmpUrl` is updated to the new port so it keeps grabbing
+  frames from MediaMTX. This is the one-field, no-vendor-UI change the
+  real server needed.
+- **Move the ingest target instead.** The original behavior, still
+  available for setups where OBS itself is the harder thing to touch (a
+  managed/embedded encoder, say) rather than the ingest appliance.
+
+### Verified (follow-up)
+
+- Both branches were run end-to-end under PowerShell 7 via a harness built
+  from the *exact* code extracted out of `install.ps1` (not retyped) —
+  including the earlier real values (`HDNK3/HDNK3` path, Zixi Feeder at
+  `127.0.0.1:1935`, a `Program Files` ffmpeg path). Confirmed:
+  - **Move OBS**: final `rtmpUrl` becomes `rtmp://127.0.0.1:1936/HDNK3/HDNK3`
+    (agent now reads from MediaMTX), forward target stays exactly
+    `rtmp://127.0.0.1:1935/HDNK3/HDNK3` (Zixi Feeder, unchanged), and the
+    generated `mediamtx.yml` validates as YAML with the exact expected
+    `rtmpAddress`/`runOnAvailable` values (assertions, not eyeballing).
+  - **Move target**: unchanged from the original behavior — regression
+    -tested after the refactor, not just assumed still correct.
+- `install.ps1` still parses with zero syntax errors via
+  `[System.Management.Automation.Language.Parser]::ParseFile`.
+- `npm run lint`, `npx tsc --noEmit` pass (this change is Windows-agent-only,
+  no TypeScript touched, confirmed clean regardless).
+
 ## Getting started
 
 ```bash
