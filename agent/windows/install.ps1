@@ -6,13 +6,18 @@
     .DESCRIPTION
     Asks for the Zixi Stream ID, a display name, the local RTMP URL to grab
     frames from, the dashboard's base URL and its ZIXI_SNAPSHOT_TOKEN, plus
-    (optional) a low-bitrate preview relay URL/token for click-to-watch, then:
+    (optional) a low-bitrate preview relay URL/token for click-to-watch, and
+    (optional) a local MediaMTX relay for ingest-only RTMP targets like a
+    Zixi Feeder that won't re-serve their stream for playback, then:
       - installs ffmpeg via winget if it isn't already on PATH,
+      - installs MediaMTX if the local relay option was chosen, configured
+        to answer on the RTMP URL above and forward on to the real target,
       - writes agent\config.json next to this script,
-      - registers two scheduled tasks — one running snapshot-loop.ps1, one
-        running watch-loop.ps1 — both starting at boot and restarting
-        themselves if they ever exit. The watch task runs unconditionally;
-        it simply idles doing nothing until a relay URL/token are set.
+      - registers scheduled tasks — one running snapshot-loop.ps1, one
+        running watch-loop.ps1, and (if enabled) one running the MediaMTX
+        relay — all starting at boot and restarting themselves if they ever
+        exit. The watch task runs unconditionally; it simply idles doing
+        nothing until a relay URL/token are set.
 
     Safe to re-run: an existing config.json is loaded and offered back as the
     default for every prompt (press Enter to keep it), so changing the Stream
@@ -31,10 +36,19 @@ param(
 $ErrorActionPreference = "Stop"
 $SnapshotTaskName = "HDNetworksZixiSnapshotAgent"
 $WatchTaskName = "HDNetworksZixiWatchAgent"
+$MediaMtxTaskName = "HDNetworksMediaMTXRelay"
 $AgentDir = $PSScriptRoot
 $ConfigPath = Join-Path $AgentDir "config.json"
 $SnapshotLoopScript = Join-Path $AgentDir "snapshot-loop.ps1"
 $WatchLoopScript = Join-Path $AgentDir "watch-loop.ps1"
+# Pinned rather than "latest" so this script's behavior doesn't change out
+# from under a re-run months later. Bump deliberately, verifying the
+# Windows amd64 zip asset still exists at the new version's download URL
+# first (mediamtx_v<ver>_windows_amd64.zip).
+$MediaMtxVersion = "1.21.1"
+$MediaMtxDir = Join-Path $AgentDir "mediamtx"
+$MediaMtxExe = Join-Path $MediaMtxDir "mediamtx.exe"
+$MediaMtxConfig = Join-Path $MediaMtxDir "mediamtx.yml"
 
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin) {
@@ -43,7 +57,7 @@ if (-not $isAdmin) {
 }
 
 if ($Uninstall) {
-    foreach ($t in @($SnapshotTaskName, $WatchTaskName)) {
+    foreach ($t in @($SnapshotTaskName, $WatchTaskName, $MediaMtxTaskName)) {
         if (Get-ScheduledTask -TaskName $t -ErrorAction SilentlyContinue) {
             Stop-ScheduledTask -TaskName $t -ErrorAction SilentlyContinue
             Unregister-ScheduledTask -TaskName $t -Confirm:$false
@@ -89,6 +103,51 @@ $channelLabel = Read-WithDefault "Channel name to show on the dashboard" $defaul
 # --- RTMP source ---------------------------------------------------------------
 $defaultRtmp = if ($existing.rtmpUrl) { $existing.rtmpUrl } else { "rtmp://localhost:1935/$streamId" }
 $rtmpUrl = Read-WithDefault "RTMP URL to grab frames from (OBS's local output; port 1935 by default)" $defaultRtmp
+
+# --- Local RTMP relay (optional) ----------------------------------------------
+# Some local RTMP targets (a Zixi Feeder box, for one) accept an incoming
+# publish but never re-serve that stream for playback — ffmpeg then can't
+# grab a snapshot frame from them directly (NetStream.Play.StreamNotFound,
+# even though the feed itself is live and being ingested fine). MediaMTX
+# sits in front of a target like that: OBS keeps publishing to the exact
+# same URL/port above, MediaMTX answers there instead, forwards the feed on
+# unmodified (no re-encode) to the target's ingest port, and this agent
+# grabs its snapshot frames from MediaMTX rather than the target directly.
+$rtmpParsed = $null
+try {
+    $rtmpUri = [Uri]$rtmpUrl
+    $path = $rtmpUri.AbsolutePath.TrimStart('/')
+    if ($rtmpUri.Port -gt 0 -and $path) {
+        $rtmpParsed = @{ Port = $rtmpUri.Port; Path = $path }
+    }
+} catch {}
+
+$defaultUseRelay = if ($existing.localRelayEnabled) { "y" } else { "n" }
+$useLocalRelayRaw = Read-WithDefault `
+    "Does that RTMP URL only accept ingest, with no snapshot playback (e.g. Zixi Feeder)? Set up a local MediaMTX relay for it? (y/N)" `
+    $defaultUseRelay
+$localRelayEnabled = $useLocalRelayRaw -match "^[Yy]"
+
+if ($localRelayEnabled -and -not $rtmpParsed) {
+    Write-Warning "Could not parse a port and path out of '$rtmpUrl' (need both, e.g. rtmp://host:1935/path) — skipping local relay setup. Fix the RTMP URL above and re-run."
+    $localRelayEnabled = $false
+}
+
+$localRelayForwardUrl = ""
+if ($localRelayEnabled) {
+    Write-Host "  MediaMTX will listen on port $($rtmpParsed.Port) — the same port OBS already publishes to." -ForegroundColor Cyan
+    Write-Host "  Move your ingest target (e.g. Zixi Feeder) off that port first, in its own settings, then give its new address below." -ForegroundColor Cyan
+    do {
+        $defaultForward = if ($existing.localRelayForwardUrl) { $existing.localRelayForwardUrl } else { "" }
+        $localRelayForwardUrl = Read-WithDefault `
+            "RTMP URL of the actual ingest target once moved off port $($rtmpParsed.Port) (e.g. rtmp://localhost:1936/$($rtmpParsed.Path))" `
+            $defaultForward
+        $forwardValid = $localRelayForwardUrl -match "^rtmp://"
+        if (-not $forwardValid) {
+            Write-Host "  Must start with rtmp://. Try again." -ForegroundColor Yellow
+        }
+    } while (-not $forwardValid)
+}
 
 # --- Dashboard --------------------------------------------------------------
 do {
@@ -178,17 +237,54 @@ if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
 $ffmpegCmd = Get-Command ffmpeg -ErrorAction SilentlyContinue
 $ffmpegPath = if ($ffmpegCmd) { $ffmpegCmd.Source } else { "ffmpeg" }
 
+# --- Local RTMP relay (MediaMTX) install + config -----------------------------
+if ($localRelayEnabled) {
+    if (-not (Test-Path $MediaMtxExe)) {
+        Write-Host "Installing MediaMTX v$MediaMtxVersion (local RTMP relay)..."
+        New-Item -ItemType Directory -Path $MediaMtxDir -Force | Out-Null
+        $mediaMtxZip = Join-Path $MediaMtxDir "mediamtx.zip"
+        $mediaMtxZipUrl = "https://github.com/bluenviron/mediamtx/releases/download/v$MediaMtxVersion/mediamtx_v${MediaMtxVersion}_windows_amd64.zip"
+        Invoke-WebRequest -Uri $mediaMtxZipUrl -OutFile $mediaMtxZip
+        Expand-Archive -Path $mediaMtxZip -DestinationPath $MediaMtxDir -Force
+        Remove-Item $mediaMtxZip -Force
+    }
+
+    # runOnAvailable fires the instant OBS starts publishing (MediaMTX's own
+    # term for "the stream is available to be read"; it SIGINTs the command
+    # automatically once the stream stops) — copy (no re-encode, -c copy)
+    # the incoming feed straight on to the real ingest target.
+    $forwardCmd = "`"$ffmpegPath`" -i rtmp://localhost:$($rtmpParsed.Port)/$($rtmpParsed.Path) -c copy -f flv $localRelayForwardUrl"
+    # Single-quoted in the YAML (escaping any literal ' by doubling it, YAML's
+    # own rule for single-quoted scalars) rather than left bare: ffmpegPath is
+    # wrapped in double quotes for the shell-level parse below, and a value
+    # starting with " is itself special to YAML — double-quoted scalars there
+    # process backslashes as escapes, which corrupts every backslash in a
+    # Windows path (e.g. \P in "C:\Program Files\..." becomes an invalid
+    # escape and MediaMTX fails to even parse the config).
+    $forwardCmdYaml = $forwardCmd -replace "'", "''"
+    @"
+rtmpAddress: :$($rtmpParsed.Port)
+
+paths:
+  $($rtmpParsed.Path):
+    runOnAvailable: '$forwardCmdYaml'
+    runOnAvailableRestart: true
+"@ | Set-Content -Path $MediaMtxConfig -Encoding utf8
+}
+
 # --- Write config ---------------------------------------------------------
 $config = [ordered]@{
-    streamId          = $streamId
-    channelLabel      = $channelLabel
-    rtmpUrl           = $rtmpUrl
-    dashboardBaseUrl  = $dashboardBaseUrl
-    zixiSnapshotToken = $zixiSnapshotToken
-    intervalSeconds   = $intervalSeconds
-    relayBaseUrl      = $relayBaseUrl
-    relayIngestToken  = $relayIngestToken
-    ffmpegPath        = $ffmpegPath
+    streamId              = $streamId
+    channelLabel          = $channelLabel
+    rtmpUrl               = $rtmpUrl
+    dashboardBaseUrl      = $dashboardBaseUrl
+    zixiSnapshotToken     = $zixiSnapshotToken
+    intervalSeconds       = $intervalSeconds
+    relayBaseUrl          = $relayBaseUrl
+    relayIngestToken      = $relayIngestToken
+    ffmpegPath            = $ffmpegPath
+    localRelayEnabled     = $localRelayEnabled
+    localRelayForwardUrl  = $localRelayForwardUrl
 }
 $config | ConvertTo-Json | Set-Content -Path $ConfigPath -Encoding utf8
 
@@ -230,12 +326,31 @@ Register-LoopTask $SnapshotTaskName $SnapshotLoopScript `
 Register-LoopTask $WatchTaskName $WatchLoopScript `
     "Starts/stops a low-bitrate live encode to the preview relay based on viewer demand. A no-op until a relay URL/token are configured. Installed by agent/windows/install.ps1."
 
+if ($localRelayEnabled) {
+    $mediaMtxAction = New-ScheduledTaskAction -Execute $MediaMtxExe -Argument "`"$MediaMtxConfig`""
+    if (Get-ScheduledTask -TaskName $MediaMtxTaskName -ErrorAction SilentlyContinue) {
+        Stop-ScheduledTask -TaskName $MediaMtxTaskName -ErrorAction SilentlyContinue
+        Unregister-ScheduledTask -TaskName $MediaMtxTaskName -Confirm:$false
+    }
+    Register-ScheduledTask -TaskName $MediaMtxTaskName -Action $mediaMtxAction -Trigger $trigger `
+        -Principal $principal -Settings $settings `
+        -Description "Local RTMP relay (MediaMTX) so ffmpeg can grab snapshot frames from an ingest-only target like Zixi Feeder. Installed by agent/windows/install.ps1." | Out-Null
+    Start-ScheduledTask -TaskName $MediaMtxTaskName
+} elseif (Get-ScheduledTask -TaskName $MediaMtxTaskName -ErrorAction SilentlyContinue) {
+    Stop-ScheduledTask -TaskName $MediaMtxTaskName -ErrorAction SilentlyContinue
+    Unregister-ScheduledTask -TaskName $MediaMtxTaskName -Confirm:$false
+    Write-Host "Removed the local MediaMTX relay task (no longer marked as needed)." -ForegroundColor Yellow
+}
+
 Write-Host ""
 Write-Host "Done. '$streamId' ($channelLabel) is now pushing snapshots to $dashboardBaseUrl every $intervalSeconds s." -ForegroundColor Green
 if ($relayBaseUrl) {
     Write-Host "Click-to-watch is enabled, relaying through $relayBaseUrl." -ForegroundColor Green
 } else {
     Write-Host "Click-to-watch is disabled (no relay URL/token set) — re-run this script to enable it." -ForegroundColor Yellow
+}
+if ($localRelayEnabled) {
+    Write-Host "Local MediaMTX relay listening on port $($rtmpParsed.Port), forwarding to $localRelayForwardUrl." -ForegroundColor Green
 }
 Write-Host "Logs: $(Join-Path $AgentDir 'agent.log') and $(Join-Path $AgentDir 'watch.log')"
 Write-Host "To change any setting later, just re-run this script. To remove entirely: .\install.ps1 -Uninstall"

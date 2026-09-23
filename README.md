@@ -1726,6 +1726,88 @@ successful build:
   `DASHBOARD_PASSWORD`/`AUTH_SECRET`/`SUPABASE_SERVICE_ROLE_KEY`/etc.),
   same posture as the Vercel project today.
 
+## Phase 27 — Local RTMP relay for ingest-only Zixi targets
+
+Phase 23's snapshot agent assumed the local RTMP endpoint OBS publishes to
+would also serve that same stream back out for playback — ffmpeg grabs a
+frame by connecting to it the same way a viewer would. That assumption
+broke on a real server: OBS was publishing successfully to a local **Zixi
+Feeder** appliance (`NetStream.Play.StreamNotFound` from ffmpeg *and* VLC
+against every URL variant tried, while `netstat` showed a genuinely
+`ESTABLISHED` connection between OBS and it) — Zixi Feeder ingests RTMP and
+forwards it on over the Zixi protocol, but never implements RTMP's "play"
+side at all. No path/URL fix could work around that; it needed a different
+piece in the topology.
+
+**Fix:** `install.ps1` can now install and configure
+[MediaMTX](https://github.com/bluenviron/mediamtx) (a single-binary, free
+RTMP/RTSP/HLS server) as a transparent relay in front of a target like
+that:
+
+- OBS keeps publishing to the exact same URL/port it always has —
+  **no OBS reconfiguration**.
+- MediaMTX takes over that port instead, and forwards the feed on
+  unmodified (`-c copy`, no re-encode) to the real ingest target, which has
+  to move off that port first (in its own settings — Zixi Feeder's port
+  isn't something this script can reach into).
+- The snapshot agent keeps grabbing frames from the same `rtmpUrl` it
+  always used — MediaMTX now answers there instead of the ingest-only
+  target, so no `config.json` change either.
+- A new optional prompt in `install.ps1` ("Does that RTMP URL only accept
+  ingest, with no snapshot playback?") gates all of this — pressing Enter
+  (default "N") leaves every existing install completely unaffected.
+- Runs as its own scheduled task (`HDNetworksMediaMTXRelay`, same
+  boot/auto-restart posture as the other two), separate from the snapshot
+  and watch loops so a relay hiccup can't take either of them down.
+
+**A real bug caught during verification, not just review:** the generated
+`mediamtx.yml` wraps ffmpeg's resolved path in double quotes for the
+shell-level parse (needed since a machine-scope `winget` install lands
+somewhere like `C:\Program Files\Gyan.FFmpeg\...`, a path with a space).
+But a YAML scalar that itself *starts* with `"` is parsed by YAML as a
+double-quoted string, which processes backslashes as escape
+sequences — corrupting every backslash in that Windows path and making
+MediaMTX refuse to even load the config. Fixed by wrapping the whole
+command in a YAML *single*-quoted scalar instead (which doesn't interpret
+backslashes), escaping any literal `'` by doubling it per YAML's own rule.
+Also initially used a hook name and boolean spelling that don't exist in
+MediaMTX at all (`runOnReady`/`runOnReadyRestart`/`yes`, misremembered from
+a different tool's convention) — corrected to the real hook
+(`runOnAvailable`/`runOnAvailableRestart`, "fires when the stream is
+available to be read, SIGINT'd when it isn't"/`true`) after pulling
+MediaMTX's actual reference config rather than trusting memory.
+
+### Verified
+
+No Windows box in this environment, same constraint as Phase 23's agent
+work — verified everything that doesn't require one directly:
+
+- `install.ps1`, `snapshot-loop.ps1`, `watch-loop.ps1`, `common.ps1` all
+  still parse with zero syntax errors via
+  `[System.Management.Automation.Language.Parser]::ParseFile`, under a
+  real PowerShell 7 (not just reviewed).
+- The exact code block that builds `mediamtx.yml` was extracted verbatim
+  from `install.ps1` and actually run under PowerShell 7 against
+  realistic values (a two-segment RTMP path, a `Program Files` ffmpeg path
+  with a space in it) — not retyped or approximated. The output was then
+  validated with a real YAML parser (Python's `PyYAML`), confirming it's
+  valid YAML and that decoding it recovers the exact intended shell
+  command, byte for byte.
+- MediaMTX's actual `mediamtx.yml` reference config (pulled from its
+  GitHub repo at the pinned version) was checked directly for the
+  `runOnAvailable`/`runOnAvailableRestart` hook names and the `true`/`false`
+  boolean spelling, rather than assumed — this is what caught the
+  `runOnReady` mistake above before it shipped.
+- The MediaMTX Windows release asset URL
+  (`mediamtx_v<version>_windows_amd64.zip`) was confirmed to actually
+  exist at the pinned version via a live HTTP HEAD request (302 redirect
+  to the real asset), not assumed from the naming pattern alone.
+- `install.ps1`'s Windows-only surface (`winget`, `Register-ScheduledTask`,
+  actually running `mediamtx.exe`) has no Linux equivalent to execute, so
+  that part is reviewed but not run — same caveat Phase 23 already
+  carries, worth a real dry run on the affected server before wider
+  rollout.
+
 ## Getting started
 
 ```bash
