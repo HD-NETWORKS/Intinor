@@ -135,18 +135,49 @@ if ($localRelayEnabled -and -not $rtmpParsed) {
 
 $localRelayForwardUrl = ""
 if ($localRelayEnabled) {
-    Write-Host "  MediaMTX will listen on port $($rtmpParsed.Port) — the same port OBS already publishes to." -ForegroundColor Cyan
-    Write-Host "  Move your ingest target (e.g. Zixi Feeder) off that port first, in its own settings, then give its new address below." -ForegroundColor Cyan
-    do {
-        $defaultForward = if ($existing.localRelayForwardUrl) { $existing.localRelayForwardUrl } else { "" }
-        $localRelayForwardUrl = Read-WithDefault `
-            "RTMP URL of the actual ingest target once moved off port $($rtmpParsed.Port) (e.g. rtmp://localhost:1936/$($rtmpParsed.Path))" `
-            $defaultForward
-        $forwardValid = $localRelayForwardUrl -match "^rtmp://"
-        if (-not $forwardValid) {
-            Write-Host "  Must start with rtmp://. Try again." -ForegroundColor Yellow
-        }
-    } while (-not $forwardValid)
+    # Two ways to make room for MediaMTX on the shared port: move the
+    # ingest appliance off it (needs access to that appliance's own
+    # settings — not always wanted, e.g. a vendor box like Zixi Feeder
+    # nobody wants to touch), or move OBS instead (one field, in software
+    # this operator already controls). Default to the OBS-side move since
+    # it's the lower-risk change in the more common case.
+    $moveObsRaw = Read-WithDefault `
+        "Reconfigure OBS to publish to a new local port instead of touching the ingest target's own settings at all? (Y/n)" `
+        "y"
+    $moveObs = -not ($moveObsRaw -match "^[Nn]")
+
+    if ($moveObs) {
+        # The ingest target's address is completely unchanged — it never
+        # finds out MediaMTX exists.
+        $localRelayForwardUrl = $rtmpUrl
+        $originalPort = $rtmpParsed.Port
+        do {
+            $newPortRaw = Read-WithDefault `
+                "New port for OBS to publish to (MediaMTX claims this one; update OBS's Server field to use it — keep the stream key/path the same)" `
+                ($originalPort + 1)
+            $newPort = 0
+            if (-not [int]::TryParse($newPortRaw, [ref]$newPort) -or $newPort -lt 1 -or $newPort -gt 65535 -or $newPort -eq $originalPort) {
+                Write-Host "  Must be a valid port number, different from $originalPort." -ForegroundColor Yellow
+                $newPort = 0
+            }
+        } while ($newPort -eq 0)
+        $rtmpParsed.Port = $newPort
+        $rtmpUrl = "rtmp://127.0.0.1:$newPort/$($rtmpParsed.Path)"
+        Write-Host "  Remember to change OBS's Server field to use port $newPort (leave the stream key as-is) before it will publish successfully." -ForegroundColor Cyan
+    } else {
+        Write-Host "  MediaMTX will listen on port $($rtmpParsed.Port) — the same port OBS already publishes to." -ForegroundColor Cyan
+        Write-Host "  Move your ingest target (e.g. Zixi Feeder) off that port first, in its own settings, then give its new address below." -ForegroundColor Cyan
+        do {
+            $defaultForward = if ($existing.localRelayForwardUrl) { $existing.localRelayForwardUrl } else { "" }
+            $localRelayForwardUrl = Read-WithDefault `
+                "RTMP URL of the actual ingest target once moved off port $($rtmpParsed.Port) (e.g. rtmp://localhost:1936/$($rtmpParsed.Path))" `
+                $defaultForward
+            $forwardValid = $localRelayForwardUrl -match "^rtmp://"
+            if (-not $forwardValid) {
+                Write-Host "  Must start with rtmp://. Try again." -ForegroundColor Yellow
+            }
+        } while (-not $forwardValid)
+    }
 }
 
 # --- Dashboard --------------------------------------------------------------
