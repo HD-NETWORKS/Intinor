@@ -154,7 +154,12 @@ if ($relayBaseUrl) {
 # --- ffmpeg -------------------------------------------------------------------
 if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
     Write-Host "ffmpeg not found on PATH — installing via winget (Gyan.FFmpeg)..."
-    winget install --id Gyan.FFmpeg -e --source winget --accept-package-agreements --accept-source-agreements
+    # --scope machine: winget defaults to per-user installs, which only land
+    # on *your* PATH. The scheduled task below runs as SYSTEM, which never
+    # sees a per-user PATH entry — machine scope at least gives future runs
+    # a fighting chance, though the real fix is resolving the full path below
+    # and never relying on PATH lookup again.
+    winget install --id Gyan.FFmpeg -e --scope machine --source winget --accept-package-agreements --accept-source-agreements
     # winget updates PATH in new sessions; refresh this one from the machine
     # environment variable so the rest of this run can find it too.
     $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
@@ -162,6 +167,16 @@ if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
         Write-Warning "ffmpeg still isn't on PATH after install — you may need to close and reopen this PowerShell window, then re-run this script."
     }
 }
+
+# Resolve the full path now and bake it into config.json rather than trusting
+# "ffmpeg" to resolve on PATH at run time — the scheduled task below runs as
+# SYSTEM, a different account whose PATH doesn't include whatever winget just
+# added to *this* session's/user's PATH. Without this, the agent looks
+# installed and this script looks successful, but the scheduled task fails
+# every single run with "the system cannot find the file specified" the
+# moment it actually fires as SYSTEM.
+$ffmpegCmd = Get-Command ffmpeg -ErrorAction SilentlyContinue
+$ffmpegPath = if ($ffmpegCmd) { $ffmpegCmd.Source } else { "ffmpeg" }
 
 # --- Write config ---------------------------------------------------------
 $config = [ordered]@{
@@ -173,6 +188,7 @@ $config = [ordered]@{
     intervalSeconds   = $intervalSeconds
     relayBaseUrl      = $relayBaseUrl
     relayIngestToken  = $relayIngestToken
+    ffmpegPath        = $ffmpegPath
 }
 $config | ConvertTo-Json | Set-Content -Path $ConfigPath -Encoding utf8
 

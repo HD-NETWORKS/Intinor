@@ -35,7 +35,12 @@ function Invoke-SnapshotOnce {
         $frame
     )
 
-    $proc = Start-Process -FilePath "ffmpeg" -ArgumentList $ffmpegArgs `
+    # Full path, not the bare "ffmpeg" name: this runs as SYSTEM (via the
+    # scheduled task), which doesn't see a per-user PATH entry winget may
+    # have added. Falls back to PATH lookup only for a config.json written
+    # before install.ps1 started recording ffmpegPath.
+    $ffmpegExe = if ($Config.ffmpegPath) { $Config.ffmpegPath } else { "ffmpeg" }
+    $proc = Start-Process -FilePath $ffmpegExe -ArgumentList $ffmpegArgs `
         -NoNewWindow -PassThru -RedirectStandardError (Join-Path $TempDir "ffmpeg-zixi-stderr.log")
     if (-not $proc.WaitForExit(15000)) {
         try { $proc.Kill() } catch {}
