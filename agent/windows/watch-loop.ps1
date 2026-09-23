@@ -1,4 +1,4 @@
-<#
+﻿<#
     Runs forever alongside snapshot-loop.ps1, on its own scheduled task:
     polls the preview relay's "is anyone watching this stream?" endpoint,
     and starts/stops a low-bitrate (~600kbps) ffmpeg encode of the same

@@ -1,4 +1,4 @@
-<#
+﻿<#
     Runs forever: grabs one frame from the local RTMP feed via ffmpeg, POSTs it
     to the dashboard's Zixi snapshot endpoint, waits, repeats. Started by the
     "HDNetworksZixiSnapshotAgent" scheduled task that install.ps1 registers —
