@@ -1,4 +1,4 @@
-<#
+﻿<#
     .SYNOPSIS
     Installs (or reconfigures) the HD Networks Zixi snapshot agent on a
     Windows server that streams RTMP into Zixi.
