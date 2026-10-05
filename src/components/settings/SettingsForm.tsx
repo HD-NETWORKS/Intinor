@@ -89,9 +89,14 @@ export function SettingsForm<T extends object>({
 
       <PermissionBanner mutable={mutable} />
 
-      {sections.map((section) => (
+      {sections.map((section, sectionIndex) => (
         <section
-          key={section.title}
+          // Position, not section.title: a rule/destination's title embeds
+          // its own live description ("Access rule 1 — foo"), so keying on
+          // it meant every keystroke changed the key, which made React tear
+          // down and remount the whole section — including the input being
+          // typed into, dropping focus after each character.
+          key={sectionIndex}
           className={
             compact
               ? "space-y-3"
