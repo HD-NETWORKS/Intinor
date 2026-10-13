@@ -35,7 +35,9 @@ import type {
   VideoMixerStatus,
 } from "../types";
 
-const UNIT_BASE = `/api/v1/units/${process.env.INTINOR_UNIT_ID || "D01393"}`;
+// Exported so resolve.ts can build the same href shape for a mock-created
+// user (one that has no seeded mockUsersList entry to borrow one from).
+export const UNIT_BASE = `/api/v1/units/${process.env.INTINOR_UNIT_ID || "D01393"}`;
 
 // ---------------------------------------------------------------------------
 // System
@@ -107,11 +109,15 @@ export const mockSystem: SystemInformation = {
 };
 
 // ---------------------------------------------------------------------------
-// Local users — read-only visibility only (see Phase 14 README note); two
-// example accounts so the page has something to show.
+// Local users — full CRUD (see Phase 28 README note; supersedes Phase 14's
+// original read-only-by-design call). Two seeded example accounts so the
+// page has something to show; resolve.ts layers create/update/delete mock
+// state on top of these two base records.
 // ---------------------------------------------------------------------------
 
-const USER_ROLE_OPTIONS: DescriptionDocumentationValue[] = [
+// Exported so resolve.ts can build _constraints for a mock-created user (one
+// that has no seeded base object to borrow them from).
+export const USER_ROLE_OPTIONS: DescriptionDocumentationValue[] = [
   { value: "administrator", description: "Administrator", documentation: "Full access to every resource." },
   { value: "user", description: "User", documentation: "Can operate but not reconfigure system-level settings." },
 ];
@@ -128,7 +134,7 @@ const VIDEO_ROLE_OPTIONS: DescriptionDocumentationValue[] = [
   { value: "video_administrator", description: "Video administrator", documentation: "Full control, including access control lists." },
 ];
 
-const USER_PERMISSION_CONSTRAINTS: UserSettingsConstraints["permissions"] = [
+export const USER_PERMISSION_CONSTRAINTS: UserSettingsConstraints["permissions"] = [
   { resource: "media_bank", role: CATEGORY_ROLE_OPTIONS, description: "Media bank" },
   { resource: "recording", role: CATEGORY_ROLE_OPTIONS, description: "Recording" },
   { resource: "test_picture", role: CATEGORY_ROLE_OPTIONS, description: "Test picture" },

@@ -35,7 +35,9 @@ import type {
   SystemStatus,
   TestPictureSettingsRequest,
   TestPictureSettingsResponse,
+  UserCreateRequest,
   UserList,
+  UserSettingsRequest,
   UserSettingsResponse,
   ValidationError,
   VideoInput,
@@ -120,6 +122,7 @@ export function createIntinorClient(base: string = UNIT_PROXY_BASE) {
     request<T>(path, { method: "PUT", body });
   const post = <T>(path: string, body?: unknown): Promise<T> =>
     request<T>(path, { method: "POST", body });
+  const del = <T>(path: string): Promise<T> => request<T>(path, { method: "DELETE" });
 
   /** Raw binary PUT (image upload) — bypasses the JSON body/Content-Type of `request`. */
   async function putBinary(path: string, body: Blob): Promise<void> {
@@ -284,10 +287,14 @@ export function createIntinorClient(base: string = UNIT_PROXY_BASE) {
     /** Raw XML backup — safe (GET), unlike restoring one, which stays permanently blocked. */
     getSystemConfigBackup: () => getText("system/config"),
 
-    // -- local users (read-only visibility; see the Phase 14 README note) --
+    // -- local users (full CRUD — see the Phase 28 README note) -----------
     getUsers: () => get<UserList>("users"),
     getUserSettings: (username: string) =>
       get<UserSettingsResponse>(`users/${encodeURIComponent(username)}/settings${CONSTRAINTS}`),
+    putUserSettings: (username: string, body: UserSettingsRequest) =>
+      put<UserSettingsResponse>(`users/${encodeURIComponent(username)}/settings`, body),
+    createUser: (body: UserCreateRequest) => post<UserSettingsResponse>("users", body),
+    deleteUser: (username: string) => del<StmError>(`users/${encodeURIComponent(username)}`),
   };
 }
 
