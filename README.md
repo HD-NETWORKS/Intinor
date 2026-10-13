@@ -1849,6 +1849,103 @@ option:
 - `npm run lint`, `npx tsc --noEmit` pass (this change is Windows-agent-only,
   no TypeScript touched, confirmed clean regardless).
 
+## Phase 28 — Local user management: full CRUD (supersedes Phase 14)
+
+Phase 14 made `/users` deliberately read-only, after asking the user
+directly: "security-sensitive, rarely-touched account/permission management
+is exactly the kind of thing that should stay on the vendor's own console."
+Asked again this phase, with a different answer — full CRUD, including
+passwords. Both calls were made the same way: ask, then build exactly what
+was asked for, not what seemed safer by default.
+
+The real API already supported it (`docs/01-intinor-api-reference.md`:
+`POST /users` create, `GET/DELETE /users/{username}`, `GET/PUT
+/users/{username}/settings`) — Phase 14 chose not to expose it, this phase
+does, using the exact same GET→modify→PUT, `_constraints.mutable`-gated,
+confirm-diff machinery every other settings resource already uses
+(`useSettingsEditor`/`SettingsForm`), so this isn't a new write path, just a
+new resource plugged into the existing one.
+
+- **Edit** (role, password, per-resource permission overrides): each user
+  gets its own `SettingsForm` instance. Permission overrides are a real
+  resizable array (`permissions[]`, same `addArrayItem`/`removeArrayItem`
+  pattern as access rules/destinations) rather than individually-tracked
+  fields — a "Grant access to…" picker (only not-yet-overridden resources)
+  adds one, each override gets its own "Access level" dropdown + Remove
+  button. Password is a normal `kind: "password"` field: blank means
+  unchanged, exactly like every SRT/RTMP passphrase field already in this
+  app — the unit never echoes a real password back on GET, so an untouched
+  field round-trips as empty on every save, never overwriting a real one.
+- **Create**: a small standalone form (username, role, password) — not part
+  of the GET-modify-PUT diff cycle, so it's its own direct `POST /users`
+  call, not deferred behind a "Review & save."
+- **Delete**: type-the-username-to-confirm, not a plain "Remove" button.
+  Deleting an account is immediate and irreversible the moment you click
+  confirm (unlike removing an access-control rule, which only takes effect
+  once you save the whole form) — closer in kind to the Danger Zone's own
+  actions than to a deferred array-item removal, so it gets the matching
+  level of friction.
+- Gated by the same `INTINOR_ALLOW_WRITES=1` every other settings write
+  already requires — no new env var. `system/actions/*` (reboot, firmware…)
+  stay on their own separate, higher-stakes
+  `INTINOR_ALLOW_DESTRUCTIVE_ACTIONS` switch; user management was never part
+  of that set (it doesn't touch the live broadcast), so it was never
+  blocked there to begin with.
+- **Mock**: `users` is the one resource (besides sessions/profiles) whose
+  *set* of valid paths genuinely changes at runtime — create/delete change
+  which usernames exist, something the existing static `GET_ROUTES` lookup
+  table can't represent (it's built once, at module load). Added generic
+  `addListId`/`removeListId` membership tracking to `mock/state.ts` (not
+  users-specific, matching that module's existing "caller supplies the key"
+  style) and dynamic path-matching in `resolveMock` ahead of the static
+  table, the same way thumbnails and the custom-background upload already
+  get special-cased there.
+
+### A real bug caught during verification, not just review
+
+`SettingsForm`'s `variant="card"` mode made every section's own header
+`sr-only` (screen-reader-only) — including any `headerExtra` content like a
+Remove button. For the one existing `card` consumer
+(`MixerOutputSettings`) this was invisible: it has exactly one section with
+no `headerExtra`, so hiding a redundant sub-heading was harmless. This
+page's `card`-mode forms have several meaningfully distinct sections (one
+per permission override) each with its own Remove button — and every one
+of them silently vanished. The component's own doc comment only ever
+promised dropping "the page heading + sticky save bar," never per-section
+headers — so this was a latent bug in the original implementation, not a
+deliberate behavior this page's design conflicted with. Fixed by making
+section headers always visible regardless of `variant`, confirmed via
+screenshot that it hadn't broken: the resulting `MixerOutputSettings` just
+grew a minor, harmless redundant sub-heading ("Output settings" → "Output
+format"), nothing clipped or misaligned.
+
+### Verified
+
+Browser-driven end-to-end against `MOCK=1` (real Chromium, real dev
+server) — not just `npm run build` succeeding:
+
+- **The `variant="card"` bug above** was caught by actually looking at a
+  screenshot of the new page, not by reading the diff: the first render had
+  every permission override's title and Remove button, and the "Grant
+  access to…" picker, completely missing — confirmed by inspecting the
+  rendered screenshot, not assumed from the code.
+- **Full CRUD cycle, scripted**: created a user via "+ Add user", changed
+  its role and added a permission override, saved through the real confirm
+  dialog (verified the diff showed `permissions: 0 item(s) → 1 item(s)`),
+  confirmed "Saved." and the change surviving a reload, then deleted the
+  same user via the type-to-confirm control and confirmed it no longer
+  renders — all against the mock backend's actual persistence layer, not a
+  mocked API client.
+- Confirmed `admin`/`operator` (the two seeded accounts) were untouched by
+  the whole create → edit → delete cycle on the third account.
+- Confirmed the password-blank-means-unchanged behavior by tracing
+  `diffSettings`/`buildPutBody`: an untouched password field never enters
+  `changes` (empty-string treated as equal to itself), so it's never part
+  of the fields `buildPutBody` overlays onto the fresh re-GET — exactly the
+  same mechanism already relied on for every SRT/RTMP passphrase field in
+  this app, not a new risk.
+- `npm run lint`, `npx tsc --noEmit`, `npm test`, `npm run build` all pass.
+
 ## Getting started
 
 ```bash

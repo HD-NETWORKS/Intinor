@@ -1293,13 +1293,13 @@ export interface TestPicture {
 }
 
 // ---------------------------------------------------------------------------
-// Local users — read-only constraints/response wrapper (see `User`/
-// `UserSettings`/`UserList` above for the base shapes, already scaffolded in
-// Phase 0). This dashboard only ever GETs these: `POST /users` (create) and
-// `PUT/DELETE` exist on the real API, but the unit's own accounts, roles,
-// and permissions stay managed on its stock IDM console — a separate,
-// dashboard-only login (Phase 5) gates this app instead. See the Phase 14
-// README section for the reasoning.
+// Local users (see `User`/`UserSettings`/`UserList` above for the base
+// shapes, already scaffolded in Phase 0). Phase 14 originally made this
+// dashboard read-only here by design; Phase 28 adds full CRUD — create
+// (`POST /users`), edit (`PUT /users/{username}/settings`, gated by
+// `_constraints.mutable` same as every other settings resource), and delete
+// (`DELETE /users/{username}`), on top of the dashboard's own separate login
+// (Phase 5). See the Phase 28 README section for the reasoning.
 // ---------------------------------------------------------------------------
 
 export interface UserSettingsConstraints {
@@ -1315,6 +1315,19 @@ export interface UserSettingsConstraints {
 
 export type UserSettingsResponse = UserSettings &
   ResponseMetadata & { _constraints?: UserSettingsConstraints };
+
+export type UserSettingsRequest = UserSettings & RequestMetadata;
+
+/** `POST /users` body — the unit's own `user_request` schema: `{settings: {...}}`. */
+export interface UserCreateRequest {
+  settings: {
+    username: string;
+    role: string;
+    /** Required in practice (an account needs a password), optional in the schema. */
+    password?: string;
+    permissions?: Array<{ role?: string; resource: string }>;
+  };
+}
 
 // ---------------------------------------------------------------------------
 // API root

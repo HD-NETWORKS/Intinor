@@ -103,7 +103,12 @@ export function SettingsForm<T extends object>({
               : "space-y-3 rounded border border-border-default bg-panel p-4"
           }
         >
-          <div className={"flex items-start justify-between gap-3" + (compact ? " sr-only" : "")}>
+          {/* Only the page-level heading/sticky-bar are "compact" per this
+              component's doc comment — a section's own title/headerExtra
+              (e.g. a per-item Remove button) stays visible regardless, so a
+              compact form with more than one section, or any headerExtra
+              content, doesn't silently lose it. */}
+          <div className="flex items-start justify-between gap-3">
             <div>
               <h2 className="font-medium text-body">{section.title}</h2>
               {section.description && (

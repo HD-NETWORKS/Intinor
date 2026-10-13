@@ -27,7 +27,9 @@ import {
   mockTestPictureSettings,
   mockUserSettingsAdmin,
   mockUserSettingsOperator,
-  mockUsersList,
+  UNIT_BASE,
+  USER_PERMISSION_CONSTRAINTS,
+  USER_ROLE_OPTIONS,
   mockNetworkInput,
   mockNetworkInputsList,
   mockNetworkInputSettings,
@@ -45,7 +47,16 @@ import {
   mockVideoMixerStatus,
 } from "./data";
 import { clamp, currentTick, jitteredValue, seededFraction } from "./jitter";
-import { currentWithOverride, getBinaryOverride, putBinaryOverride, putOverride } from "./state";
+import {
+  addedListIds,
+  addListId,
+  currentWithOverride,
+  getBinaryOverride,
+  isRemoved,
+  putBinaryOverride,
+  putOverride,
+  removeListId,
+} from "./state";
 import { withMockPermissions } from "./permissions";
 import {
   faultEncoderStatus,
@@ -79,6 +90,9 @@ import type {
   EncodingSettingsResponse,
   NetworkInputSettingsResponse,
   TestPictureSettingsResponse,
+  UserList,
+  UserSettings,
+  UserSettingsResponse,
   VideoInputSettingsResponse,
   VideoMixerLayerSettings,
   VideoMixerSettingsResponse,
@@ -148,6 +162,71 @@ function putTestPictureSettings(body: unknown, unitId?: string): void {
 
 function customBackgroundKey(unitId?: string): string {
   return `${unitId ?? defaultUnitId()}/test_picture_custom_background`;
+}
+
+// ---------------------------------------------------------------------------
+// Local users — the one resource (besides sessions/profiles) whose *set* of
+// valid paths actually changes via POST/DELETE, which the static GET_ROUTES
+// table can't represent. "users" is used as the addListId/removeListId
+// `listKey`: usernames created/deleted via mock POST/DELETE, layered on top
+// of the two seeded built-ins (mock/data.ts).
+// ---------------------------------------------------------------------------
+
+const BUILTIN_USERNAMES = ["admin", "operator"];
+
+function usersListKey(unitId?: string): string {
+  return `${unitId ?? defaultUnitId()}/users`;
+}
+
+function userSettingsKey(username: string, unitId?: string): string {
+  return `${unitId ?? defaultUnitId()}/users/${username}`;
+}
+
+function builtinUserSettings(username: string): UserSettingsResponse | undefined {
+  if (username === "admin") return mockUserSettingsAdmin;
+  if (username === "operator") return mockUserSettingsOperator;
+  return undefined;
+}
+
+function currentUsersList(unitId?: string): UserList {
+  const key = usersListKey(unitId);
+  const usernames = [
+    ...BUILTIN_USERNAMES.filter((u) => !isRemoved(key, u)),
+    ...addedListIds(key),
+  ];
+  return {
+    users: usernames.map((username) => ({ username, href: `${UNIT_BASE}/users/${username}` })),
+  };
+}
+
+/**
+ * A user's current settings — built-in base (or a from-scratch record for a
+ * mock-created user) plus any PUT override, or `undefined` if the username
+ * doesn't exist/was deleted. Never echoes a real password back, matching
+ * every other password field in this app (write-only, never rendered) and,
+ * presumably, the real unit — the field reads blank on every GET regardless
+ * of what was last PUT/POSTed.
+ */
+function currentUserSettings(username: string, unitId?: string): UserSettingsResponse | undefined {
+  const key = usersListKey(unitId);
+  if (isRemoved(key, username)) return undefined;
+  const builtin = builtinUserSettings(username);
+  const created = addedListIds(key).includes(username);
+  if (!builtin && !created) return undefined;
+
+  const fallback: UserSettingsResponse = builtin ?? {
+    username,
+    role: "user",
+    permissions: [],
+    _version: "mock-1",
+    _constraints: {
+      mutable: ["*"],
+      role: USER_ROLE_OPTIONS,
+      permissions: USER_PERMISSION_CONSTRAINTS,
+    },
+  };
+  const current = currentWithOverride(userSettingsKey(username, unitId), fallback);
+  return { ...current, password: "" };
 }
 
 export interface MockResponse {
@@ -330,9 +409,9 @@ const GET_ROUTES: Record<string, () => unknown> = {
   "encoding/settings": () => withMockPermissions(currentEncodingSettings(), "encoding"),
   test_picture: () => ({ settings: withMockPermissions(currentTestPictureSettings(), "test_picture") }),
   "test_picture/settings": () => withMockPermissions(currentTestPictureSettings(), "test_picture"),
-  users: () => mockUsersList,
-  "users/admin/settings": () => mockUserSettingsAdmin,
-  "users/operator/settings": () => mockUserSettingsOperator,
+  // "users" and "users/{username}/settings" are handled dynamically in
+  // resolveMock (create/delete change the actual set of valid paths, which a
+  // static table can't represent) — not listed here.
   multiviews: () => ({ multiviews: [] }),
   video_inputs: () => mockVideoInputsList,
   "video_inputs/0": () => ({
@@ -384,9 +463,8 @@ function bigGetRoutes(unitId: string): Record<string, () => unknown> {
     }),
     "test_picture/settings": () =>
       withMockPermissions(currentTestPictureSettings(unitId), "test_picture"),
-    users: () => mockUsersList,
-    "users/admin/settings": () => mockUserSettingsAdmin,
-    "users/operator/settings": () => mockUserSettingsOperator,
+    // See the primary-unit GET_ROUTES comment above — users are dynamic,
+    // handled in resolveMock, not listed here.
     multiviews: () => ({ multiviews: [] }),
     video_outputs: () => ({ video_outputs: [] }),
     profiles: () => ({ profiles: [] }),
@@ -602,6 +680,20 @@ export function resolveMock(
     if (path === "system/config") {
       return { status: 200, body: mockSystemConfigXml, contentType: "application/xml" };
     }
+    if (path === "users") {
+      return { status: 200, body: currentUsersList(unitId) };
+    }
+    const userSettingsGet = path.match(/^users\/([^/]+)\/settings$/);
+    if (userSettingsGet) {
+      const settings = currentUserSettings(decodeURIComponent(userSettingsGet[1]), unitId);
+      if (!settings) {
+        return {
+          status: 404,
+          body: { title: "Not found", status: 404, message: `No such user: ${userSettingsGet[1]}` },
+        };
+      }
+      return { status: 200, body: settings };
+    }
     const routes = isBigUnit(unitId) ? bigGetRoutes(unitId!) : GET_ROUTES;
     const route = routes[path];
     if (route) {
@@ -642,6 +734,18 @@ export function resolveMock(
       putTestPictureSettings(requestBody, unitId);
       return { status: 200, body: currentTestPictureSettings(unitId) };
     }
+    const userSettingsPut = path.match(/^users\/([^/]+)\/settings$/);
+    if (userSettingsPut) {
+      const username = decodeURIComponent(userSettingsPut[1]);
+      if (!currentUserSettings(username, unitId)) {
+        return {
+          status: 404,
+          body: { title: "Not found", status: 404, message: `No such user: ${username}` },
+        };
+      }
+      putOverride(userSettingsKey(username, unitId), requestBody);
+      return { status: 200, body: currentUserSettings(username, unitId) };
+    }
     if (path === "test_picture/custom_background") {
       // Binary upload — requestBody is an ArrayBuffer here (see proxy-handler.ts's
       // isBinaryBody branch), not JSON, so it bypasses putSettings/putOverride.
@@ -653,12 +757,52 @@ export function resolveMock(
     return { status: 200, body: requestBody ?? {} };
   }
   if (method === "POST") {
+    if (path === "users") {
+      const settings = (requestBody as { settings?: Partial<UserSettings> } | undefined)?.settings;
+      const username = settings?.username;
+      if (!username) {
+        return {
+          status: 400,
+          body: { title: "Bad request", status: 400, message: "settings.username is required" },
+        };
+      }
+      if (currentUserSettings(username, unitId)) {
+        return {
+          status: 409,
+          body: { title: "Conflict", status: 409, message: `User '${username}' already exists` },
+        };
+      }
+      const key = usersListKey(unitId);
+      addListId(key, username);
+      putOverride(userSettingsKey(username, unitId), {
+        username,
+        role: settings.role ?? "user",
+        permissions: settings.permissions ?? [],
+        _version: "mock-1",
+      });
+      return { status: 200, body: currentUserSettings(username, unitId) };
+    }
     return {
       status: 200,
       body: { title: "OK", status: 200, message: `Mock: accepted POST /${path}` },
     };
   }
   if (method === "DELETE") {
+    const userDelete = path.match(/^users\/([^/]+)$/);
+    if (userDelete) {
+      const username = decodeURIComponent(userDelete[1]);
+      if (!currentUserSettings(username, unitId)) {
+        return {
+          status: 404,
+          body: { title: "Not found", status: 404, message: `No such user: ${username}` },
+        };
+      }
+      removeListId(usersListKey(unitId), username);
+      return {
+        status: 200,
+        body: { title: "OK", status: 200, message: `Mock: deleted user ${username}` },
+      };
+    }
     return {
       status: 200,
       body: { title: "OK", status: 200, message: `Mock: accepted DELETE /${path}` },

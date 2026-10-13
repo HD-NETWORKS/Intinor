@@ -61,8 +61,44 @@ export function getBinaryOverride(key: string): { bytes: ArrayBuffer; contentTyp
   return binaryOverrides.get(key);
 }
 
+/**
+ * Membership tracking for a mock list resource whose *set* of items can
+ * change (unlike encoders/inputs/mixers, which are fixed-count — see the
+ * module doc above). `listKey` is caller-defined (e.g. "users"); `id` is
+ * whatever identifies an item (e.g. a username). Two maps rather than one
+ * "current membership" set because a built-in item (seeded in mock/data.ts,
+ * never "added") still needs to be removable.
+ */
+const addedIds = new Map<string, Set<string>>();
+const removedIds = new Map<string, Set<string>>();
+
+export function addListId(listKey: string, id: string): void {
+  if (!addedIds.has(listKey)) addedIds.set(listKey, new Set());
+  addedIds.get(listKey)!.add(id);
+  removedIds.get(listKey)?.delete(id);
+}
+
+export function removeListId(listKey: string, id: string): void {
+  if (!removedIds.has(listKey)) removedIds.set(listKey, new Set());
+  removedIds.get(listKey)!.add(id);
+  // Forget it entirely if it was only ever mock-created (never a seeded
+  // built-in) — deleting-then-recreating the same id should behave like
+  // creating it fresh, not like un-deleting.
+  addedIds.get(listKey)?.delete(id);
+}
+
+export function addedListIds(listKey: string): string[] {
+  return Array.from(addedIds.get(listKey) ?? []);
+}
+
+export function isRemoved(listKey: string, id: string): boolean {
+  return removedIds.get(listKey)?.has(id) ?? false;
+}
+
 /** Test/reset hook. */
 export function resetMockState(): void {
   overrides.clear();
   binaryOverrides.clear();
+  addedIds.clear();
+  removedIds.clear();
 }

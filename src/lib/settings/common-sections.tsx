@@ -14,7 +14,7 @@ import type {
 } from "@/lib/intinor/types";
 import type { FieldSection, SelectOption } from "./fields";
 
-function RemoveButton({ onClick }: { onClick: () => void }) {
+export function RemoveButton({ onClick }: { onClick: () => void }) {
   return (
     <button
       type="button"
