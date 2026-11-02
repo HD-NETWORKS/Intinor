@@ -66,6 +66,10 @@ function smpte20227Sections(
   if (!smpte) return [];
   const protocolOptions = optionsFromDescribed(c?.protocol);
   const ifaceOptions = optionsFromDescribed(c?.network_interface);
+  // Older firmware has no `sources[]` at all (a fixed `port` + `srt_caller[]`
+  // instead, see the NetworkSourcesSmpte20227 doc comment) — the generic
+  // resizable-legs editor below only applies once the unit actually has it.
+  const hasSourcesArray = Array.isArray(smpte.sources);
   const sourceCount = smpte.sources?.length ?? 0;
 
   return [
@@ -84,14 +88,30 @@ function smpte20227Sections(
           min: c?.skew?.min,
           max: c?.skew?.max,
         },
+        // Older firmware's fixed second leg — no `sources[]` to pick a port per-leg from.
+        ...(!hasSourcesArray && smpte.port != null
+          ? [
+              {
+                path: "network_sources.smpte_2022_7.port",
+                label: "Port",
+                kind: "number" as const,
+                min: 1,
+                max: 65535,
+              },
+            ]
+          : []),
       ],
     },
-    arrayHeaderSection(`SMPTE 2022-7 sources (${sourceCount})`, () =>
-      helpers.addArrayItem(
-        "network_sources.smpte_2022_7.sources",
-        newSmpte20227Source(protocolOptions[0]?.value ?? "udp_unicast"),
-      ),
-    ),
+    ...(hasSourcesArray
+      ? [
+          arrayHeaderSection(`SMPTE 2022-7 sources (${sourceCount})`, () =>
+            helpers.addArrayItem(
+              "network_sources.smpte_2022_7.sources",
+              newSmpte20227Source(protocolOptions[0]?.value ?? "udp_unicast"),
+            ),
+          ),
+        ]
+      : []),
     ...(smpte.sources ?? []).map((src, i) => ({
       title: `Source ${i + 1}${src.description ? ` (${src.description})` : ""}`,
       headerExtra: (

@@ -774,15 +774,24 @@ export interface NetworkSourcesSmpte20227Source {
 
 /**
  * SMPTE 2022-7 seamless protection switching: two independent network paths
- * (`sources[]`, usually length 2) carrying the same feed, reconciled by
- * `skew` (max timing difference tolerated between the two legs). Not on
- * every unit/firmware, same convention as every other optional
- * `network_sources` member below.
+ * carrying the same feed, reconciled by `skew` (max timing difference
+ * tolerated between the two legs). Not on every unit/firmware, same
+ * convention as every other optional `network_sources` member below.
+ *
+ * The shape of the two legs themselves has changed across firmware: newer
+ * firmware generalizes them into a resizable `sources[]` array (protocol
+ * picked per leg); older firmware (confirmed live on a 4.21.0 unit) instead
+ * has a fixed `port` (the second UDP leg) plus an `srt_caller[]` list for
+ * SRT legs. `srt_caller`'s entry shape is untyped — every live example of
+ * it is an empty array, so there's no real data to confirm field names
+ * against; it still round-trips unmodified on PUT via the `unknown` type.
  */
 export interface NetworkSourcesSmpte20227 {
   active: boolean;
   skew?: number;
-  sources: NetworkSourcesSmpte20227Source[];
+  sources?: NetworkSourcesSmpte20227Source[];
+  port?: number;
+  srt_caller?: unknown[];
 }
 
 export interface NetworkSourcesSettings {
