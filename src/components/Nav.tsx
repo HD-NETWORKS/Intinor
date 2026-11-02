@@ -15,7 +15,6 @@ const ITEMS = [
   { href: "/encoders", label: "Encoders" },
   { href: "/encoding-modes", label: "Encoding modes" },
   { href: "/test-picture", label: "Test picture" },
-  { href: "/zixi", label: "Zixi feeds" },
   { href: "/users", label: "Local users" },
   { href: "/system", label: "System" },
 ];

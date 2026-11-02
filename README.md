@@ -2015,3 +2015,41 @@ One-time setup:
 Every push to `main` then deploys to production automatically (or trigger
 it manually from the Actions tab — the workflow has `workflow_dispatch`
 too), without ever going through Vercel's GitHub App.
+
+## Phase 29 — Remove Zixi feed monitoring
+
+Phases 23/24/27 built a whole secondary stack alongside the Intinor
+dashboard: snapshot polling (`/zixi`), a standalone low-bitrate preview
+relay (`relay/server.mjs`), a Windows install-script agent
+(`agent/windows/`), its own Supabase table + Storage bucket, and a staleness
+check wired into the cron poll. No longer needed operationally, so it's
+removed outright rather than left dark behind an unset env var.
+
+Removed:
+
+- `/zixi` page, `WatchModal`, and the `/api/zixi-snapshot` routes
+- `lib/zixi/` (staleness rule + Supabase-backed store)
+- `relay/` (the preview-relay service) and `agent/windows/` (the
+  install-script agent, snapshot loop, watch loop, and the MediaMTX relay
+  setup from Phase 27) in full
+- The Zixi nav link, the `pollZixi` half of `/api/cron/poll` (and
+  `zixi_stream_down` from `AlertKind`), the `/api/zixi-snapshot/` carve-out
+  in `proxy.ts`'s public-path list, and `ZIXI_SNAPSHOT_TOKEN` /
+  `NEXT_PUBLIC_ZIXI_RELAY_URL` from `.env.example`
+- `zixi_streams` and the `zixi-snapshots` Storage bucket from
+  `supabase/schema.sql` (a commented manual-cleanup snippet is left in
+  their place for any project that already ran the old script — this repo
+  doesn't track which Supabase projects exist, so it can't drop them itself)
+
+`monitor_samples`/`monitor_alerts` (Phase 4) and the rest of Supabase-backed
+history are untouched — Zixi shared that project but was its own tables.
+
+Phases 23, 24 and 27 are left as written above: a record of what shipped and
+why, not a currently-accurate description of the app.
+
+### Verified
+
+`npm run lint`, `npx tsc --noEmit`, `npm test`, `npm run build` all clean
+with zero Zixi references left in `src/`. Browser-checked in `MOCK=1`: the
+nav no longer lists "Zixi feeds", and `/zixi` 404s via the normal
+not-found page rather than erroring.

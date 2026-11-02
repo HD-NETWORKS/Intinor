@@ -18,8 +18,7 @@ export type AlertKind =
   | "stream_down"
   | "firmware_update"
   | "storage_full"
-  | "link_loss"
-  | "zixi_stream_down";
+  | "link_loss";
 export type AlertSeverity = "warning" | "error";
 
 export interface DetectedAlert {

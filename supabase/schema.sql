@@ -84,28 +84,11 @@ alter table monitor_alerts  enable row level security;
 --                              and closed_at < now() - interval '90 days';
 
 -- ---------------------------------------------------------------------------
--- Phase 23 — Zixi snapshot monitoring.
+-- Phase 23's Zixi snapshot monitoring (zixi_streams table + zixi-snapshots
+-- Storage bucket) was removed in Phase 29 — the feature is gone from the app.
+-- On a project that already ran the old Phase 23 block, clean up manually:
 --
--- One row per stream, upserted on every snapshot push from the install-script
--- agent running on each Zixi-sending server (see /api/zixi-snapshot/[id]).
--- The image itself lives in Storage, not here — this table is just the
--- registry + freshness (last_seen_at is how the dashboard flags a stream that
--- has stopped updating).
+-- drop table if exists zixi_streams;
+-- delete from storage.objects where bucket_id = 'zixi-snapshots';
+-- delete from storage.buckets where id = 'zixi-snapshots';
 -- ---------------------------------------------------------------------------
-
-create table if not exists zixi_streams (
-  stream_id    text primary key,
-  label        text        not null,
-  last_seen_at timestamptz not null default now(),
-  created_at   timestamptz not null default now()
-);
-
-alter table zixi_streams enable row level security;
-
--- Public storage bucket for the latest snapshot per stream (path: "{stream_id}.jpg",
--- overwritten on every push). Public because these are non-sensitive broadcast
--- thumbnails and it lets the dashboard embed them directly without proxying
--- bytes through our own serverless function on every poll.
-insert into storage.buckets (id, name, public)
-values ('zixi-snapshots', 'zixi-snapshots', true)
-on conflict (id) do nothing;
