@@ -210,16 +210,20 @@ export default function RouterPage() {
       <div>
         <h1 className="text-xl font-semibold text-fg">Router panel</h1>
         <p className="text-sm text-faint">
-          Drag a source onto an encoder to reassign it — a visual alternative to the encoder
+          Drag a source onto an encoder to reassign it, a visual alternative to the encoder
           settings page&apos;s source dropdown. Same underlying write (
           <code className="rounded bg-panel-hover px-1">video_source.source</code>), same
-          confirm-before-save flow.
+          confirm-before-save flow.{" "}
+          <span className="text-faint">
+            Dragging needs a mouse. Without one, click a source or encoder tile (or Tab to it
+            and press Enter) to reassign from that dropdown instead.
+          </span>
         </p>
       </div>
 
       {saveBlocked && (
         <div className="rounded border border-brand-500/40 bg-brand-500/10 px-3 py-2 text-xs text-accent">
-          Live unit, read-only mode — dragging is disabled by the proxy.
+          Live unit, read-only mode: dragging is disabled by the proxy.
         </div>
       )}
 

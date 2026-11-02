@@ -8,8 +8,8 @@ export default function SystemPage() {
       <div>
         <h1 className="text-xl font-semibold text-fg">System maintenance</h1>
         <p className="text-sm text-faint">
-          Unit health lives on the overview page. This page is whole-unit maintenance —
-          firmware, backups, and destructive actions — kept on its own screen, away from every
+          Unit health lives on the overview page. This page is whole-unit maintenance
+          (firmware, backups, and destructive actions) kept on its own screen, away from every
           routine control, on purpose.
         </p>
       </div>

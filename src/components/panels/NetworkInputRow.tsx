@@ -31,10 +31,11 @@ export function NetworkInputRow({ index }: { index: number }) {
     : undefined;
 
   return (
-    <div
+    <button
+      type="button"
       onClick={openSettings}
       title="Click to open settings"
-      className="grid cursor-pointer grid-cols-[80px_1fr_1fr_auto] items-center gap-3 p-2.5 hover:bg-panel-hover"
+      className="grid w-full cursor-pointer grid-cols-[80px_1fr_1fr_auto] items-center gap-3 p-2.5 text-left hover:bg-panel-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500"
     >
       <div className="flex h-11 w-20 items-center justify-center overflow-hidden rounded bg-slate-950">
         {thumbUrl ? (
@@ -65,6 +66,6 @@ export function NetworkInputRow({ index }: { index: number }) {
       <div className="text-right text-xs text-body">
         {formatBitrate(status?.network_source.bitrate)}
       </div>
-    </div>
+    </button>
   );
 }

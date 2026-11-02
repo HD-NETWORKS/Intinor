@@ -127,7 +127,7 @@ export function HistoryPanel() {
         <div className="rounded border border-dashed border-border-strong bg-panel p-5 text-sm text-muted">
           <p className="text-body">History storage isn&apos;t configured yet.</p>
           <p className="mt-1 text-faint">
-            {data.message} Until then the dashboard still shows live status — it just
+            {data.message} Until then the dashboard still shows live status; it just
             can&apos;t look backwards.
           </p>
         </div>
@@ -189,7 +189,7 @@ export function HistoryPanel() {
         <p className="text-sm text-faint">Loading history…</p>
       ) : points.length === 0 ? (
         <div className="rounded border border-dashed border-border-strong bg-panel p-5 text-sm text-muted">
-          No samples in this window yet. The monitor writes one row per poll — history
+          No samples in this window yet. The monitor writes one row per poll; history
           appears once the scheduled job has run a few times.
         </div>
       ) : (
@@ -202,7 +202,7 @@ export function HistoryPanel() {
           />
           <TimeSeriesChart title="CPU (%)" series={cpu} format={fmtPct} maxHint={100} />
           <TimeSeriesChart
-            title="Link quality — packet loss (%)"
+            title="Link quality: packet loss (%)"
             series={loss}
             format={fmtLoss}
             emptyMessage="No packet-loss samples yet."
@@ -238,7 +238,7 @@ function RecentAlerts({ alerts }: { alerts: AlertRow[] }) {
               />
               <span className="text-body">{a.message}</span>
               <span className="ml-1 text-faint">
-                — {new Date(a.opened_at).toLocaleString()}
+                at {new Date(a.opened_at).toLocaleString()}
                 {a.closed_at
                   ? `, resolved ${new Date(a.closed_at).toLocaleTimeString()}`
                   : ", ongoing"}

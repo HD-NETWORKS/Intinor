@@ -417,7 +417,7 @@ export default function EncodingModesPage() {
       <div>
         <h1 className="text-xl font-semibold text-fg">Encoding modes</h1>
         <p className="text-xs text-faint">
-          Global encoding defaults, and the unit&apos;s custom encoding mode presets — the
+          Global encoding defaults, and the unit&apos;s custom encoding mode presets, the
           same list encoders pick from in their &quot;Encoding mode&quot; dropdown. Built-in
           modes are fixed by firmware and shown read-only.
         </p>
@@ -492,7 +492,7 @@ export default function EncodingModesPage() {
                 <span className="text-faint">{isOpen ? "▾" : "▸"}</span>
                 <h3 className="font-medium text-body">
                   Custom mode {i + 1}
-                  {mode.description ? ` — ${mode.description}` : ""}
+                  {mode.description ? ` (${mode.description})` : ""}
                 </h3>
               </button>
               <button
@@ -519,7 +519,7 @@ export default function EncodingModesPage() {
           <div className="text-sm">
             {saveBlocked ? (
               <span className="text-accent">
-                Live unit, read-only mode — saving is disabled by the proxy.
+                Live unit, read-only mode: saving is disabled by the proxy.
               </span>
             ) : dirty ? (
               <span className="text-warning">

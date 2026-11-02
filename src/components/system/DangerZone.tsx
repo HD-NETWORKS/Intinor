@@ -37,7 +37,7 @@ const ACTIONS: ActionDef[] = [
     label: "Reboot unit",
     severity: "high",
     description:
-      "Reboots the entire unit. All active streams drop and reconnect once it's back — typically 60–120 seconds.",
+      "Reboots the entire unit. All active streams drop and reconnect once it's back, typically 60–120 seconds.",
   },
   {
     action: "power_cycle",
@@ -50,7 +50,7 @@ const ACTIONS: ActionDef[] = [
     label: "Shut down",
     severity: "critical",
     description:
-      "Powers the unit off. It stays off until someone power-cycles it locally — nothing here can turn it back on remotely.",
+      "Powers the unit off. It stays off until someone power-cycles it locally. Nothing here can turn it back on remotely.",
   },
 ];
 
@@ -81,7 +81,7 @@ export function DangerZone() {
       <div>
         <h2 className="text-sm font-medium font-mono uppercase tracking-wide text-danger">Danger zone</h2>
         <p className="mt-1 text-xs text-faint">
-          Whole-unit maintenance actions — separate from every other control in this dashboard.
+          Whole-unit maintenance actions, separate from every other control in this dashboard.
           Each one requires typing its name to confirm, and none of it is reachable unless{" "}
           <code className="rounded bg-panel-hover px-1">INTINOR_ALLOW_DESTRUCTIVE_ACTIONS=1</code> is
           set on the server, independently of routine write access.
@@ -90,7 +90,7 @@ export function DangerZone() {
 
       {meta && !meta.destructiveActionsAllowed && (
         <div className="rounded border border-border-strong bg-panel px-3 py-2 text-xs text-muted">
-          Disabled by server config — these buttons are shown but will be refused until{" "}
+          Disabled by server config: these buttons are shown but will be refused until{" "}
           <code className="rounded bg-panel-hover px-1">INTINOR_ALLOW_DESTRUCTIVE_ACTIONS=1</code> is
           set.
         </div>
@@ -200,8 +200,11 @@ function ActionCard({ def }: { def: ActionDef }) {
         <div className="mt-3 space-y-2 border-t border-border-default pt-3">
           {isFirmwareUpgrade && (
             <div className="space-y-1">
-              <label className="text-xs text-muted">Version</label>
+              <label htmlFor="firmware-version-select" className="text-xs text-muted">
+                Version
+              </label>
               <select
+                id="firmware-version-select"
                 value={selected}
                 onChange={(e) => setSelected(e.target.value)}
                 className="w-full rounded border border-border-strong bg-page px-2 py-1.5 text-sm text-body"
@@ -209,7 +212,7 @@ function ActionCard({ def }: { def: ActionDef }) {
                 <option value="">Recommended default (unit&apos;s own choice)</option>
                 {firmwares.map((f) => (
                   <option key={`${f.source}:${f.version}`} value={`${f.source}:${f.version}`}>
-                    {f.version} — {f.release ?? f.source}
+                    {f.version} ({f.release ?? f.source})
                     {f.datetime ? ` (${new Date(f.datetime).toLocaleDateString()})` : ""}
                   </option>
                 ))}

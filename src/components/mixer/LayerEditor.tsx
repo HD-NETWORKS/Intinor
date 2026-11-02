@@ -184,7 +184,7 @@ export function LayerEditor({
                             {opt.value && !availableFeeds.has(opt.value) && isFeedSource(opt.value)
                               ? " (offline)"
                               : ""}
-                            {usage && usage.length > 0 ? ` — used by ${usage.join(", ")}` : ""}
+                            {usage && usage.length > 0 ? ` (used by ${usage.join(", ")})` : ""}
                           </option>
                         );
                       })}

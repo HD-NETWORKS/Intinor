@@ -39,7 +39,7 @@ export function SettingsField<T>({
         {!editable && (
           <span
             className="rounded bg-panel-hover px-1 text-[10px] text-muted"
-            title="Read-only for your account — the unit did not grant this field in _constraints.mutable"
+            title="Read-only for your account: the unit did not grant this field in _constraints.mutable"
           >
             🔒 read-only
           </span>

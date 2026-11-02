@@ -53,7 +53,7 @@ export function ModeBanner() {
   const authWarning = meta.authDisabled && !authWarningDismissed ? (
     <div className="flex items-start gap-3 border-b border-signal-red-500/40 bg-signal-red-500/15 px-4 py-1.5 text-sm text-danger sm:px-6">
       <span className="flex-1">
-        <strong>DASHBOARD_AUTH_DISABLED=1</strong> — no login gate. Local dev only; never set this
+        <strong>DASHBOARD_AUTH_DISABLED=1:</strong> no login gate. Local dev only; never set this
         on a deployment reachable from the internet.
       </span>
       <button
@@ -79,7 +79,7 @@ export function ModeBanner() {
       <>
         {authWarning}
         <div className="border-b border-amber-500/40 bg-amber-500/15 px-4 py-1.5 text-sm text-warning sm:px-6">
-          <strong>Mock mode</strong> — showing fake data ({unitLabel}). No requests reach a real
+          <strong>Mock mode:</strong> showing fake data ({unitLabel}). No requests reach a real
           unit.
         </div>
       </>
@@ -91,7 +91,7 @@ export function ModeBanner() {
       <>
         {authWarning}
         <div className="border-b border-signal-red-500/40 bg-signal-red-500/15 px-4 py-1.5 text-sm text-danger sm:px-6">
-          <strong>Not configured</strong> — set INTINOR_* variables in .env.local
+          <strong>Not configured:</strong> set INTINOR_* variables in .env.local
           or enable MOCK=1.
         </div>
       </>
@@ -111,12 +111,12 @@ export function ModeBanner() {
       >
         {meta.writesAllowed ? (
           <>
-            <strong>Live unit {unitLabel} — WRITES ENABLED.</strong> Changes affect the real
+            <strong>Live unit {unitLabel}: WRITES ENABLED.</strong> Changes affect the real
             broadcast chain.
           </>
         ) : (
           <>
-            <strong>Live unit {unitLabel}</strong> — read-only mode. All writes are blocked by the
+            <strong>Live unit {unitLabel}:</strong> read-only mode. All writes are blocked by the
             proxy.
           </>
         )}

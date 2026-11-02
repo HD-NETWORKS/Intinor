@@ -23,8 +23,12 @@
   --fg: #15162b;
   --body-text: #15162b;
   --muted: #55577a;
-  --faint: #8a8ca8;
-  --subtle: #8a8ca8;
+  /* --faint/--subtle: darkened from the brand kit's literal Slate (#8A8CA8,
+     3.1–3.3:1 on panel/page) to clear WCAG AA's 4.5:1 for normal text — both
+     tokens show up at caption sizes (bitrate/format rows, timestamps) well
+     under the 18px/14px-bold large-text threshold that would excuse it. */
+  --faint: #6b6d8f;
+  --subtle: #6b6d8f;
   --accent-text: #3e4095;
   --danger-text: #c81e23;
   --warning-text: #b45309;
@@ -46,7 +50,9 @@
     --body-text: #e4e4f2;
     --muted: #a3a5c6;
     --faint: #8a8ca8;
-    --subtle: #6f7196;
+    /* Lightened for the same reason as light mode's --faint/--subtle above —
+       this one was still under 4.5:1 against --surface-solid. */
+    --subtle: #898ba9;
     --accent-text: #9195e0;
     --danger-text: #ff8489;
     --warning-text: #fcd34d;
@@ -67,8 +73,8 @@
   --fg: #15162b;
   --body-text: #15162b;
   --muted: #55577a;
-  --faint: #8a8ca8;
-  --subtle: #8a8ca8;
+  --faint: #6b6d8f;
+  --subtle: #6b6d8f;
   --accent-text: #3e4095;
   --danger-text: #c81e23;
   --warning-text: #b45309;
@@ -89,7 +95,7 @@
   --body-text: #e4e4f2;
   --muted: #a3a5c6;
   --faint: #8a8ca8;
-  --subtle: #6f7196;
+  --subtle: #898ba9;
   --accent-text: #9195e0;
   --danger-text: #ff8489;
   --warning-text: #fcd34d;

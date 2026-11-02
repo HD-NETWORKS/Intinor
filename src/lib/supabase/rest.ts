@@ -2,7 +2,7 @@ import "server-only";
 
 /**
  * Thin PostgREST client shared by every Supabase-backed feature (monitor
- * history/alerts, Zixi snapshot streams). Talks to PostgREST over plain HTTP
+ * history/alerts). Talks to PostgREST over plain HTTP
  * rather than pulling in `@supabase/*` — a handful of queries don't justify
  * the dependency, especially from serverless functions.
  *

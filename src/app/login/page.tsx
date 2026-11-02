@@ -3,11 +3,12 @@
 import { Suspense, useState } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
+import { safeNextPath } from "@/lib/auth/safe-redirect";
 
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const next = params.get("next") || "/";
+  const next = safeNextPath(params.get("next"));
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");

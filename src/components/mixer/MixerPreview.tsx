@@ -37,7 +37,7 @@ export function MixerPreview({
         <img src={src} alt={`Mixer ${index} live program output`} className="aspect-video w-full object-cover" />
       </div>
       <p className="text-xs text-faint">
-        Live program output from the unit — reflects what&apos;s currently applied,
+        Live program output from the unit. Reflects what&apos;s currently applied,
         not unsaved edits.
       </p>
     </div>

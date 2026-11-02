@@ -145,7 +145,7 @@ export function SettingsForm<T extends object>({
           <div className="text-sm">
             {saveBlocked ? (
               <span className="text-accent">
-                Live unit, read-only mode — saving is disabled by the proxy.
+                Live unit, read-only mode: saving is disabled by the proxy.
               </span>
             ) : !anyEditable ? (
               <span className="text-faint">No editable fields for your account.</span>
