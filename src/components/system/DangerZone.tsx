@@ -200,8 +200,11 @@ function ActionCard({ def }: { def: ActionDef }) {
         <div className="mt-3 space-y-2 border-t border-border-default pt-3">
           {isFirmwareUpgrade && (
             <div className="space-y-1">
-              <label className="text-xs text-muted">Version</label>
+              <label htmlFor="firmware-version-select" className="text-xs text-muted">
+                Version
+              </label>
               <select
+                id="firmware-version-select"
                 value={selected}
                 onChange={(e) => setSelected(e.target.value)}
                 className="w-full rounded border border-border-strong bg-page px-2 py-1.5 text-sm text-body"

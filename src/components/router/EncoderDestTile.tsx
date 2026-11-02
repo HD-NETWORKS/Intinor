@@ -48,7 +48,8 @@ export function EncoderDestTile({
         : `${activeDestinations[0].description} +${activeDestinations.length - 1} more`;
 
   return (
-    <div
+    <button
+      type="button"
       onDragOver={(e) => {
         if (dropDisabled) return;
         e.preventDefault();
@@ -66,7 +67,7 @@ export function EncoderDestTile({
       onClick={openSettings}
       title="Open this encoder's settings"
       className={
-        "w-full cursor-pointer space-y-1 rounded border-2 p-2 transition-colors " +
+        "w-full cursor-pointer space-y-1 rounded border-2 p-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 " +
         (isOver
           ? "border-brand-400 bg-brand-500/10"
           : isDragActive && !dropDisabled
@@ -94,6 +95,6 @@ export function EncoderDestTile({
       {dropDisabled && (
         <div className="text-[10px] text-subtle">Source not editable for your account</div>
       )}
-    </div>
+    </button>
   );
 }

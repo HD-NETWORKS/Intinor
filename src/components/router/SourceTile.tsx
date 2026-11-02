@@ -77,7 +77,8 @@ export function SourceTile({
   };
 
   return (
-    <div
+    <button
+      type="button"
       draggable={!dragDisabled}
       onDragStart={(e) => {
         e.dataTransfer.setData("text/plain", href);
@@ -87,7 +88,7 @@ export function SourceTile({
       onDragEnd={onDragEnd}
       onClick={openSettings}
       className={
-        "w-full cursor-pointer space-y-1 rounded border border-border-default bg-panel p-2 hover:border-brand-600/60 " +
+        "w-full cursor-pointer space-y-1 rounded border border-border-default bg-panel p-2 text-left hover:border-brand-600/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 " +
         (dragDisabled ? "opacity-50" : "active:cursor-grabbing")
       }
       title={
@@ -120,6 +121,6 @@ export function SourceTile({
           ⚠ used by {usedBy.join(", ")}
         </div>
       )}
-    </div>
+    </button>
   );
 }

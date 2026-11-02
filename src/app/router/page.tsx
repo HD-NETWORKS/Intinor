@@ -213,7 +213,11 @@ export default function RouterPage() {
           Drag a source onto an encoder to reassign it — a visual alternative to the encoder
           settings page&apos;s source dropdown. Same underlying write (
           <code className="rounded bg-panel-hover px-1">video_source.source</code>), same
-          confirm-before-save flow.
+          confirm-before-save flow.{" "}
+          <span className="text-faint">
+            Dragging needs a mouse — without one, click a source or encoder tile (or Tab to it
+            and press Enter) to reassign from that dropdown instead.
+          </span>
         </p>
       </div>
 

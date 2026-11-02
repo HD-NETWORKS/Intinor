@@ -33,10 +33,28 @@ export function StatusCardShell({
   return (
     <div
       onClick={onClick}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              // Only react to the card itself — a nested control (the
+              // Thumbnail's PPM checkbox/download link) handles its own
+              // Enter/Space natively, and its keydown still bubbles here.
+              if (e.target !== e.currentTarget) return;
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
       title={onClick ? "Click to open settings" : undefined}
       className={
         "space-y-3 rounded border border-border-default bg-panel p-4" +
-        (onClick ? " cursor-pointer hover:border-brand-600/60" : "")
+        (onClick
+          ? " cursor-pointer hover:border-brand-600/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+          : "")
       }
     >
       <div className="flex items-center justify-between">
