@@ -8,11 +8,14 @@
 
 import type {
   AccessControlSettings,
+  DestinationsSettingsAdvanced,
   DestinationsSettingsBasic,
+  DestinationsSettingsConstraints,
   DestinationsSettingsRtmp,
   PipeRecordingSettings,
 } from "@/lib/intinor/types";
 import type { FieldSection, SelectOption } from "./fields";
+import { optionsFromDescribed } from "./options";
 
 export function RemoveButton({ onClick }: { onClick: () => void }) {
   return (
@@ -219,6 +222,30 @@ export function onRequestDestinationSections(
           min: 20,
         },
         {
+          path: `${basePath}.srt_on_request.extra_delay`,
+          label: "Extra delay",
+          kind: "number",
+          unit: "ms",
+          min: 0,
+        },
+        {
+          path: `${basePath}.srt_on_request.key_length`,
+          label: "Encryption key length",
+          kind: "number",
+          help: "0 = automatic/off, 16 = AES-128, 24 = AES-192, 32 = AES-256.",
+        },
+        {
+          path: `${basePath}.srt_on_request.rtp_over_srt`,
+          label: "RTP over SRT",
+          kind: "checkbox",
+        },
+        {
+          path: `${basePath}.srt_on_request.adapter`,
+          label: "Network interface",
+          kind: "text",
+          help: "Leave blank to bind on the default interface.",
+        },
+        {
           path: `${basePath}.srt_on_request.password`,
           label: "Passphrase",
           kind: "password",
@@ -245,11 +272,137 @@ export function onRequestDestinationSections(
           min: 1,
           max: 65535,
         },
+        {
+          path: `${basePath}.tcp_on_request.extra_delay`,
+          label: "Extra delay",
+          kind: "number",
+          unit: "ms",
+          min: 0,
+        },
       ],
     });
   }
 
   return sections;
+}
+
+/**
+ * BRT bonding/redundancy profiles + FEC layout, under `destinations.advanced`.
+ * Not on every unit/firmware (added in a later Direkt firmware than this
+ * dashboard was originally built against) — only rendered when the loaded
+ * settings actually have the block, same convention as every other
+ * optional destination group above.
+ */
+export function advancedDestinationSection(
+  advanced: DestinationsSettingsAdvanced | undefined,
+  constraints: DestinationsSettingsConstraints["advanced"] | undefined,
+  basePath = "destinations",
+): FieldSection[] {
+  if (!advanced) return [];
+
+  const redundancyOptions = optionsFromDescribed(constraints?.brt?.redundancy_profile);
+  const latencyOptions = optionsFromDescribed(constraints?.brt?.latency_profile);
+  const bufferOptions = optionsFromDescribed(constraints?.brt?.buffer_profile);
+  const selectiveRedundancyOptions = optionsFromDescribed(
+    constraints?.brt?.selective_redundancy_profile,
+  );
+
+  return [
+    {
+      title: "Advanced (bonding & redundancy)",
+      description:
+        "BRT redundancy/FEC settings for bonded or otherwise unreliable links. Set up on the unit itself; shown here read/write once configured.",
+      fields: [
+        {
+          path: `${basePath}.advanced.brt.redundancy_profile`,
+          label: "Redundancy profile",
+          kind: "select",
+          options: redundancyOptions,
+        },
+        {
+          path: `${basePath}.advanced.brt.custom_redundancy`,
+          label: "Custom redundancy",
+          kind: "number",
+          unit: "%",
+          min: 0,
+          max: 100,
+          help: "Only used when redundancy profile is \"custom\".",
+        },
+        {
+          path: `${basePath}.advanced.brt.latency_profile`,
+          label: "Latency profile",
+          kind: "select",
+          options: latencyOptions,
+        },
+        {
+          path: `${basePath}.advanced.brt.custom_latency`,
+          label: "Custom latency",
+          kind: "number",
+          unit: "s",
+          step: 0.1,
+          min: 0,
+        },
+        {
+          path: `${basePath}.advanced.brt.custom_end_to_end_delay`,
+          label: "Custom end-to-end delay",
+          kind: "number",
+          unit: "s",
+          step: 0.1,
+          min: 0,
+        },
+        {
+          path: `${basePath}.advanced.brt.buffer_profile`,
+          label: "Buffer profile",
+          kind: "select",
+          options: bufferOptions,
+        },
+        {
+          path: `${basePath}.advanced.brt.selective_redundancy_profile`,
+          label: "Selective redundancy",
+          kind: "select",
+          options: selectiveRedundancyOptions,
+        },
+        {
+          path: `${basePath}.advanced.fec_layout.d`,
+          label: "FEC columns (D)",
+          kind: "number",
+          min: 0,
+        },
+        {
+          path: `${basePath}.advanced.fec_layout.l`,
+          label: "FEC rows (L)",
+          kind: "number",
+          min: 0,
+        },
+        {
+          path: `${basePath}.advanced.udp_bonding_delay`,
+          label: "UDP bonding delay",
+          kind: "number",
+          unit: "s",
+          step: 0.1,
+          min: constraints?.udp_bonding_delay?.min,
+          max: constraints?.udp_bonding_delay?.max,
+        },
+        {
+          path: `${basePath}.advanced.udp_smoothing_buffer`,
+          label: "UDP smoothing buffer",
+          kind: "number",
+          unit: "s",
+          step: 0.1,
+          min: constraints?.udp_smoothing_buffer?.min,
+          max: constraints?.udp_smoothing_buffer?.max,
+        },
+        {
+          path: `${basePath}.advanced.extra_delay`,
+          label: "Extra delay",
+          kind: "number",
+          unit: "ms",
+          min: constraints?.extra_delay?.min,
+          max: constraints?.extra_delay?.max,
+        },
+      ],
+    },
+  ];
 }
 
 export function rtmpDestinationSections(

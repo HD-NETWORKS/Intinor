@@ -4,20 +4,26 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useIntinorClient } from "@/hooks/useIntinorClient";
 import { useSourceUsage } from "@/hooks/useSourceUsage";
 import type {
+  DestinationsSettingsConstraints,
   NetworkInput,
   NetworkInputsList,
   NetworkInputSettings,
   NetworkInputSettingsResponse,
+  NetworkSourcesSmpte20227,
+  NetworkSourcesSmpte20227Source,
   RequestMetadata,
 } from "@/lib/intinor/types";
 import type { FieldSection } from "@/lib/settings/fields";
 import { optionsFromDescribed } from "@/lib/settings/options";
 import {
   accessControlSections,
+  advancedDestinationSection,
   arrayHeaderSection,
   basicDestinationSections,
   newAccessControlRule,
+  onRequestDestinationSections,
   recordingSections,
+  RemoveButton,
 } from "@/lib/settings/common-sections";
 import { useSettingsEditor, type ArrayHelpers } from "@/hooks/useSettingsEditor";
 import { useUnitMeta } from "@/hooks/useUnitMeta";
@@ -35,6 +41,116 @@ interface NetworkSourceConstraints {
     tcp_receive_buffer?: { min: number; max: number };
     decoder_buffer?: { min: number; max: number };
   };
+  smpte_2022_7?: {
+    protocol?: { value?: string; description?: string }[];
+    network_interface?: { value?: string; description?: string }[];
+    skew?: { min: number; max: number };
+  };
+}
+
+/** A fresh, inactive SMPTE 2022-7 leg — filled in and activated by hand before saving. */
+function newSmpte20227Source(protocol: string): NetworkSourcesSmpte20227Source {
+  return { description: "", protocol, active: false };
+}
+
+/**
+ * SMPTE 2022-7 seamless protection switching: two (usually) independent
+ * network paths carrying the same feed. Not on every unit/firmware — only
+ * rendered when the loaded settings actually include the block.
+ */
+function smpte20227Sections(
+  smpte: NetworkSourcesSmpte20227 | undefined,
+  c: NetworkSourceConstraints["smpte_2022_7"],
+  helpers: ArrayHelpers,
+): FieldSection[] {
+  if (!smpte) return [];
+  const protocolOptions = optionsFromDescribed(c?.protocol);
+  const ifaceOptions = optionsFromDescribed(c?.network_interface);
+  const sourceCount = smpte.sources?.length ?? 0;
+
+  return [
+    {
+      title: "SMPTE 2022-7",
+      description:
+        "Seamless protection switching over two independent network paths. \"Skew\" is the maximum timing difference tolerated between them.",
+      fields: [
+        { path: "network_sources.smpte_2022_7.active", label: "Active", kind: "checkbox" },
+        {
+          path: "network_sources.smpte_2022_7.skew",
+          label: "Skew",
+          kind: "number",
+          unit: "s",
+          step: 0.01,
+          min: c?.skew?.min,
+          max: c?.skew?.max,
+        },
+      ],
+    },
+    arrayHeaderSection(`SMPTE 2022-7 sources (${sourceCount})`, () =>
+      helpers.addArrayItem(
+        "network_sources.smpte_2022_7.sources",
+        newSmpte20227Source(protocolOptions[0]?.value ?? "udp_unicast"),
+      ),
+    ),
+    ...(smpte.sources ?? []).map((src, i) => ({
+      title: `Source ${i + 1}${src.description ? ` (${src.description})` : ""}`,
+      headerExtra: (
+        <RemoveButton
+          onClick={() => helpers.removeArrayItem("network_sources.smpte_2022_7.sources", i)}
+        />
+      ),
+      fields: [
+        {
+          path: `network_sources.smpte_2022_7.sources[${i}].active`,
+          label: "Active",
+          kind: "checkbox" as const,
+        },
+        {
+          path: `network_sources.smpte_2022_7.sources[${i}].description`,
+          label: "Description",
+          kind: "text" as const,
+        },
+        {
+          path: `network_sources.smpte_2022_7.sources[${i}].protocol`,
+          label: "Protocol",
+          kind: "select" as const,
+          options: protocolOptions,
+        },
+        {
+          path: `network_sources.smpte_2022_7.sources[${i}].network_interface`,
+          label: "Interface",
+          kind: "select" as const,
+          options: ifaceOptions,
+        },
+        {
+          path: `network_sources.smpte_2022_7.sources[${i}].address`,
+          label: "Address",
+          kind: "text" as const,
+          help: "Multicast group address, or the remote address for an SRT caller leg.",
+        },
+        {
+          path: `network_sources.smpte_2022_7.sources[${i}].port`,
+          label: "Port",
+          kind: "number" as const,
+          min: 1,
+          max: 65535,
+        },
+        {
+          path: `network_sources.smpte_2022_7.sources[${i}].srt.latency`,
+          label: "SRT latency",
+          kind: "number" as const,
+          unit: "ms",
+          min: 20,
+        },
+        {
+          path: `network_sources.smpte_2022_7.sources[${i}].srt.password`,
+          label: "SRT passphrase",
+          kind: "password" as const,
+          help: "Only used when protocol is an SRT caller leg. Leave unchanged to keep the current passphrase.",
+        },
+      ],
+    })),
+  ];
 }
 
 function inputSections(
@@ -193,15 +309,17 @@ function inputSections(
     });
   }
 
+  sections.push(...smpte20227Sections(src.smpte_2022_7, c.smpte_2022_7, helpers));
+
   // Direct passthrough destinations — the input pushes its raw ingest onward,
   // bypassing this unit's own encoders. Non-DVB-compliant but useful for
   // relaying/forwarding a feed.
   if (s.destinations) {
-    const protocolOptions = optionsFromDescribed(
-      (s._constraints?.destinations as { protocol?: { value?: string; description?: string }[] })
-        ?.protocol,
-    );
+    const destC = s._constraints?.destinations as DestinationsSettingsConstraints | undefined;
+    const protocolOptions = optionsFromDescribed(destC?.protocol);
     sections.push(...basicDestinationSections(s.destinations.basic, protocolOptions));
+    sections.push(...onRequestDestinationSections(s.destinations));
+    sections.push(...advancedDestinationSection(s.destinations.advanced, destC?.advanced));
   }
 
   sections.push(...recordingSections(s.recording));

@@ -16,6 +16,7 @@ import type { FieldSection, SelectOption } from "@/lib/settings/fields";
 import { optionsFromDescribed, optionsFromEncodingModes } from "@/lib/settings/options";
 import {
   accessControlSections,
+  advancedDestinationSection,
   arrayHeaderSection,
   basicDestinationSections,
   newAccessControlRule,
@@ -259,6 +260,7 @@ function encoderSections(
     ),
   );
   sections.push(...onRequestDestinationSections(s.destinations));
+  sections.push(...advancedDestinationSection(s.destinations?.advanced, c?.destinations?.advanced));
   const rtmpCount = s.destinations?.rtmp?.length ?? 0;
   sections.push(
     arrayHeaderSection(`RTMP destinations (${rtmpCount})`, () =>

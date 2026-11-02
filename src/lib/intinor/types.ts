@@ -567,7 +567,7 @@ export interface DestinationsStatus {
 }
 
 export interface DestinationsSettingsConstraints {
-  capabilities: { encryption: boolean };
+  capabilities: { encryption: boolean; advanced?: { brt?: { additional_destinations?: boolean } } };
   protocol: Array<{ value: string; type: string; description: string }>;
   basic: {
     rist?: {
@@ -576,6 +576,27 @@ export interface DestinationsSettingsConstraints {
     };
     extra_delay?: IntegerMinMax;
     network_interface: DescriptionValue[];
+  };
+  /** Per-destination-group "listen for a pull connection" options — on_request itself is an array of entries, this is the option metadata shared across them. */
+  on_request?: {
+    network_interface?: DescriptionValue[];
+    srt?: { overhead?: IntegerMinMax };
+  };
+  srt_on_request?: {
+    adapter?: DescriptionValue[];
+  };
+  /** BRT bonding/redundancy profiles + FEC — see README's firmware-gap note. Not on every unit/firmware. */
+  advanced?: {
+    brt?: {
+      buffer_profile?: Array<{ value: string; name?: string; amount?: number }>;
+      selective_redundancy_profile?: Array<{ value: string; name?: string }>;
+      redundancy_profile?: Array<{ value: string; name?: string; amount?: number }>;
+      latency_profile?: Array<{ value: string; name?: string; amount?: number }>;
+    };
+    srt?: { key_length?: Array<{ value: number; name?: string }> };
+    udp_smoothing_buffer?: NumberMinMax & { is_configurable?: boolean };
+    udp_bonding_delay?: NumberMinMax;
+    extra_delay?: IntegerMinMax;
   };
   [key: string]: unknown;
 }
@@ -738,6 +759,32 @@ export interface NetworkSourcesAdvanced {
   decoder_buffer?: number;
 }
 
+/** One leg of a `smpte_2022_7` seamless-protection-switching pair. */
+export interface NetworkSourcesSmpte20227Source {
+  id?: string;
+  description?: string;
+  /** One of the unit's `network_sources.smpte_2022_7` protocol constraint values, e.g. udp_unicast/udp_multicast/srt_caller. */
+  protocol: string;
+  active: boolean;
+  port?: number;
+  address?: string;
+  network_interface?: string;
+  srt?: { password?: string; latency?: number };
+}
+
+/**
+ * SMPTE 2022-7 seamless protection switching: two independent network paths
+ * (`sources[]`, usually length 2) carrying the same feed, reconciled by
+ * `skew` (max timing difference tolerated between the two legs). Not on
+ * every unit/firmware, same convention as every other optional
+ * `network_sources` member below.
+ */
+export interface NetworkSourcesSmpte20227 {
+  active: boolean;
+  skew?: number;
+  sources: NetworkSourcesSmpte20227Source[];
+}
+
 export interface NetworkSourcesSettings {
   rtmp?: NetworkSourcesRtmp;
   tcp_receive: NetworkSourcesTcpReceive;
@@ -747,6 +794,7 @@ export interface NetworkSourcesSettings {
   srt_caller?: NetworkSourcesSrtCaller;
   udp_unicast: NetworkSourcesUdpUnicast;
   udp_multicast: NetworkSourcesUdpMulticast;
+  smpte_2022_7?: NetworkSourcesSmpte20227;
 }
 
 export interface NetworkInputSettings extends CommonPipeSettings {
