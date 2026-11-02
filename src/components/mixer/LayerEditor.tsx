@@ -176,10 +176,10 @@ export function LayerEditor({
                       className="w-full rounded border border-border-strong bg-page px-2 py-1 text-sm text-body"
                     >
                       <option value="">(no source)</option>
-                      {sourceOptions.map((opt) => {
+                      {sourceOptions.map((opt, i) => {
                         const usage = opt.value ? sourceUsage?.get(opt.value) : undefined;
                         return (
-                          <option key={opt.value} value={opt.value}>
+                          <option key={opt.value ?? `__unset-${i}`} value={opt.value ?? ""}>
                             {opt.name}
                             {opt.value && !availableFeeds.has(opt.value) && isFeedSource(opt.value)
                               ? " (offline)"

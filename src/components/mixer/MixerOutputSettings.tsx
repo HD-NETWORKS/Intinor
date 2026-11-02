@@ -18,9 +18,13 @@ interface VideoOutConstraints {
   sd_aspect_ratio?: { value?: string; description?: string }[];
 }
 
+interface AudioConstraints {
+  input?: { source?: { value?: string; description?: string }[] };
+}
+
 function outputSections(s: VideoMixerSettingsResponse): FieldSection[] {
   const c = (s._constraints?.video_out ?? {}) as VideoOutConstraints;
-  return [
+  const sections: FieldSection[] = [
     {
       title: "Output format",
       fields: [
@@ -40,6 +44,28 @@ function outputSections(s: VideoMixerSettingsResponse): FieldSection[] {
       ],
     },
   ];
+
+  // `audio` is a separate optional member of the mixer's settings (not
+  // present on every unit/firmware), same self-hiding convention as every
+  // other optional group elsewhere in this app.
+  if (s.audio) {
+    const audioC = (s._constraints?.audio ?? {}) as AudioConstraints;
+    sections.push({
+      title: "Audio",
+      description: "Which input feeds the mixer's audio output, independent of what's on screen.",
+      fields: [
+        { path: "audio.muted", label: "Muted", kind: "checkbox" },
+        {
+          path: "audio.input.source",
+          label: "Audio source",
+          kind: "select",
+          options: optionsFromDescribed(audioC.input?.source),
+        },
+      ],
+    });
+  }
+
+  return sections;
 }
 
 /**

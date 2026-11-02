@@ -1136,8 +1136,12 @@ export interface SystemStatus {
     network_interface?: string;
     address?: string;
     via_http: boolean;
+    via_bonding?: boolean;
     connected: boolean;
   };
+  /** Seconds since last boot. */
+  uptime?: number;
+  ntp_synchronized?: boolean;
   datetime: string;
   talkback?: {
     status_description: string;
