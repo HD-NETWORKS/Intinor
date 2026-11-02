@@ -8,7 +8,7 @@ import { ThemeProvider } from "@/lib/theme/context";
 import { THEME_STORAGE_KEY } from "@/lib/theme/constants";
 
 export const metadata: Metadata = {
-  title: "HD Networks — Intinor Dashboard",
+  title: "HD Networks · Intinor Dashboard",
   description: "Custom dashboard for Intinor Direkt encoder units",
 };
 

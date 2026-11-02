@@ -52,7 +52,7 @@ export function recordingSections(
 
   if (recording.mpegts) {
     sections.push({
-      title: "Recording — MPEG-TS",
+      title: "Recording: MPEG-TS",
       fields: [
         { path: `${basePath}.mpegts.active`, label: "Active", kind: "checkbox" },
         { path: `${basePath}.mpegts.path`, label: "Path", kind: "text" },
@@ -69,7 +69,7 @@ export function recordingSections(
 
   if (recording.flv) {
     sections.push({
-      title: "Recording — FLV",
+      title: "Recording: FLV",
       fields: [
         { path: `${basePath}.flv.active`, label: "Active", kind: "checkbox" },
         { path: `${basePath}.flv.path`, label: "Path", kind: "text" },
@@ -104,9 +104,9 @@ export function accessControlSections(
   onRemove?: (index: number) => void,
 ): FieldSection[] {
   return (list ?? []).map((rule, i) => ({
-    title: `Access rule ${i + 1}${rule.description ? ` — ${rule.description}` : ""}`,
+    title: `Access rule ${i + 1}${rule.description ? ` (${rule.description})` : ""}`,
     description:
-      "Restricts who may connect to this source — fill in exactly one of IP, key, or serial below, not more than one.",
+      "Restricts who may connect to this source. Fill in exactly one of IP, key, or serial below, not more than one.",
     headerExtra: onRemove ? <RemoveButton onClick={() => onRemove(i)} /> : undefined,
     fields: [
       { path: `${basePath}[${i}].active`, label: "Active", kind: "checkbox" },
@@ -115,19 +115,19 @@ export function accessControlSections(
         path: `${basePath}[${i}].ip`,
         label: "IP address",
         kind: "text",
-        help: "Leave blank if you're using a key or serial below — the unit rejects a rule that sets more than one.",
+        help: "Leave blank if you're using a key or serial below: the unit rejects a rule that sets more than one.",
       },
       {
         path: `${basePath}[${i}].key`,
         label: "Access key",
         kind: "text",
-        help: "Paste the other unit's sender key (Settings → General → Access control on that unit). If the copied text has a trailing name after the key itself, e.g. \"...Kw== Direkt-D01796\", that's just a label — paste only the part before the space, and leave IP/serial below blank.",
+        help: "Paste the other unit's sender key (Settings → General → Access control on that unit). If the copied text has a trailing name after the key itself, e.g. \"...Kw== Direkt-D01796\", that's just a label; paste only the part before the space, and leave IP/serial below blank.",
       },
       {
         path: `${basePath}[${i}].serial`,
         label: "Remote unit serial",
         kind: "text",
-        help: "Leave blank if you're using a key above — the unit rejects a rule that sets more than one.",
+        help: "Leave blank if you're using a key above: the unit rejects a rule that sets more than one.",
       },
     ],
   }));
@@ -141,7 +141,7 @@ export function basicDestinationSections(
   onRemove?: (index: number) => void,
 ): FieldSection[] {
   return (basic ?? []).map((dest, i) => ({
-    title: `Destination ${i + 1}${dest.description ? ` — ${dest.description}` : ""}`,
+    title: `Destination ${i + 1}${dest.description ? ` (${dest.description})` : ""}`,
     description: "Where this pipe pushes its output.",
     headerExtra: onRemove ? <RemoveButton onClick={() => onRemove(i)} /> : undefined,
     fields: [
@@ -258,7 +258,7 @@ export function rtmpDestinationSections(
   onRemove?: (index: number) => void,
 ): FieldSection[] {
   return (rtmp ?? []).map((dest, i) => ({
-    title: `RTMP destination ${i + 1}${dest.description ? ` — ${dest.description}` : ""}`,
+    title: `RTMP destination ${i + 1}${dest.description ? ` (${dest.description})` : ""}`,
     headerExtra: onRemove ? <RemoveButton onClick={() => onRemove(i)} /> : undefined,
     fields: [
       { path: `${basePath}.rtmp[${i}].active`, label: "Active", kind: "checkbox" },

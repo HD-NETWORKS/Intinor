@@ -42,7 +42,7 @@ export function BackupPanel() {
         </h2>
         <p className="mt-1 text-xs text-faint">
           Downloads the unit&apos;s full settings snapshot (<code className="rounded bg-panel-hover px-1">GET system/config</code>,
-          an XML file). Restoring one is intentionally not available here — it{"'"}s a
+          an XML file). Restoring one is intentionally not available here: it{"'"}s a
           destructive write that reboots the unit and this dashboard permanently blocks it at
           the proxy; use the unit&apos;s own IDM console for that.
         </p>

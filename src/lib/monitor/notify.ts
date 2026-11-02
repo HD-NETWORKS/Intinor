@@ -67,11 +67,11 @@ async function sendSlack(msg: AlertMessage): Promise<DeliveryResult | null> {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      text: `${emoji} *${msg.unitId}* — ${msg.title}`,
+      text: `${emoji} *${msg.unitId}* · ${msg.title}`,
       blocks: [
         {
           type: "section",
-          text: { type: "mrkdwn", text: `${emoji} *${msg.unitId}* — ${msg.title}\n${msg.body}` },
+          text: { type: "mrkdwn", text: `${emoji} *${msg.unitId}* · ${msg.title}\n${msg.body}` },
         },
       ],
     }),

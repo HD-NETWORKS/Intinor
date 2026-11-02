@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Not found — Intinor Dashboard",
+  title: "Not found · Intinor Dashboard",
 };
 
 /**

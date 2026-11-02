@@ -349,7 +349,7 @@ export default function UsersPage() {
         <div>
           <h1 className="text-xl font-semibold text-fg">Local users</h1>
           <p className="text-sm text-faint">
-            The unit&apos;s own accounts, roles, and per-resource permissions — separate from this
+            The unit&apos;s own accounts, roles, and per-resource permissions, separate from this
             dashboard&apos;s own login.
           </p>
         </div>

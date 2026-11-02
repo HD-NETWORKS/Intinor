@@ -449,7 +449,7 @@ function MixerEditor({
 
             {meta?.mock && (
               <p className="text-xs text-warning">
-                Mock mode — applying writes to the in-memory mock and updates the
+                Mock mode: applying writes to the in-memory mock and updates the
                 preview. The real unit is never touched.
               </p>
             )}
@@ -461,7 +461,7 @@ function MixerEditor({
             )}
             {liveWrite && (
               <p className="text-xs text-danger">
-                Live unit with writes enabled — applying changes the real program
+                Live unit with writes enabled: applying changes the real program
                 composition on {unitId}.
               </p>
             )}
@@ -565,8 +565,8 @@ function SlotBanner({
         </span>
       )}
       <span className="text-faint">
-        This unit currently exposes {feedCount} live feed{feedCount === 1 ? "" : "s"}
-        — extra quad cells fill with the test picture until more inputs (a second
+        This unit currently exposes {feedCount} live feed{feedCount === 1 ? "" : "s"}.
+        Extra quad cells fill with the test picture until more inputs (a second
         unit or licence upgrade) come online.
       </span>
     </div>

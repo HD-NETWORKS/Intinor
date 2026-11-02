@@ -98,7 +98,7 @@ async function pollUnit(id: string) {
       unitId: id,
       severity: alert.severity,
       recovery: false,
-      title: `${humanKind(alert.kind)} — ${alert.subject}`,
+      title: `${humanKind(alert.kind)} · ${alert.subject}`,
       body: alert.message,
     });
     delivered.push({ kind: alert.kind, subject: alert.subject, results });
@@ -112,7 +112,7 @@ async function pollUnit(id: string) {
       unitId: id,
       severity: row.severity,
       recovery: true,
-      title: `Resolved: ${humanKind(row.kind)} — ${row.subject}`,
+      title: `Resolved: ${humanKind(row.kind)} · ${row.subject}`,
       body: `Condition cleared. Originally: ${row.message}`,
     });
     delivered.push({ kind: row.kind, subject: row.subject, recovery: true, results });
@@ -145,7 +145,7 @@ export async function GET(req: NextRequest) {
       {
         error: process.env.CRON_SECRET
           ? "Unauthorized"
-          : "CRON_SECRET is not set — refusing to run.",
+          : "CRON_SECRET is not set; refusing to run.",
       },
       { status: 401 },
     );

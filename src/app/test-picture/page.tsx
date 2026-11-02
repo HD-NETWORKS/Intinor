@@ -88,7 +88,7 @@ function CustomBackgroundUpload() {
       <div>
         <h2 className="font-medium text-body">Custom background</h2>
         <p className="text-xs text-faint">
-          Uploaded via <code>PUT test_picture/custom_background</code> — a raw image, not part of
+          Uploaded via <code>PUT test_picture/custom_background</code>, a raw image, not part of
           the settings object above. Select &quot;Custom image&quot; as the background to use it.
         </p>
       </div>
@@ -119,7 +119,7 @@ function CustomBackgroundUpload() {
         </button>
         {saveBlocked && (
           <span className="text-xs text-accent">
-            Live unit, read-only mode — uploads are disabled by the proxy.
+            Live unit, read-only mode: uploads are disabled by the proxy.
           </span>
         )}
       </div>

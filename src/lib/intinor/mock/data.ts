@@ -98,7 +98,7 @@ export const mockSystem: SystemInformation = {
   product_type: "direkt_router",
   model_name: "Direkt router",
   full_model_name: "Direkt router basic mobile",
-  description: "HD Networks — mobile encoder",
+  description: "HD Networks mobile encoder",
   serial: process.env.INTINOR_UNIT_ID || "D01393",
   firmware: "S5.1.2-1",
   access_key: "MOCK-ACCESS-KEY",
@@ -929,7 +929,7 @@ export const mockTestPictureSettings: TestPictureSettingsResponse = {
   active: true,
   background: "color_bars",
   audio: "tone_1khz",
-  text_overlay: "HD Networks — %h:%m:%s",
+  text_overlay: "HD Networks %h:%m:%s",
   animation_overlay: "none",
   _version: "mock-1",
   _constraints: {

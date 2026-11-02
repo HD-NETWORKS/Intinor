@@ -38,7 +38,7 @@ export function ConfirmChangesDialog({
           <h2 className="text-base font-semibold text-fg">Confirm changes</h2>
           <p className="text-sm text-muted">
             {writeMode === "mock"
-              ? "Mock mode — this writes to the in-memory mock, not the real unit."
+              ? "Mock mode: this writes to the in-memory mock, not the real unit."
               : `These fields will be changed on ${unitId ?? "the unit"}.`}
           </p>
         </div>
@@ -78,7 +78,7 @@ export function ConfirmChangesDialog({
         {needsTypeToConfirm && (
           <div className="space-y-1">
             <p className="text-xs text-danger">
-              Live unit with writes enabled — type <code className="rounded bg-panel-hover px-1">SAVE</code> to
+              Live unit with writes enabled: type <code className="rounded bg-panel-hover px-1">SAVE</code> to
               apply.
             </p>
             <input

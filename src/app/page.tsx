@@ -48,7 +48,7 @@ export default function Overview() {
     <div className="mx-auto max-w-5xl space-y-6">
       <div>
         <h1 className="text-xl font-semibold text-fg">Unit overview</h1>
-        <p className="text-sm text-faint">Live status — read-only. Updates every 5 seconds.</p>
+        <p className="text-sm text-faint">Live status, read-only. Updates every 5 seconds.</p>
       </div>
 
       <NetworkInterfacesPanel />
@@ -63,7 +63,7 @@ export default function Overview() {
           <div className="flex items-center gap-3">
             <span className="text-xs text-faint">
               {inputCount} input · {videoInputCount} Netvideo · {mixerCount} mixer ·{" "}
-              {encoderCount} encoder — fixed by hardware/license
+              {encoderCount} encoder (fixed by hardware/license)
             </span>
             <div className="flex gap-1">
               {(["cards", "list"] as const).map((v) => (
@@ -140,7 +140,7 @@ export default function Overview() {
         )}
 
         <p className="mt-3 text-xs text-faint">
-          Pipe counts come straight from the unit&apos;s API — this dashboard manages whatever
+          Pipe counts come straight from the unit&apos;s API; this dashboard manages whatever
           the hardware/license provides and cannot add encoders, mixers, or inputs.
         </p>
       </div>

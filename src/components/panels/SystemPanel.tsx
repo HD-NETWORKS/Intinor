@@ -27,7 +27,7 @@ export function SystemPanel() {
     <div className="space-y-3">
       {updateAvailable && (
         <div className="rounded border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-sm text-warning">
-          Firmware update available — running <strong>{running}</strong>, recommended{" "}
+          Firmware update available: running <strong>{running}</strong>, recommended{" "}
           <strong>{recommended}</strong>.
         </div>
       )}

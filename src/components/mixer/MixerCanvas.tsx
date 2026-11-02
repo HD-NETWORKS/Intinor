@@ -83,7 +83,7 @@ export function MixerCanvas({
     >
       {layers.length === 0 && (
         <div className="absolute inset-0 flex items-center justify-center text-sm text-slate-500">
-          No layers — add one or pick a preset.
+          No layers. Add one or pick a preset.
         </div>
       )}
 
@@ -127,7 +127,7 @@ export function MixerCanvas({
                   ? "rgba(120,53,15,0.5)"
                   : "rgba(71,85,105,0.5)",
             }}
-            title={(layer.input?.source ?? "(no source)") + (disabled ? " — disabled" : "")}
+            title={(layer.input?.source ?? "(no source)") + (disabled ? " (disabled)" : "")}
           >
             <div className="pointer-events-none px-1 text-center text-slate-100">
               <div>{sourceLabel(layer.input?.source)}</div>

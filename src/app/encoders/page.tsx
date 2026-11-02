@@ -95,7 +95,7 @@ function muxingSection(s: EncoderSettingsResponse): FieldSection[] {
       ],
     },
     {
-      title: "Muxing — DVB tables",
+      title: "Muxing: DVB tables",
       description: "Network Information, Event Information, Time & Date, and Service Description tables.",
       fields: [
         { path: "muxing.dvb.nit.network_name", label: "Network name (NIT)", kind: "text" },
@@ -133,7 +133,7 @@ function muxingSection(s: EncoderSettingsResponse): FieldSection[] {
       ],
     },
     {
-      title: "Muxing — metadata",
+      title: "Muxing: metadata",
       fields: [
         { path: "muxing.klv_metadata.active", label: "KLV metadata", kind: "checkbox" },
         {
@@ -150,7 +150,7 @@ function muxingSection(s: EncoderSettingsResponse): FieldSection[] {
 function withUsageHints(options: SelectOption[], usage: Map<string, string[]>): SelectOption[] {
   return options.map((o) => {
     const users = usage.get(o.value);
-    return users && users.length > 0 ? { ...o, label: `${o.label} — used by ${users.join(", ")}` } : o;
+    return users && users.length > 0 ? { ...o, label: `${o.label} (used by ${users.join(", ")})` } : o;
   });
 }
 

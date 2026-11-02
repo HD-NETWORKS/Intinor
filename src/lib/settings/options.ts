@@ -31,7 +31,7 @@ export function optionsFromEncodingModes(
 ): SelectOption[] {
   return (list ?? []).map((m) => ({
     value: m.value ?? m.id,
-    label: m.group_description ? `${m.group_description} — ${m.description}` : m.description,
+    label: m.group_description ? `${m.group_description} · ${m.description}` : m.description,
   }));
 }
 
