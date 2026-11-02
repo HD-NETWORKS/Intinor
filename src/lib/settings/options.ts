@@ -13,8 +13,18 @@ interface DescribedValue {
 }
 
 export function optionsFromDescribed(list: DescribedValue[] | undefined): SelectOption[] {
+  const seen = new Set<string>();
   return (list ?? [])
-    .filter((o): o is DescribedValue & { value: string } => typeof o.value === "string")
+    // A described value can omit `value` entirely to mean a real, selectable
+    // "off/none" state (e.g. per-resource user permissions' "no access"
+    // role) — same convention LayerEditor's source list uses. Treat it as
+    // "" rather than dropping it, or that choice becomes unselectable.
+    .map((o) => ({ ...o, value: o.value ?? "" }))
+    // Some constraint lists (e.g. destinations.protocol) repeat the same
+    // value once per destination-group type ("srt" for both a push
+    // destination and an on-request one) — same option, shown twice would
+    // be a duplicate <option> and a duplicate React key. Keep the first.
+    .filter((o) => (seen.has(o.value) ? false : (seen.add(o.value), true)))
     .map((o) => ({ value: o.value, label: o.name ?? o.description ?? o.value }));
 }
 
